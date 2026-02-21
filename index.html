@@ -144,7 +144,7 @@ var DEF={
   income:{husband:0,wife:0,husbandLabel:"Husband Salary / Income",wifeLabel:"Wife Salary / Income",rental:115000,rentalActive:false},
   scss:{dad:{deposited:1000000,target:3000000,rate:8.2,qtrPayout:20500,targetQtrPayout:61500},
         mom:{deposited:1000000,target:3000000,rate:8.2,qtrPayout:20500,targetQtrPayout:61500}},
-  fd:{planned:1500000,deposited:false,rate:9.0,targetMonthly:9060,actualMonthly:0},
+  fd:{planned:1500000,deposited:false,rate:9.0,actualMonthly:0},
   expenses:{
     monthly:[
       {id:"sbi",  label:"SBI Loan EMI",     v:73377, icon:"🏦"},
@@ -468,7 +468,7 @@ function renderInc(scssMonthly){
     +'</select></div>';
   h += row("Rental — Wanaparthy", ff(D.income.rental), "#6366f1", "income.rental");
   h += row("SCSS (Dad+Mom combined/mo)", ff(scssMonthly), "#f59e0b");
-  h += row("Sweep FD (monthly target)", ff(Math.round(D.fd.planned * D.fd.rate / 100 / 12)), "#06b6d4");
+  h += row("Sweep FD (monthly payout)", D.fd.deposited ? ff(D.fd.actualMonthly) : "⏳ Not deposited", "#06b6d4");
   html("tab-inc", '<div class="card"><div class="ctitle" style="color:#10b981">💰 INCOME SOURCES</div>'+h+'</div>');
 }
 
@@ -549,24 +549,25 @@ function renderScss(){
     + payH + '</div>');
 }
 
-// ── FD (FIXED: target monthly dynamic + auto-set actual on deposit and when planned/rate changes) ──
+// ── FD (SIMPLIFIED: single payout field) ──
 function renderFD(){
-  var target = D.fd.planned * D.fd.rate / 100 / 12;
-  target = Math.round(target); // round to nearest rupee
+  var calc = D.fd.planned * D.fd.rate / 100 / 12;
+  calc = Math.round(calc);
 
   var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
     +'<span style="color:#64748b;font-size:12px">Status:</span>'
-    +'<select onchange="var newVal=this.value===\'true\'; if(newVal && !D.fd.deposited && D.fd.actualMonthly===0) { D.fd.actualMonthly = Math.round(D.fd.planned * D.fd.rate / 100 / 12); } D.fd.deposited=newVal; autoSave();renderAll();">'
+    +'<select onchange="var newVal=this.value===\'true\'; if(newVal && !D.fd.deposited) { D.fd.actualMonthly = Math.round(D.fd.planned * D.fd.rate / 100 / 12); } D.fd.deposited=newVal; autoSave();renderAll();">'
     +'<option value="false"'+(D.fd.deposited?"":" selected")+'>⚠️ Not yet deposited</option>'
     +'<option value="true"'+(D.fd.deposited?" selected":"")+'>✅ Deposited</option>'
     +'</select></div>';
   h += row("Planned Amount", ff(D.fd.planned), "white", "fd.planned");
   h += row("Rate", D.fd.rate + "%", "white", "fd.rate");
-  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px">'
-    +'<span style="color:#64748b;font-size:12px">Target Monthly Payout</span>'
-    +'<span style="color:#06b6d4;font-size:12px;font-weight:700">'+ff(target)+'</span></div>';
   if(D.fd.deposited){
-    h += row("Actual Monthly Payout", ff(D.fd.actualMonthly), "#22d3a5", "fd.actualMonthly");
+    h += row("Monthly Payout", ff(D.fd.actualMonthly), "#22d3a5", "fd.actualMonthly");
+  } else {
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px">'
+      +'<span style="color:#64748b;font-size:12px">Expected Monthly Payout</span>'
+      +'<span style="color:#64748b;font-size:12px">'+ff(calc)+'</span></div>';
   }
   html("tab-fd", '<div class="card"><div class="ctitle" style="color:#06b6d4">🏦 SWEEP FD</div>'+h+'</div>');
 }
