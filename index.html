@@ -406,11 +406,12 @@ async function doLogin() {
   if(!email||!pass){ showErr("Please fill all fields"); return; }
   try {
     const d = await sbSignin(email, pass);
+    if(!d.access_token) throw new Error(d.error_description || d.msg || "Login failed — check email/password");
     sbToken = d.access_token;
-    sbUid   = d.user.id;
-    const name = d.user.user_metadata?.display_name || email.split("@")[0];
+    sbUid   = (d.user||{}).id || "user";
+    const name = (d.user&&d.user.user_metadata&&d.user.user_metadata.display_name) || email.split("@")[0];
     document.getElementById("user-name").textContent = name+"'s Finance Dashboard";
-    document.getElementById("user-email").textContent = "@"+email.split("@")[0];
+    document.getElementById("user-email").textContent = email;
     const cloud = await sbLoadData(sbToken);
     if(cloud) D = cloud;
     showApp();
@@ -427,10 +428,11 @@ async function doRegister() {
   if(pass.length<6){ showErr("Password must be at least 6 characters"); return; }
   try {
     const d = await sbSignup(email, pass, name);
-    sbToken = d.session?.access_token || d.access_token;
-    sbUid   = d.user?.id;
+    const session = (d.session||{});
+    sbToken = session.access_token || d.access_token || null;
+    sbUid   = (d.user||{}).id || "user";
     document.getElementById("user-name").textContent = name+"'s Finance Dashboard";
-    document.getElementById("user-email").textContent = "@"+email.split("@")[0];
+    document.getElementById("user-email").textContent = email;
     if(sbToken) { const cloud = await sbLoadData(sbToken); if(cloud) D = cloud; }
     showApp();
   } catch(e){ showErr(e.message||"Registration failed"); }
