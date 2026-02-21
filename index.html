@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Finance Dashboard — MyFinance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#020817;font-family:'DM Sans',sans-serif;color:white;min-height:100vh}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0f172a}::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.aib p{margin-bottom:5px}.aib p:last-child{margin-bottom:0}
+.mo{position:fixed;inset:0;background:rgba(2,8,23,0.93);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(8px)}
+.mb{background:#0f172a;border:1px solid #334155;border-radius:16px;padding:26px;max-width:460px;width:94%;box-shadow:0 25px 60px rgba(0,0,0,0.6)}
+.mt{font-size:17px;font-weight:800;margin-bottom:5px;background:linear-gradient(135deg,#6366f1,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ms{color:#64748b;font-size:11px;line-height:1.6;margin-bottom:13px}
+.mi{width:100%;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:9px 12px;color:white;font-size:12px;outline:none;font-family:'DM Sans',sans-serif;margin-bottom:8px}
+.mi:focus{border-color:#6366f1}
+.mbtn{width:100%;background:linear-gradient(135deg,#6366f1,#7c3aed);border:none;border-radius:8px;padding:11px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+.ei{background:#1e293b;border:1px solid #fbbf24;border-radius:5px;padding:3px 6px;color:#fbbf24;font-size:10px;font-weight:700;outline:none;font-family:'DM Sans',sans-serif;text-align:center}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+
+// ═══════════════════════════════════════════════════════════
+// SUPABASE CONFIG
+// Step 1: Go to supabase.com/dashboard → your project
+// Step 2: Settings → API → copy URL and anon key below
+// ═══════════════════════════════════════════════════════════
+const SUPABASE_URL  = "https://ffvvavyhepnxdkvurzqn.supabase.co";       // e.g. https://xyzxyz.supabase.co
+const SUPABASE_ANON = "sb_publishable_4AwUBcWY4fOnnJuX43v_EQ_zU-WWibr";  // starts with eyJh...
+const USE_SUPABASE  = SUPABASE_URL !== "PASTE_YOUR_SUPABASE_URL";
+
+// ─── Supabase REST helpers (no npm needed — pure fetch) ───
+const sbUrl  = (path) => `${SUPABASE_URL}/rest/v1${path}`;
+const sbAuth = (path) => `${SUPABASE_URL}/auth/v1${path}`;
+
+const sbHeaders = (token) => {
+  const h = { "Content-Type": "application/json", "apikey": SUPABASE_ANON };
+  if (token) h["Authorization"] = "Bearer " + token;
+  else h["Authorization"] = "Bearer " + SUPABASE_ANON;
+  return h;
+};
+
+// Token management
+const getToken    = ()  => { try { return JSON.parse(localStorage.getItem("sb_session")||"{}").access_token||""; } catch(e){return "";} };
+const getRefToken = ()  => { try { return JSON.parse(localStorage.getItem("sb_session")||"{}").refresh_token||""; } catch(e){return "";} };
+const saveSession = (s) => localStorage.setItem("sb_session", JSON.stringify(s));
+const clearSess   = ()  => localStorage.removeItem("sb_session");
+
+// Check if token is expired (JWT exp claim)
+const isTokenExpired = (token) => {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp * 1000 < Date.now() + 60000; // 60s buffer
+  } catch(e) { return true; }
+};
+
+// Auto-refresh token if expired
+const getValidToken = async () => {
+  const tok = getToken();
+  if (!tok) return null;
+  if (!isTokenExpired(tok)) return tok;
+  // Refresh
+  try {
+    const res = await fetch(sbAuth("/token?grant_type=refresh_token"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON },
+      body: JSON.stringify({ refresh_token: getRefToken() })
+    });
+    const data = await res.json();
+    if (data.access_token) { saveSession(data); return data.access_token; }
+  } catch(e) {}
+  clearSess();
+  return null;
+};
+
+// ─── Auth: Register ───────────────────────────────────────
+const sbRegister = async (email, password, displayName) => {
+  const res = await fetch(sbAuth("/signup"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON },
+    body: JSON.stringify({ email, password, data: { display_name: displayName } })
+  });
+  const data = await res.json();
+  if (data.error || data.msg) throw new Error(data.error?.message || data.msg || "Registration failed");
+  if (data.session) saveSession(data.session);
+  return data;
+};
+
+// ─── Auth: Login ──────────────────────────────────────────
+const sbLogin = async (email, password) => {
+  const res = await fetch(sbAuth("/token?grant_type=password"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if (data.error || data.error_description) throw new Error(data.error_description || data.error || "Login failed");
+  saveSession(data);
+  return data;
+};
+
+// ─── Auth: Logout ─────────────────────────────────────────
+const sbLogout = async () => {
+  const tok = getToken();
+  if (tok) {
+    try {
+      await fetch(sbAuth("/logout"), {
+        method: "POST",
+        headers: sbHeaders(tok)
+      });
+    } catch(e) {}
+  }
+  clearSess();
+};
+
+// ─── Data: Load ───────────────────────────────────────────
+const sbLoadData = async () => {
+  const tok = await getValidToken();
+  if (!tok) return null;
+  const res = await fetch(sbUrl("/finance_data?select=data&limit=1"), {
+    headers: { ...sbHeaders(tok), "Prefer": "return=representation" }
+  });
+  const rows = await res.json();
+  if (Array.isArray(rows) && rows.length > 0 && rows[0].data) {
+    return JSON.parse(rows[0].data);
+  }
+  return null;
+};
+
+// ─── Data: Save (upsert) ──────────────────────────────────
+let saveTimer = null;
+const sbSaveData = async (d) => {
+  const tok = await getValidToken();
+  if (!tok) return;
+  const userRes = await fetch(sbAuth("/user"), { headers: sbHeaders(tok) });
+  const user = await userRes.json();
+  if (!user.id) return;
+  await fetch(sbUrl("/finance_data"), {
+    method: "POST",
+    headers: { ...sbHeaders(tok), "Prefer": "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ user_id: user.id, data: JSON.stringify(d), updated_at: new Date().toISOString() })
+  });
+};
+
+// Debounced save — waits 2s after last change before saving to Supabase
+const debouncedSave = (d) => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => sbSaveData(d).catch(() => {}), 2000);
+};
+
+// ─── EmailJS Reminders ────────────────────────────────────
+const EMAILJS_SERVICE  = "PASTE_YOUR_EMAILJS_SERVICE_ID";   // e.g. service_abc123
+const EMAILJS_TEMPLATE = "PASTE_YOUR_EMAILJS_TEMPLATE_ID";  // e.g. template_xyz456
+const EMAILJS_PUBLIC   = "PASTE_YOUR_EMAILJS_PUBLIC_KEY";   // e.g. user_abc123
+const USE_EMAILJS      = EMAILJS_SERVICE !== "PASTE_YOUR_EMAILJS_SERVICE_ID";
+
+const sendReminder = async (to_email, subject, message) => {
+  if (!USE_EMAILJS) { alert("EmailJS not configured yet.\n\nPaste your keys in the HTML."); return; }
+  const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      service_id: EMAILJS_SERVICE,
+      template_id: EMAILJS_TEMPLATE,
+      user_id: EMAILJS_PUBLIC,
+      template_params: { to_email, subject, message }
+    })
+  });
+  return res.status === 200;
+};
+
+
+// ═══════════════════════════════════════════════
+// AUTH SYSTEM
+// ═══════════════════════════════════════════════
+// Simple hash using Web Crypto (async SHA-256)
+const hashPwd = async (pwd) => {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+};
+
+const AUTH_KEY = 'mfdb_users_v1';
+const getUsers = () => { try { return JSON.parse(localStorage.getItem(AUTH_KEY)||'{}'); } catch(e){return {};} };
+const saveUsers = u => localStorage.setItem(AUTH_KEY, JSON.stringify(u));
+const userDataKey = u => `mfdb_data_${u}_v1`;
+const apiKeyStore = u => `mfdb_apikey_${u}`;
+
+function AuthGate({children}){
+  const [screen,setScreen] = useState('login'); // login | register | forgot
+  const [user,setUser]       = useState(()=>{ try{return localStorage.getItem('mfdb_session')||'';}catch(e){return '';} });
+  const [displayName,setDisplayName] = useState(()=>{ try{ const u=localStorage.getItem('mfdb_session')||''; return localStorage.getItem('mfdb_display_'+u)||u; }catch(e){return '';} });
+  const [form,setForm]   = useState({username:'',password:'',confirm:'',display:''});
+  const [err,setErr]     = useState('');
+  const [ok,setOk]       = useState('');
+  const [busy,setBusy]   = useState(false);
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  // Auto-login if session exists and user record exists
+  useEffect(()=>{
+    if(user){ const users=getUsers(); if(!users[user]) { localStorage.removeItem('mfdb_session'); setUser(''); } }
+  },[]);
+
+  const doRegister = async () => {
+    setErr(''); setBusy(true);
+    const {username,password,confirm,display} = form;
+    // Basic validation
+    if(!display.trim()){ setErr('Please enter your full name.'); setBusy(false); return; }
+    if(!username.trim()){ setErr('Please enter your email address.'); setBusy(false); return; }
+    if(!username.trim().includes('@')){ setErr('Please enter a valid email address (e.g. name@gmail.com).'); setBusy(false); return; }
+    if(password.length<6){ setErr('Password must be at least 6 characters.'); setBusy(false); return; }
+    if(password!==confirm){ setErr('Passwords do not match.'); setBusy(false); return; }
+    try {
+      const email = username.trim().toLowerCase();
+      const result = await sbRegister(email, password, display.trim());
+      const uname = email.split('@')[0];
+      const dname = display.trim();
+      localStorage.setItem('mfdb_session', uname);
+      localStorage.setItem('mfdb_display_'+uname, dname);
+      setUser(uname);
+      setDisplayName(dname);
+    } catch(e){
+      setErr(e.message||'Registration failed. Try again.');
+    }
+    setBusy(false);
+  };
+
+  const doLogin = async () => {
+    setErr(''); setBusy(true);
+    const {username,password} = form;
+    if(!username.trim()){ setErr('Please enter your email address.'); setBusy(false); return; }
+    if(!username.trim().includes('@')){ setErr('Please enter a valid email address (e.g. name@gmail.com).'); setBusy(false); return; }
+    if(!password){ setErr('Please enter your password.'); setBusy(false); return; }
+    try {
+      const email = username.trim().toLowerCase();
+      const result = await sbLogin(email, password);
+      const uname = email.split('@')[0];
+      const dname = result.user?.user_metadata?.display_name || uname;
+      localStorage.setItem('mfdb_session', uname);
+      localStorage.setItem('mfdb_display_'+uname, dname);
+      setUser(uname);
+      setDisplayName(dname);
+    } catch(e){
+      setErr(e.message||'Login failed. Check your email and password.');
+    }
+    setBusy(false);
+  };
+
+  const doLogout = async () => {
+    if(USE_SUPABASE) await sbLogout().catch(()=>{});
+    localStorage.removeItem('mfdb_session');
+    setUser(''); setDisplayName(''); setForm({username:'',password:'',confirm:'',display:''}); setErr(''); setOk('');
+  };
+
+  // Logged in — pass username + logout to children
+  if(user){
+    return children({username:user, displayName:displayName||user, onLogout:doLogout});
+  }
+
+  // Auth screens
+  const inp = {width:'100%',background:'#1e293b',border:'1px solid #334155',borderRadius:9,padding:'11px 14px',color:'white',fontSize:13,outline:'none',fontFamily:"'DM Sans',sans-serif",marginBottom:10,boxSizing:'border-box'};
+  const btn = {width:'100%',background:'linear-gradient(135deg,#6366f1,#7c3aed)',border:'none',borderRadius:9,padding:13,color:'white',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",opacity:busy?0.7:1};
+
+  return(
+    <div style={{minHeight:'100vh',background:'#020817',display:'flex',alignItems:'center',justifyContent:'center',padding:16,fontFamily:"'DM Sans',sans-serif"}}>
+      {/* Background pattern */}
+      <div style={{position:'fixed',inset:0,background:'radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(167,139,250,0.06) 0%, transparent 50%)',pointerEvents:'none'}}/>
+      <div style={{width:'100%',maxWidth:420,position:'relative'}}>
+        {/* Logo */}
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{width:52,height:52,borderRadius:14,background:'linear-gradient(135deg,#6366f1,#7c3aed)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,margin:'0 auto 12px',boxShadow:'0 8px 32px rgba(99,102,241,0.4)'}}>💼</div>
+          <div style={{fontSize:22,fontWeight:900,background:'linear-gradient(135deg,#6366f1,#a78bfa)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',marginBottom:4}}>MyFinance Dashboard</div>
+          <div style={{color:'#475569',fontSize:12}}>Your personal wealth tracker · Private & secure</div>
+        </div>
+
+        <div style={{background:'#0f172a',border:'1px solid #1e293b',borderRadius:16,padding:28,boxShadow:'0 25px 60px rgba(0,0,0,0.5)'}}>
+          {/* Tab switcher */}
+          <div style={{display:'flex',gap:4,marginBottom:22,background:'#1e293b',borderRadius:9,padding:4}}>
+            {[['login','🔑 Sign In'],['register','✨ Create Account']].map(([s,l])=>(
+              <button key={s} onClick={()=>{setScreen(s);setErr('');setOk('');}} style={{flex:1,padding:'7px 0',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:700,background:screen===s?'linear-gradient(135deg,#6366f1,#7c3aed)':'transparent',color:screen===s?'white':'#64748b',border:'none',fontFamily:"'DM Sans',sans-serif"}}>{l}</button>
+            ))}
+          </div>
+
+          {screen==='login' && (<>
+            <div style={{color:'#94a3b8',fontSize:11,marginBottom:14}}>{USE_SUPABASE ? "Welcome back! Sign in with your email." : "Local mode — enter username to continue."}</div>
+            <input style={inp} placeholder={USE_SUPABASE ? "Email address" : "Username"} value={form.username} onChange={e=>set('username',e.target.value)} onKeyDown={e=>e.key==='Enter'&&doLogin()}/>
+            <input style={inp} type="password" placeholder="Password" value={form.password} onChange={e=>set('password',e.target.value)} onKeyDown={e=>e.key==='Enter'&&doLogin()}/>
+            {err&&<div style={{color:'#f87171',fontSize:11,marginBottom:10,padding:'7px 10px',background:'rgba(239,68,68,0.08)',borderRadius:6}}>⚠️ {err}</div>}
+            <button style={btn} onClick={doLogin}>{busy?'Signing in...':'Sign In →'}</button>
+          </>)}
+
+          {screen==='register' && (<>
+            <div style={{color:'#94a3b8',fontSize:11,marginBottom:14}}>{USE_SUPABASE ? "Create your account — data synced across all devices." : "Local mode account."}</div>
+            <input style={inp} placeholder="Your full name (e.g. Ravi Sharma)" value={form.display} onChange={e=>set('display',e.target.value)}/>
+            <input style={inp} placeholder={USE_SUPABASE ? "Email address" : "Username (letters/numbers)"} value={form.username} onChange={e=>set('username',e.target.value)}/>
+            <input style={inp} type="password" placeholder="Password (min 6 chars)" value={form.password} onChange={e=>set('password',e.target.value)}/>
+            <input style={inp} type="password" placeholder="Confirm password" value={form.confirm} onChange={e=>set('confirm',e.target.value)} onKeyDown={e=>e.key==='Enter'&&doRegister()}/>
+            {err&&<div style={{color:'#f87171',fontSize:11,marginBottom:10,padding:'7px 10px',background:'rgba(239,68,68,0.08)',borderRadius:6}}>⚠️ {err}</div>}
+            {ok&&<div style={{color:'#10b981',fontSize:11,marginBottom:10,padding:'7px 10px',background:'rgba(16,185,129,0.08)',borderRadius:6}}>✅ {ok}</div>}
+            <button style={btn} onClick={doRegister}>{busy?'Creating account...':'Create Account →'}</button>
+          </>)}
+
+          <div style={{marginTop:16,padding:'10px 12px',background:'rgba(99,102,241,0.06)',border:'1px solid rgba(99,102,241,0.15)',borderRadius:8}}>
+            <div style={{color:'#64748b',fontSize:10,lineHeight:1.6}}>🔒 <strong style={{color:'#94a3b8'}}>Privacy:</strong> Your data is stored locally in your browser. Each user gets a completely separate dashboard. Passwords are hashed with SHA-256.</div>
+          </div>
+        </div>
+
+        <div style={{textAlign:'center',marginTop:16,color:'#334155',fontSize:11}}>MyFinance · Built with 💜 · Your data, your device</div>
+      </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════
+// DATA — all defaults
+// ═══════════════════════════════════════════════
+// Default template — blank starting point for new users
+// Each user fills in their own data via Edit Mode
+const DEF = {
+  sbi:{label:"Home Loan 1",principal:5000000,rate:8.5,emi:43391,tenure:240,paid:0,remaining:240,outstanding:5000000,interestPaid:0,totalInterest:5000000},
+  icici:{label:"Home Loan 2",principal:3000000,rate:9.0,emi:26992,tenure:240,paid:0,remaining:240,outstanding:3000000,totalInterest:3500000},
+  sip:{monthly:10000,stepUp:15,ret:12,invested25:25535162,flatCorpus25:18975000,
+    miles:[{yr:5,corpus:1076841,inv:809085,mo:17458},{yr:10,corpus:4118727,inv:2436446,mo:35222},{yr:15,corpus:11835224,inv:5709649,mo:71044},{yr:20,corpus:30256305,inv:12293230,mo:143314},{yr:25,corpus:72574793,inv:25535162,mo:288918}],
+    flatMiles:[465455,2058000,5414545,11294545,18975000]},
+
+  // ── SCSS ─────────────────────────────────────
+  // Dad: ₹10L deposited, target ₹30L (₹20L more to add)
+  // Mom: ₹10L deposited, target ₹30L (₹20L more to add)
+  // Rate 8.2%, Lock-in 5 years, extend once for 3 more years (total 8 years)
+  scss:{
+    rate:8.2,
+    dad:{
+      name:"Dad",
+      deposited:0,              // amount deposited so far
+      target:1500000,           // ₹15L final target
+      remaining:1500000,        // still to deposit
+      lockin:5,                 // lock-in years
+      extensionYrs:3,           // one-time extension
+      maxTenure:8,              // 5+3
+      depositDate:"Feb 2026",
+      maturity:"Feb 2031",
+      extendedMaturity:"Feb 2034",
+      // At target ₹30L @ 8.2%: ₹61,500/quarter, ₹2,46,000/yr
+      // At current ₹10L @ 8.2%: ₹20,500/quarter, ₹82,000/yr
+      currentQtrPayout:20500,
+      targetQtrPayout:61500,
+      currentAnnualPayout:82000,
+      targetAnnualPayout:246000
+    },
+    mom:{
+      name:"Mom",
+      deposited:0,
+      target:1500000,
+      remaining:1500000,
+      lockin:5,
+      extensionYrs:3,
+      maxTenure:8,
+      depositDate:"Feb 2026",
+      maturity:"Feb 2031",
+      extendedMaturity:"Feb 2034",
+      currentQtrPayout:20500,
+      targetQtrPayout:61500,
+      currentAnnualPayout:82000,
+      targetAnnualPayout:246000
+    }
+  },
+
+  // ── SWEEP FD ──────────────────────────────────
+  // ₹15L planned — NOT yet deposited
+  sweepFD:{
+    deposited:false,            // flag: not yet done
+    planned:500000,             // planned amount
+    actual:0,                   // actual deposited (0 now)
+    rate:9.0,
+    monthlyPayout:0,            // 0 until deposited; will be 9060 at ₹15L
+    targetMonthlyPayout:3750,
+    annual:0,
+    targetAnnual:45000,
+    note:"₹15L planned — not yet deposited"
+  },
+
+  // ── INCOME (all in one place) ─────────────────
+  income:{
+    salary:50000,
+    rental:{
+      monthly:20000,
+      increase:5,
+      start:"Apr 2026",
+      active:false,             // starts Apr 2026
+      schedule:[
+        {yr:"Apr 2026–Mar 2027",mo:115000,ann:1380000},
+        {yr:"Apr 2027–Mar 2028",mo:120750,ann:1449000},
+        {yr:"Apr 2028–Mar 2029",mo:126788,ann:1521456},
+        {yr:"Apr 2029–Mar 2030",mo:133127,ann:1597524},
+        {yr:"Apr 2030–Mar 2031",mo:139784,ann:1677408}
+      ]
+    }
+  },
+
+  ins:{
+    p1:{name:"Term Insurance Policy 1",coverage:10000000,yr1:15000,yr2:15000,
+      nextDue:"15-May-2026",nextAmt:252057,term:"38 Years",payTerm:"5 Years",
+      nominee:"Saritha Godhala (Spouse)",maturity:"15-May-2063",
+      sched:[{yr:1,dt:"15-May-2025",amt:207569,paid:true},{yr:2,dt:"15-May-2026",amt:252057,paid:false},{yr:3,dt:"15-May-2027",amt:252057,paid:false},{yr:4,dt:"15-May-2028",amt:252057,paid:false},{yr:5,dt:"15-May-2029",amt:252057,paid:false}]},
+    p2:{name:"Term Insurance Policy 2",coverage:10000000,yr1:12000,yr2:12000,
+      nextDue:"17-Feb-2027",nextAmt:180110,term:"37 Years",payTerm:"5 Years",
+      rider:"ATPD",nominee:"Saritha Godhala (Spouse)",maturity:"—",
+      sched:[{yr:1,dt:"17-Feb-2026",amt:141213,paid:false},{yr:2,dt:"17-Feb-2027",amt:180110,paid:false},{yr:3,dt:"17-Feb-2028",amt:180110,paid:false},{yr:4,dt:"17-Feb-2029",amt:180110,paid:false},{yr:5,dt:"17-Feb-2030",amt:180110,paid:false}]},
+    health:{name:"HDFC ERGO Health Insurance",coverage:2500000,premium:69354,type:"Family Floater",yearsPaid:3,nextDue:"Feb 2027"}
+  },
+
+  expenses:{
+    monthly:[
+      {id:"emi",   label:"Loan EMIs",            v:50000, icon:"🏦",c:"#3B82F6"},
+      {id:"maint", label:"Apt Maintenance",       v:2500,  icon:"🏠",c:"#8B5CF6"},
+      {id:"maid",  label:"Maid",                  v:10000, icon:"🧹",c:"#6D28D9"},
+      {id:"groc",  label:"Groceries",             v:10000, icon:"🛒",c:"#10B981"},
+      {id:"rest",  label:"Restaurant",            v:10000, icon:"🍽",c:"#059669"},
+      {id:"elec",  label:"Electricity",           v:1000,  icon:"⚡",c:"#F59E0B"},
+      {id:"gas",   label:"Gas Cylinder",          v:2500,  icon:"🔥",c:"#EA580C"},
+      {id:"petrol",label:"Petrol",                v:20000, icon:"🚗",c:"#EF4444"},
+      {id:"sip",   label:"SIP Investment",        v:55000, icon:"📈",c:"#6366F1"},
+      {id:"misc",  label:"Miscellaneous",         v:15000, icon:"💼",c:"#94A3B8"}
+    ],
+    yearly:[
+      {id:"net",   label:"Internet",              v:8000,  icon:"📶",c:"#0EA5E9", due:"Jan"},
+      {id:"jio",   label:"Sun Direct / JIO",      v:6000,  icon:"📺",c:"#EC4899", due:"Jan"},
+      {id:"carins",label:"Car Insurance",         v:16000, icon:"🚘",c:"#DC2626", due:"Mar"},
+      {id:"t3cr",  label:"3Cr Term Insurance",    v:252057,icon:"🛡",c:"#F59E0B", due:"15-May"},
+      {id:"t2cr",  label:"2Cr Term Insurance",    v:180110,icon:"🛡",c:"#A78BFA", due:"17-Feb"}
+    ],
+    triennial:[
+      {id:"hlth",  label:"HDFC ERGO Health Ins",  v:69354, icon:"🏥",c:"#06B6D4", due:"Feb 2027"}
+    ]
+  }
+};
+
+// ─── helpers ──────────────────────────────────
+const fmt = n => {
+  if(!n && n!==0) return "₹0";
+  const v=Math.abs(n);
+  if(v>=10000000) return "₹"+(v/10000000).toFixed(2)+" Cr";
+  if(v>=100000)   return "₹"+(v/100000).toFixed(1)+" L";
+  return "₹"+Math.round(v).toLocaleString("en-IN");
+};
+const ff  = n => "₹"+Math.round(n||0).toLocaleString("en-IN");
+const num = s => parseInt(String(s).replace(/[^0-9]/g,""))||0;
+const pct = (a,b) => b ? Math.min((a/b*100),100).toFixed(1) : 0;
+
+const loadD = (username) => { try { const s=localStorage.getItem(userDataKey(username||'guest')); if(s) return JSON.parse(s); } catch(e){} return JSON.parse(JSON.stringify(DEF)); };
+const saveD = (d, username) => { try { localStorage.setItem(userDataKey(username||'guest'), JSON.stringify(d)); } catch(e){} };
+
+// computed income
+const scssCurrentMonthly = d => Math.round((d.scss.dad.currentAnnualPayout + d.scss.mom.currentAnnualPayout)/12);
+const scssTargetMonthly  = d => Math.round((d.scss.dad.targetAnnualPayout  + d.scss.mom.targetAnnualPayout )/12);
+const totalCurrentIncome = d => d.income.salary + (d.income.rental.active ? d.income.rental.monthly : 0) + scssCurrentMonthly(d) + d.sweepFD.monthlyPayout;
+const totalTargetIncome  = d => d.income.salary + d.income.rental.monthly + scssTargetMonthly(d) + d.sweepFD.targetMonthlyPayout;
+const monthlyExpTotal    = d => d.expenses.monthly.reduce((s,e)=>s+e.v,0);
+const yearlyExpTotal     = d => d.expenses.yearly.reduce((s,e)=>s+e.v,0);
+const triennialTotal     = d => d.expenses.triennial.reduce((s,e)=>s+e.v,0);
+
+// ─── small components ─────────────────────────
+function Counter({value,dur=1300}){
+  const [n,setN]=useState(0);
+  useEffect(()=>{
+    let raf; const s=performance.now();
+    const tick=ts=>{const p=Math.min((ts-s)/dur,1),e=1-Math.pow(1-p,3);setN(Math.round(value*e));if(p<1)raf=requestAnimationFrame(tick);};
+    raf=requestAnimationFrame(tick);
+    return()=>cancelAnimationFrame(raf);
+  },[value]);
+  return React.createElement("span",null,fmt(n));
+}
+
+function KPI({label,value,sub,color="white",accent="#6366f1",delay=0}){
+  return(
+    <div style={{background:"#0f172a",border:`1px solid ${accent}25`,borderRadius:11,padding:"12px 13px",position:"relative",overflow:"hidden",animation:`fadeIn 0.4s ease ${delay}ms both`}}>
+      <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,${accent},${accent}55)`}}/>
+      <div style={{color:"#64748b",fontSize:9,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>{label}</div>
+      <div style={{color,fontSize:17,fontWeight:800,lineHeight:1}}><Counter value={typeof value==="number"?value:0} dur={1200+delay}/></div>
+      <div style={{color:"#475569",fontSize:9,marginTop:3}}>{sub}</div>
+    </div>
+  );
+}
+
+function Card({children,style={}}){return <div style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:13,padding:16,...style}}>{children}</div>;}
+function CT({icon,children,color="#e2e8f0"}){return <div style={{color,fontSize:12,fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",gap:6}}><span>{icon}</span>{children}</div>;}
+function Badge({label,color="#6366f1"}){return <div style={{background:`${color}15`,border:`1px solid ${color}30`,borderRadius:3,padding:"1px 5px",display:"inline-block"}}><span style={{color,fontSize:8,fontWeight:700}}>{label}</span></div>;}
+function ProgBar({pct,color,h=5}){return <div style={{background:"#1e293b",borderRadius:4,height:h,overflow:"hidden"}}><div style={{width:`${Math.min(Number(pct),100)}%`,height:"100%",background:color,borderRadius:4,transition:"width 1.2s ease"}}/></div>;}
+
+function DepositProgress({label,deposited,target,remaining,c}){
+  const done=pct(deposited,target);
+  return(
+    <div style={{marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+        <span style={{color:"#cbd5e1",fontSize:11,fontWeight:600}}>{label}</span>
+        <span style={{color:"#475569",fontSize:9}}>{fmt(deposited)} of {fmt(target)}</span>
+      </div>
+      <ProgBar pct={done} color={c}/>
+      <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
+        <span style={{color:c,fontSize:9,fontWeight:700}}>{done}% deposited</span>
+        <span style={{color:"#f87171",fontSize:9}}>Still need: {fmt(remaining)}</span>
+      </div>
+    </div>
+  );
+}
+
+function SipBar({m}){
+  const gain=((m.corpus/m.inv-1)*100).toFixed(0);
+  const w=(m.corpus/399163362*100).toFixed(0);
+  return(
+    <div style={{marginBottom:11}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+        <span style={{color:"#a78bfa",fontSize:11,fontWeight:700}}>Year {m.yr}</span>
+        <span style={{color:"white",fontSize:11,fontWeight:800}}>{fmt(m.corpus)} <span style={{color:"#10b981",fontSize:9}}>+{gain}%</span></span>
+      </div>
+      <ProgBar pct={w} color="linear-gradient(90deg,#6366f1,#a78bfa)"/>
+      <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
+        <span style={{color:"#475569",fontSize:9}}>SIP: {fmt(m.mo)}/mo</span>
+        <span style={{color:"#475569",fontSize:9}}>Invested: {fmt(m.inv)}</span>
+      </div>
+    </div>
+  );
+}
+
+function Donut({items,size=120}){
+  const total=items.reduce((s,e)=>s+(e.v||0),0);
+  if(!total) return <div style={{width:size,height:size,background:"#1e293b",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#475569",fontSize:10}}>No data</span></div>;
+  let off=0; const R=40,cx=60,cy=60,C=2*Math.PI*R;
+  const slices=items.filter(e=>e.v>0).map(e=>{
+    const p=e.v/total,dash=p*C,gap=C-dash,o=off*C; off+=p;
+    return{...e,dash,gap,offset:o};
+  });
+  return(
+    <svg width={size} height={size} viewBox="0 0 120 120">
+      <circle cx={cx} cy={cy} r={R} fill="none" stroke="#1e293b" strokeWidth="18"/>
+      {slices.map((s,i)=><circle key={i} cx={cx} cy={cy} r={R} fill="none" stroke={s.c} strokeWidth="18" strokeDasharray={`${s.dash} ${s.gap}`} strokeDashoffset={-s.offset} transform={`rotate(-90 ${cx} ${cy})`}/>)}
+      <text x={cx} y={cy-5} textAnchor="middle" fill="#64748b" fontSize="7" fontFamily="DM Sans">Total</text>
+      <text x={cx} y={cy+7} textAnchor="middle" fill="white" fontSize="8" fontWeight="700" fontFamily="DM Sans">{fmt(total)}</text>
+    </svg>
+  );
+}
+
+function APIModal({onSave}){
+  const [k,setK]=useState("");
+  return(
+    <div className="mo"><div className="mb">
+      <div className="mt">🤖 Connect AI Advisor</div>
+      <div className="ms">Your Anthropic API key — stored only in your browser, never shared.</div>
+      <div style={{background:"#1e293b",borderRadius:8,padding:10,marginBottom:12}}>
+        {[["1","Go to console.anthropic.com and sign in"],["2","Click API Keys → Create Key"],["3","Copy key starting with sk-ant-... and paste below"]].map(([n,t])=>(
+          <div key={n} style={{display:"flex",gap:8,marginBottom:5,color:"#94a3b8",fontSize:11}}><span style={{color:"#6366f1",fontWeight:800}}>{n}</span><span>{t}</span></div>
+        ))}
+      </div>
+      <input className="mi" type="password" value={k} onChange={e=>setK(e.target.value)} onKeyDown={e=>e.key==="Enter"&&k&&onSave(k)} placeholder="sk-ant-api03-..."/>
+      <button className="mbtn" onClick={()=>k.trim()&&onSave(k.trim())}>Connect & Open Dashboard →</button>
+      <button style={{width:"100%",background:"transparent",border:"1px solid #334155",borderRadius:8,padding:9,color:"#64748b",fontSize:12,cursor:"pointer",marginTop:8,fontFamily:"DM Sans,sans-serif"}} onClick={()=>onSave("demo")}>Skip AI — Browse Only</button>
+      <div style={{color:"#475569",fontSize:10,textAlign:"center",marginTop:8}}>Cost ~₹2–5 per 100 questions · $5 free credit on signup</div>
+    </div></div>
+  );
+}
+
+function ExpenseView({D,editMode,updExp}){
+  const [view,setView]=useState("monthly");
+  const mT=monthlyExpTotal(D), yT=yearlyExpTotal(D), tT=triennialTotal(D);
+  const annEq=mT*12+yT+tT/3;
+  const lists={monthly:D.expenses.monthly,yearly:D.expenses.yearly,triennial:D.expenses.triennial};
+  const cur=lists[view];
+  const dispTotal=view==="monthly"?mT:view==="yearly"?yT:tT;
+  const freqC={monthly:"#10b981",yearly:"#f59e0b",triennial:"#06b6d4"};
+  const freqL={monthly:"Monthly",yearly:"Yearly",triennial:"Every 3 Yrs"};
+  return(
+    <Card>
+      <CT icon="💸">Expense Dashboard</CT>
+      <div style={{display:"flex",gap:3,marginBottom:12,background:"#1e293b",borderRadius:8,padding:3}}>
+        {[["monthly","📅 Monthly",mT],["yearly","📆 Yearly",yT],["triennial","🗓 Every 3 Yrs",tT]].map(([id,lbl,tot])=>(
+          <button key={id} onClick={()=>setView(id)} style={{flex:1,padding:"6px 4px",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,background:view===id?"linear-gradient(135deg,#6366f1,#7c3aed)":"transparent",color:view===id?"white":"#64748b",border:"none",fontFamily:"DM Sans,sans-serif",lineHeight:1.4}}>
+            <div>{lbl}</div><div style={{fontSize:9,color:view===id?"rgba(255,255,255,0.6)":"#475569",marginTop:1}}>{fmt(tot)}</div>
+          </button>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+        <div style={{flexShrink:0}}>
+          <Donut items={cur} size={110}/>
+          <div style={{textAlign:"center",marginTop:5}}>
+            <div style={{color:"#64748b",fontSize:8}}>Ann. equivalent</div>
+            <div style={{color:"#ef4444",fontSize:10,fontWeight:800}}>{fmt(Math.round(annEq/12))}/mo</div>
+          </div>
+        </div>
+        <div style={{flex:1,maxHeight:220,overflowY:"auto"}}>
+          {cur.map((e,i)=>(
+            <div key={e.id} style={{display:"flex",alignItems:"center",gap:7,marginBottom:5,padding:"5px 7px",background:"#1e293b",borderRadius:6}}>
+              <span style={{fontSize:12}}>{e.icon}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{color:"#e2e8f0",fontSize:9,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e.label}</div>
+                <div style={{display:"flex",gap:4,marginTop:1,alignItems:"center"}}>
+                  <Badge label={freqL[view]} color={freqC[view]}/>
+                  {e.due&&<span style={{color:"#475569",fontSize:8}}>Due: {e.due}</span>}
+                  {view!=="monthly"&&<Badge label="📧 Reminder" color="#6366f1"/>}
+                </div>
+              </div>
+              {editMode
+                ?<input className="ei" defaultValue={e.v} style={{width:70}} onBlur={ev=>updExp(view,i,num(ev.target.value))} onKeyDown={ev=>ev.key==="Enter"&&updExp(view,i,num(ev.target.value))}/>
+                :<span style={{color:e.c,fontSize:11,fontWeight:800,flexShrink:0}}>{ff(e.v)}</span>}
+            </div>
+          ))}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"6px 7px",background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:6,marginTop:4}}>
+            <span style={{color:"#a78bfa",fontSize:10,fontWeight:700}}>Total</span>
+            <span style={{color:"#a78bfa",fontSize:11,fontWeight:800}}>{ff(dispTotal)}</span>
+          </div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginTop:10}}>
+        {[["Monthly",mT,"#10b981"],["Annual Bills",yT,"#f59e0b"],["3-Year Bills",tT,"#06b6d4"],["Annual Total",Math.round(annEq),"#ef4444"]].map(([l,v,c])=>(
+          <div key={l} style={{background:"#1e293b",borderRadius:6,padding:"6px 8px",textAlign:"center"}}>
+            <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:2}}>{l}</div>
+            <div style={{color:c,fontSize:10,fontWeight:800}}>{fmt(v)}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════
+function App({username, displayName, onLogout}){
+  const [D,setD]       = useState(()=>loadD(username));
+  const [apiKey,setApiKey] = useState(()=>localStorage.getItem(apiKeyStore(username))||"");
+  const [showModal,setShowModal] = useState(!localStorage.getItem(apiKeyStore(username)));
+  const [tab,setTab]   = useState("overview");
+  const [editMode,setEditMode] = useState(false);
+  const [msgs,setMsgs] = useState([]);
+  const [input,setInput] = useState("");
+  const [loading,setLoading] = useState(false);
+  const [insight,setInsight] = useState("");
+  const [insightLoad,setInsightLoad] = useState(false);
+  const chatRef = useRef(null);
+
+  useEffect(()=>saveD(D,username),[D]);
+  useEffect(()=>{chatRef.current?.scrollIntoView({behavior:"smooth"});},[msgs]);
+
+  const upd = (path,val) => setD(prev=>{
+    const next=JSON.parse(JSON.stringify(prev));
+    const keys=path.split("."); let obj=next;
+    for(let i=0;i<keys.length-1;i++) obj=obj[keys[i]];
+    obj[keys[keys.length-1]]=val;
+    return next;
+  });
+  const updExp = (freq,idx,val) => setD(prev=>{const next=JSON.parse(JSON.stringify(prev));next.expenses[freq][idx].v=val;return next;});
+  const updSchedPaid = (pk,idx,val) => setD(prev=>{const next=JSON.parse(JSON.stringify(prev));next.ins[pk].sched[idx].paid=val;return next;});
+  const saveKey = k => { if(k==="demo"){setShowModal(false);return;} localStorage.setItem("shant_key",k); setApiKey(k); setShowModal(false); generateInsight(k); };
+
+  // derived
+  const mT       = monthlyExpTotal(D);
+  const curInc   = totalCurrentIncome(D);
+  const tgtInc   = totalTargetIncome(D);
+  const surplus  = curInc - mT;
+  const sipAmt   = D.sip.monthly;
+  const scssNow  = scssCurrentMonthly(D);
+  const scssTgt  = scssTargetMonthly(D);
+
+  const buildSys = () => `You are Shantan's personal AI financial advisor. Complete financial picture:
+
+INCOME (CURRENT: ${ff(curInc)}/mo | TARGET after full setup: ${ff(tgtInc)}/mo):
+- Salary: ${ff(D.income.salary)}/month (fixed)
+- Rental: ${ff(D.income.rental.monthly)}/month from Apr 2026, Wanaparthy property, 5% hike each April. NOT STARTED YET.
+- Dad SCSS: ${ff(D.scss.dad.deposited)} deposited of ${ff(D.scss.dad.target)} target @ 8.2%. Current payout ${ff(D.scss.dad.currentQtrPayout)}/qtr. At full ${fmt(D.scss.dad.target)}: ${ff(D.scss.dad.targetQtrPayout)}/qtr.
+- Mom SCSS: ${ff(D.scss.mom.deposited)} deposited of ${ff(D.scss.mom.target)} target @ 8.2%. Current payout ${ff(D.scss.mom.currentQtrPayout)}/qtr. At full ${fmt(D.scss.mom.target)}: ${ff(D.scss.mom.targetQtrPayout)}/qtr.
+- SCSS lock-in 5 years (maturity Feb 2031), extendable once for 3 more years (Feb 2034).
+- Sweep FD: PLANNED ${ff(D.sweepFD.planned)} @ 9% = ${ff(D.sweepFD.targetMonthlyPayout)}/mo — NOT YET DEPOSITED.
+- Monthly surplus now: ${ff(surplus)}
+
+LOANS: SBI ${ff(D.sbi.outstanding)} @ ${D.sbi.rate}% EMI ${ff(D.sbi.emi)}/mo (15th), ICICI ${ff(D.icici.outstanding)} @ ${D.icici.rate}% EMI ${ff(D.icici.emi)}/mo (5th).
+INSURANCE: 3Cr TATA AIA (next ${ff(D.ins.p1.nextAmt)} on ${D.ins.p1.nextDue}), 2Cr TATA AIA (next ${ff(D.ins.p2.nextAmt)} on ${D.ins.p2.nextDue}), HDFC ERGO ₹25L health (next Feb 2027).
+EXPENSES: ${ff(mT)}/month total.
+SIP: ${ff(sipAmt)}/mo 15% step-up 12% return target. 25yr corpus: ${fmt(D.sip.miles[4].corpus)}.
+
+Be specific with rupee amounts. Give actionable advice. 2-4 concise paragraphs.`;
+
+  const callAI = async (messages,key) => {
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,system:buildSys(),messages})});
+    if(!res.ok) throw new Error(await res.text());
+    const d=await res.json(); return d.content?.[0]?.text||"No response";
+  };
+
+  const generateInsight = async key => {
+    if(!key||key==="demo") return;
+    setInsightLoad(true);
+    try {
+      const prompt="Give a sharp 3-bullet financial snapshot: A. Income and surplus picture today vs after full SCSS and FD setup. B. Priority action — what to do next with money. C. 25-year wealth outlook. No intro text, be direct.";
+      const t=await callAI([{role:"user",content:prompt}],key);
+      setInsight(t);
+    } catch(e) {
+      setInsight("• Current income ₹2.42L/mo (salary only as rental/FD not yet started) — once Sweep FD, rental, and SCSS topped up, income hits ₹3.74L/mo.\n• Priority: Top up Dad and Mom SCSS to ₹30L each (₹20L each still pending), then deposit ₹15L in Sweep FD to unlock ₹9,060/mo extra income.\n• SIP at ₹55K/mo with 15% step-up projects ₹39.9 Crore in 25 years — continue without interruption regardless of loan prepayment decisions.");
+    }
+    setInsightLoad(false);
+  };
+
+  useEffect(()=>{ if(apiKey&&apiKey!=="demo") generateInsight(apiKey); },[]);
+
+  const send = async () => {
+    if(!input.trim()||loading||!apiKey||apiKey==="demo") return;
+    const userMsg={role:"user",content:input};
+    const newMsgs=[...msgs,userMsg];
+    setMsgs(newMsgs); setInput(""); setLoading(true);
+    try { const r=await callAI(newMsgs,apiKey); setMsgs([...newMsgs,{role:"assistant",content:r}]); }
+    catch(e) { setMsgs([...newMsgs,{role:"assistant",content:"Connection error. Check your API key."}]); }
+    setLoading(false);
+  };
+
+  // ── styles ─────────────────────────────────
+  const g4={display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:13};
+  const g2={display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12};
+  const g3={display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12};
+  const qb={background:"#1e293b",border:"1px solid #334155",borderRadius:6,padding:"5px 10px",color:"#94a3b8",cursor:"pointer",fontSize:10,fontFamily:"DM Sans,sans-serif"};
+  const Btn=({children,onClick,s={}})=><button onClick={onClick} style={{background:"linear-gradient(135deg,#6366f1,#7c3aed)",border:"none",borderRadius:7,padding:"7px 13px",color:"white",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"DM Sans,sans-serif",...s}}>{children}</button>;
+
+  // ══ TAB: OVERVIEW ══════════════════════════
+  function Overview(){
+    const isNewUser = !localStorage.getItem(userDataKey(username)+'_visited');
+    useEffect(()=>{ localStorage.setItem(userDataKey(username)+'_visited','1'); },[]);
+    return(<>
+      {isNewUser&&(
+        <div style={{background:"linear-gradient(135deg,rgba(99,102,241,0.12),rgba(167,139,250,0.05))",border:"1px solid rgba(99,102,241,0.25)",borderRadius:12,padding:"16px 20px",marginBottom:14,display:"flex",gap:14,alignItems:"flex-start"}}>
+          <div style={{fontSize:26,flexShrink:0}}>👋</div>
+          <div style={{flex:1}}>
+            <div style={{color:"#a78bfa",fontSize:13,fontWeight:800,marginBottom:4}}>Welcome, {displayName}! Your dashboard is ready.</div>
+            <div style={{color:"#94a3b8",fontSize:11,lineHeight:1.6,marginBottom:8}}>This is your personal finance tracker. All your data is private and stored only on your device. Start by clicking <strong style={{color:"#fbbf24"}}>✏️ Edit</strong> in the top-right to enter your income, loan details, expenses, and investments.</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {[["💰 Income","Add your salary and other income"],["🏠 Loans","Add your home/car loans"],["💸 Expenses","Track monthly expenses"],["📈 Mutual Funds","Set up your SIP tracker"]].map(([icon,tip])=>(
+                <div key={icon} style={{background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.15)",borderRadius:6,padding:"5px 9px"}}>
+                  <div style={{color:"#a78bfa",fontSize:10,fontWeight:700}}>{icon}</div>
+                  <div style={{color:"#64748b",fontSize:8}}>{tip}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      <div style={g4}>
+        <KPI label="Current Monthly Income"  value={curInc}   sub="Salary now (rental+FD pending)" color="#34d399" accent="#10b981" delay={0}/>
+        <KPI label="Target Monthly Income"   value={tgtInc}   sub="After SCSS top-up + FD + Rental" color="#10b981" accent="#059669" delay={80}/>
+        <KPI label="Monthly Surplus Now"     value={surplus}  sub="Income minus all expenses"       color={surplus>0?"#34d399":"#f87171"} accent={surplus>0?"#10b981":"#ef4444"} delay={160}/>
+        <KPI label="SIP Corpus — 25 Years"   value={D.sip.miles[4].corpus} sub="15% step-up · 12% return" color="#a78bfa" accent="#6366f1" delay={240}/>
+      </div>
+      <div style={g4}>
+        <KPI label="SCSS Deposited (Dad+Mom)" value={D.scss.dad.deposited+D.scss.mom.deposited} sub="₹20L still to add to reach ₹60L" color="#fbbf24" accent="#f59e0b" delay={0}/>
+        <KPI label="SCSS Target (Dad+Mom)"    value={D.scss.dad.target+D.scss.mom.target} sub="@ 8.2% = ₹1,23,000/quarter each" color="#f59e0b" accent="#d97706" delay={80}/>
+        <KPI label="Sweep FD Planned"         value={D.sweepFD.planned} sub="Not deposited yet · ₹9,060/mo target" color="#06b6d4" accent="#0891b2" delay={160}/>
+        <KPI label="Loan Outstanding"         value={D.sbi.outstanding+D.icici.outstanding} sub="SBI + ICICI combined" color="#f87171" accent="#ef4444" delay={240}/>
+      </div>
+      <div style={{...g2,gridTemplateColumns:"1.5fr 1fr"}}>
+        <ExpenseView D={D} editMode={editMode} updExp={updExp}/>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <Card>
+            <CT icon="💰">Income Snapshot</CT>
+            {[
+              {l:"Salary",           v:D.income.salary,    c:"#10b981", status:"Active"},
+              {l:"SCSS Dad (current)",v:D.scss.dad.currentAnnualPayout/12, c:"#f59e0b", status:"Active · ₹10L"},
+              {l:"SCSS Mom (current)",v:D.scss.mom.currentAnnualPayout/12, c:"#fb923c", status:"Active · ₹10L"},
+              {l:"Rental Income",    v:D.income.rental.monthly, c:"#a78bfa", status:"Apr 2026"},
+              {l:"Sweep FD",         v:D.sweepFD.targetMonthlyPayout, c:"#06b6d4", status:"Not deposited"},
+            ].map((r,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5,padding:"5px 9px",background:"#1e293b",borderRadius:6}}>
+                <div>
+                  <div style={{color:"#e2e8f0",fontSize:10,fontWeight:600}}>{r.l}</div>
+                  <Badge label={r.status} color={r.status==="Active"||r.status.startsWith("Active")?"#10b981":r.status==="Not deposited"?"#475569":"#6366f1"}/>
+                </div>
+                <span style={{color:r.c,fontSize:12,fontWeight:800}}>{ff(r.v)}/mo</span>
+              </div>
+            ))}
+            <div style={{borderTop:"1px solid #334155",paddingTop:7,marginTop:5,display:"flex",justifyContent:"space-between"}}>
+              <span style={{color:"white",fontSize:11,fontWeight:700}}>Current Total</span>
+              <span style={{color:"#34d399",fontSize:13,fontWeight:900}}>{ff(curInc)}/mo</span>
+            </div>
+          </Card>
+          <Card>
+            <CT icon="🎯">Next Targets</CT>
+            {[
+              {icon:"👴",label:"Dad SCSS top-up",detail:"₹20L more → ₹30L total",c:"#f59e0b"},
+              {icon:"👵",label:"Mom SCSS top-up",detail:"₹20L more → ₹30L total",c:"#fb923c"},
+              {icon:"🏦",label:"Sweep FD deposit",detail:"₹15L → ₹9,060/mo income",c:"#06b6d4"},
+              {icon:"🏘",label:"Rental starts",detail:"Apr 1, 2026 · ₹1.15L/mo",c:"#a78bfa"},
+            ].map((t,i)=>(
+              <div key={i} style={{display:"flex",gap:9,alignItems:"center",marginBottom:7,padding:"6px 9px",background:"#1e293b",borderRadius:7}}>
+                <span style={{fontSize:15}}>{t.icon}</span>
+                <div style={{flex:1}}>
+                  <div style={{color:"white",fontSize:10,fontWeight:700}}>{t.label}</div>
+                  <div style={{color:"#64748b",fontSize:9}}>{t.detail}</div>
+                </div>
+                <div style={{width:6,height:6,borderRadius:2,background:t.c,flexShrink:0}}/>
+              </div>
+            ))}
+          </Card>
+        </div>
+      </div>
+    </>);
+  }
+
+  // ══ TAB: INCOME ════════════════════════════
+  function IncomeTab(){
+    // All income in ONE place
+    const scssCurrentQtr = D.scss.dad.currentQtrPayout + D.scss.mom.currentQtrPayout;
+    const scssTargetQtr  = D.scss.dad.targetQtrPayout  + D.scss.mom.targetQtrPayout;
+    const incomeRows = [
+      {icon:"💼", label:"Salary",              monthly:D.income.salary,   status:"active",  statusLabel:"Active",      c:"#10b981", note:"Fixed monthly income"},
+      {icon:"🏘", label:"Rental — Wanaparthy", monthly:D.income.rental.monthly, status:"pending", statusLabel:"From Apr 2026", c:"#6366f1", note:"5% hike every April"},
+      {icon:"👴", label:"Dad SCSS",            monthly:Math.round(D.scss.dad.currentAnnualPayout/12), status:"partial", statusLabel:"₹10L deposited", c:"#f59e0b", note:`Currently: ${ff(D.scss.dad.currentQtrPayout)}/qtr → Target: ${ff(D.scss.dad.targetQtrPayout)}/qtr`},
+      {icon:"👵", label:"Mom SCSS",            monthly:Math.round(D.scss.mom.currentAnnualPayout/12), status:"partial", statusLabel:"₹10L deposited", c:"#fb923c", note:`Currently: ${ff(D.scss.mom.currentQtrPayout)}/qtr → Target: ${ff(D.scss.mom.targetQtrPayout)}/qtr`},
+      {icon:"🏦", label:"Sweep FD",            monthly:D.sweepFD.monthlyPayout, status:"notyet",  statusLabel:"Not deposited yet", c:"#06b6d4", note:`₹15L planned → ${ff(D.sweepFD.targetMonthlyPayout)}/mo once done`},
+    ];
+    const statusColors = {active:"#10b981",pending:"#6366f1",partial:"#f59e0b",notyet:"#475569"};
+    const currentTotal = D.income.salary + Math.round(D.scss.dad.currentAnnualPayout/12) + Math.round(D.scss.mom.currentAnnualPayout/12);
+    const targetTotal  = D.income.salary + D.income.rental.monthly + Math.round(D.scss.dad.targetAnnualPayout/12) + Math.round(D.scss.mom.targetAnnualPayout/12) + D.sweepFD.targetMonthlyPayout;
+
+    return(<>
+      {/* Hero: all income in one view */}
+      <div style={{background:"linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,182,212,0.04))",border:"1px solid rgba(16,185,129,0.2)",borderRadius:13,padding:"18px 22px",marginBottom:13}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+          <div>
+            <div style={{color:"#10b981",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5}}>💰 ALL INCOME SOURCES</div>
+            <div style={{color:"#64748b",fontSize:11,marginBottom:2}}>Current active income</div>
+            <div style={{color:"#34d399",fontSize:28,fontWeight:900,marginBottom:1}}>{ff(currentTotal)}<span style={{color:"#475569",fontSize:13,fontWeight:400}}>/month</span></div>
+            <div style={{color:"#475569",fontSize:10}}>Surplus after expenses: <span style={{color:currentTotal-mT>0?"#10b981":"#ef4444",fontWeight:700}}>{ff(currentTotal-mT)}/mo</span></div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{color:"#64748b",fontSize:9,textTransform:"uppercase",marginBottom:4}}>TARGET AFTER FULL SETUP</div>
+            <div style={{color:"#10b981",fontSize:22,fontWeight:800,marginBottom:2}}>{ff(targetTotal)}/mo</div>
+            <div style={{color:"#475569",fontSize:9}}>When rental starts + SCSS topped + FD deposited</div>
+            <div style={{color:"#34d399",fontSize:11,fontWeight:700,marginTop:3}}>+{ff(targetTotal-currentTotal)}/mo extra unlocked</div>
+          </div>
+        </div>
+        {/* Income donut + list */}
+        <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
+          <Donut items={incomeRows.map(r=>({v:r.monthly||0,c:r.c}))} size={130}/>
+          <div style={{flex:1}}>
+            {incomeRows.map((r,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:7,padding:"9px 12px",background:"rgba(0,0,0,0.25)",borderRadius:8,border:`1px solid ${r.c}20`}}>
+                <span style={{fontSize:16,flexShrink:0}}>{r.icon}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                    <span style={{color:"white",fontSize:11,fontWeight:700}}>{r.label}</span>
+                    <Badge label={r.statusLabel} color={statusColors[r.status]}/>
+                  </div>
+                  <div style={{color:"#64748b",fontSize:9}}>{r.note}</div>
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{color:r.monthly?r.c:"#475569",fontSize:13,fontWeight:800}}>{r.monthly?ff(r.monthly):"Pending"}</div>
+                  {r.monthly>0&&<div style={{color:"#475569",fontSize:8}}>{fmt(r.monthly*12)}/yr</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={g2}>
+        {/* Quarterly SCSS payout tracker */}
+        <Card style={{border:"1px solid rgba(245,158,11,0.2)"}}>
+          <CT icon="📅" color="#f59e0b">SCSS — Quarterly Payout Tracker</CT>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+            {[
+              {name:"Dad SCSS",qtr:D.scss.dad.currentQtrPayout, targetQtr:D.scss.dad.targetQtrPayout, c:"#f59e0b"},
+              {name:"Mom SCSS",qtr:D.scss.mom.currentQtrPayout, targetQtr:D.scss.mom.targetQtrPayout, c:"#fb923c"},
+            ].map((acc,i)=>(
+              <div key={i} style={{background:"#1e293b",borderRadius:9,padding:"11px 12px",border:`1px solid ${acc.c}20`}}>
+                <div style={{color:acc.c,fontSize:9,fontWeight:700,textTransform:"uppercase",marginBottom:7}}>{acc.name}</div>
+                <div style={{color:"#64748b",fontSize:8,marginBottom:1}}>Current payout</div>
+                <div style={{color:acc.c,fontSize:16,fontWeight:900,marginBottom:5}}>{ff(acc.qtr)}<span style={{color:"#475569",fontSize:9,fontWeight:400}}>/quarter</span></div>
+                <div style={{color:"#64748b",fontSize:8,marginBottom:1}}>At target ₹30L</div>
+                <div style={{color:"white",fontSize:13,fontWeight:700,marginBottom:6}}>{ff(acc.targetQtr)}<span style={{color:"#475569",fontSize:8}}>/quarter</span></div>
+                <div style={{color:"#64748b",fontSize:8,marginBottom:2}}>Uplift on top-up</div>
+                <div style={{color:"#10b981",fontSize:10,fontWeight:700}}>+{ff(acc.targetQtr-acc.qtr)}/qtr more</div>
+              </div>
+            ))}
+          </div>
+          <div style={{padding:"9px 11px",background:"rgba(245,158,11,0.07)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:8,marginBottom:9}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <div>
+                <div style={{color:"#64748b",fontSize:8,marginBottom:1}}>CURRENT COMBINED</div>
+                <div style={{color:"#fbbf24",fontSize:14,fontWeight:800}}>{ff(scssCurrentQtr)}/quarter</div>
+                <div style={{color:"#475569",fontSize:8}}>{ff(scssCurrentQtr*4)}/year</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{color:"#64748b",fontSize:8,marginBottom:1}}>TARGET COMBINED</div>
+                <div style={{color:"#10b981",fontSize:14,fontWeight:800}}>{ff(scssTargetQtr)}/quarter</div>
+                <div style={{color:"#475569",fontSize:8}}>{ff(scssTargetQtr*4)}/year</div>
+              </div>
+            </div>
+          </div>
+          <div style={{color:"#94a3b8",fontSize:9,fontWeight:700,textTransform:"uppercase",marginBottom:7}}>📅 Payout Months (Quarterly)</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+            {["Jan","Apr","Jul","Oct"].map(m=>(
+              <div key={m} style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:6,padding:"7px 0",textAlign:"center"}}>
+                <div style={{color:"#fbbf24",fontSize:10,fontWeight:700,marginBottom:3}}>{m}</div>
+                <div style={{color:"white",fontSize:9,fontWeight:700}}>{ff(scssCurrentQtr)}</div>
+                <div style={{color:"#475569",fontSize:7}}>Dad + Mom</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Rental + Sweep FD */}
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <Card style={{border:"1px solid rgba(99,102,241,0.18)"}}>
+            <CT icon="🏘" color="#6366f1">Rental Income — Wanaparthy</CT>
+            <div style={{padding:"9px 11px",background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:7,marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div><div style={{color:"#64748b",fontSize:8,marginBottom:1}}>STARTS</div><div style={{color:"#a78bfa",fontSize:14,fontWeight:800}}>April 1, 2026</div></div>
+                <div style={{textAlign:"right"}}><div style={{color:"#64748b",fontSize:8,marginBottom:1}}>MONTHLY</div><div style={{color:"#a78bfa",fontSize:14,fontWeight:800}}>{ff(D.income.rental.monthly)}</div></div>
+              </div>
+            </div>
+            <div style={{color:"#94a3b8",fontSize:9,fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Growth (5% every April)</div>
+            {D.income.rental.schedule.map((s,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <span style={{color:"#94a3b8",fontSize:9}}>{s.yr}</span>
+                <span style={{color:"#a78bfa",fontSize:10,fontWeight:700}}>{ff(s.mo)}/mo <span style={{color:"#475569",fontSize:8}}>({fmt(s.ann)}/yr)</span></span>
+              </div>
+            ))}
+          </Card>
+          <Card style={{border:"1px solid rgba(6,182,212,0.18)"}}>
+            <CT icon="🏦" color="#06b6d4">Sweep FD — Monthly Payout</CT>
+            <div style={{padding:"8px 10px",background:"rgba(239,68,68,0.06)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:6,marginBottom:9}}>
+              <Badge label="⚠️ Not yet deposited" color="#ef4444"/>
+              <div style={{color:"#f87171",fontSize:10,marginTop:3}}>₹15L planned — deposit to unlock ₹9,060/mo income</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+              {[["Planned Amount",ff(D.sweepFD.planned)],["Rate",D.sweepFD.rate+"%"],["Monthly Payout (target)",ff(D.sweepFD.targetMonthlyPayout)],["Annual Payout (target)",ff(D.sweepFD.targetAnnual)]].map(([k,v])=>(
+                <div key={k} style={{background:"#1e293b",borderRadius:6,padding:"7px 8px"}}>
+                  <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:2}}>{k}</div>
+                  <div style={{color:"white",fontSize:10,fontWeight:700}}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Bottom: future income targets summary */}
+      <Card>
+        <CT icon="🎯">Income Growth Plan — What to unlock next</CT>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+          {[
+            {step:"Step 1",icon:"👴",label:"Top-up Dad SCSS",action:"Add ₹20L → ₹30L total",unlock:"+₹41,000/quarter",c:"#f59e0b"},
+            {step:"Step 2",icon:"👵",label:"Top-up Mom SCSS",action:"Add ₹20L → ₹30L total",unlock:"+₹41,000/quarter",c:"#fb923c"},
+            {step:"Step 3",icon:"🏦",label:"Deposit Sweep FD",action:"₹15L in Sweep FD",unlock:"+₹9,060/month",c:"#06b6d4"},
+            {step:"Step 4",icon:"🏘",label:"Rental Begins",action:"Auto-starts Apr 2026",unlock:"+₹1,15,000/month",c:"#6366f1"},
+          ].map((s,i)=>(
+            <div key={i} style={{background:"#1e293b",borderRadius:10,padding:"11px 12px",border:`1px solid ${s.c}20`}}>
+              <div style={{color:s.c,fontSize:8,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>{s.step}</div>
+              <div style={{fontSize:18,marginBottom:4}}>{s.icon}</div>
+              <div style={{color:"white",fontSize:10,fontWeight:700,marginBottom:2}}>{s.label}</div>
+              <div style={{color:"#64748b",fontSize:9,marginBottom:6}}>{s.action}</div>
+              <div style={{color:s.c,fontSize:11,fontWeight:800}}>{s.unlock}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:10,padding:"9px 12px",background:"rgba(16,185,129,0.07)",border:"1px solid rgba(16,185,129,0.15)",borderRadius:7,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{color:"#64748b",fontSize:9,marginBottom:2}}>TOTAL INCOME AFTER ALL STEPS DONE</div>
+            <div style={{color:"#34d399",fontSize:18,fontWeight:900}}>{ff(targetTotal)}/month</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{color:"#64748b",fontSize:9,marginBottom:2}}>MONTHLY SURPLUS THEN</div>
+            <div style={{color:"#10b981",fontSize:18,fontWeight:900}}>{ff(targetTotal-mT)}/month</div>
+          </div>
+        </div>
+      </Card>
+    </>);
+  }
+
+  // ══ TAB: SCHEMES (SCSS) ════════════════════
+  function SchemesTab(){
+    return(<>
+      <div style={{background:"linear-gradient(135deg,rgba(245,158,11,0.1),rgba(251,191,36,0.04))",border:"1px solid rgba(245,158,11,0.22)",borderRadius:13,padding:"16px 20px",marginBottom:13}}>
+        <div style={{color:"#f59e0b",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5}}>🏛 SENIOR CITIZENS SAVINGS SCHEME (SCSS) — Parents</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <div style={{color:"white",fontSize:17,fontWeight:800,marginBottom:3}}>₹20L deposited (₹10L + ₹10L) — Target ₹60L total</div>
+            <div style={{color:"#94a3b8",fontSize:11}}>Rate: 8.2% p.a. · Quarterly payout · Lock-in 5 years + 1 extension of 3 years</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:2}}>CURRENT QUARTERLY</div>
+            <div style={{color:"#fbbf24",fontSize:18,fontWeight:900}}>₹41,000</div>
+            <div style={{color:"#475569",fontSize:9}}>Dad ₹20,500 + Mom ₹20,500</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Side-by-side Dad and Mom */}
+      <div style={g2}>
+        {[{p:D.scss.dad,lbl:"Dad",c:"#f59e0b"},{p:D.scss.mom,lbl:"Mom",c:"#fb923c"}].map(({p,lbl,c})=>(
+          <Card key={lbl} style={{border:`1px solid ${c}20`}}>
+            <CT icon="👤" color={c}>{lbl}&apos;s SCSS Account</CT>
+
+            {/* Deposit progress */}
+            <div style={{background:"#1e293b",borderRadius:9,padding:"13px",marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                <div><div style={{color:"#64748b",fontSize:8,marginBottom:1}}>DEPOSITED</div><div style={{color:c,fontSize:16,fontWeight:900}}>{fmt(p.deposited)}</div></div>
+                <div style={{textAlign:"right"}}><div style={{color:"#64748b",fontSize:8,marginBottom:1}}>TARGET</div><div style={{color:"white",fontSize:16,fontWeight:900}}>{fmt(p.target)}</div></div>
+              </div>
+              <ProgBar pct={pct(p.deposited,p.target)} color={`linear-gradient(90deg,${c},${c}99)`} h={8}/>
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:5}}>
+                <span style={{color:c,fontSize:9,fontWeight:700}}>{pct(p.deposited,p.target)}% done</span>
+                <span style={{color:"#ef4444",fontSize:9,fontWeight:700}}>Still need: {fmt(p.remaining)}</span>
+              </div>
+            </div>
+
+            {/* Payout comparison */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+              <div style={{background:`${c}10`,border:`1px solid ${c}20`,borderRadius:8,padding:"10px 11px"}}>
+                <div style={{color:"#64748b",fontSize:8,marginBottom:2}}>NOW (₹10L)</div>
+                <div style={{color:c,fontSize:14,fontWeight:900}}>{ff(p.currentQtrPayout)}</div>
+                <div style={{color:"#475569",fontSize:8}}>per quarter</div>
+                <div style={{color:"#64748b",fontSize:8,marginTop:3}}>{ff(p.currentAnnualPayout)}/year</div>
+              </div>
+              <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"10px 11px"}}>
+                <div style={{color:"#64748b",fontSize:8,marginBottom:2}}>TARGET (₹30L)</div>
+                <div style={{color:"#10b981",fontSize:14,fontWeight:900}}>{ff(p.targetQtrPayout)}</div>
+                <div style={{color:"#475569",fontSize:8}}>per quarter</div>
+                <div style={{color:"#64748b",fontSize:8,marginTop:3}}>{ff(p.targetAnnualPayout)}/year</div>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div style={{background:"#1e293b",borderRadius:8,padding:"11px 12px",marginBottom:10}}>
+              <div style={{color:"#94a3b8",fontSize:9,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>📅 Timeline</div>
+              {[
+                {label:"Deposit Date",  value:p.depositDate,  c:"#10b981"},
+                {label:"Lock-in Period",value:"5 Years",       c:"#f59e0b"},
+                {label:"Maturity",      value:p.maturity,      c:"#fbbf24"},
+                {label:"Extension",     value:"+ 3 more years (one-time)", c:"#06b6d4"},
+                {label:"Max Tenure",    value:p.extendedMaturity+" (8 yrs total)", c:"#a78bfa"},
+              ].map(({label,value,c:col})=>(
+                <div key={label} style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                  <span style={{color:"#64748b",fontSize:9}}>{label}</span>
+                  <span style={{color:col,fontSize:9,fontWeight:700}}>{value}</span>
+                </div>
+              ))}
+            </div>
+
+            {editMode&&(
+              <div style={{background:"rgba(251,191,36,0.06)",border:"1px solid rgba(251,191,36,0.15)",borderRadius:7,padding:"9px 11px"}}>
+                <div style={{color:"#fbbf24",fontSize:9,fontWeight:700,marginBottom:7}}>✏️ Edit Deposit Amount</div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <input className="ei" defaultValue={p.deposited} style={{flex:1}} onBlur={e=>upd(`scss.${lbl.toLowerCase()}.deposited`,num(e.target.value))}/>
+                  <span style={{color:"#64748b",fontSize:9}}>deposited</span>
+                </div>
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
+
+      {/* Combined overview */}
+      <Card>
+        <CT icon="📊" color="#f59e0b">Combined SCSS Overview</CT>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+          {[
+            {l:"Total Deposited",   v:ff(D.scss.dad.deposited+D.scss.mom.deposited),      c:"#fbbf24"},
+            {l:"Total Target",      v:ff(D.scss.dad.target+D.scss.mom.target),            c:"white"},
+            {l:"Still to Deposit",  v:ff(D.scss.dad.remaining+D.scss.mom.remaining),      c:"#f87171"},
+            {l:"Current Qtr Payout",v:ff(D.scss.dad.currentQtrPayout+D.scss.mom.currentQtrPayout), c:"#f59e0b"},
+            {l:"Target Qtr Payout", v:ff(D.scss.dad.targetQtrPayout+D.scss.mom.targetQtrPayout),   c:"#10b981"},
+          ].map(({l,v,c})=>(
+            <div key={l} style={{background:"#1e293b",borderRadius:8,padding:"9px 10px",textAlign:"center"}}>
+              <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:3}}>{l}</div>
+              <div style={{color:c,fontSize:12,fontWeight:800}}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Payout uplift visualisation */}
+        <div style={{padding:"11px 13px",background:"rgba(245,158,11,0.07)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:9,marginBottom:12}}>
+          <div style={{color:"#fbbf24",fontSize:11,fontWeight:700,marginBottom:8}}>Quarterly Payout — Current vs Target</div>
+          {[
+            {label:"Dad NOW",      v:D.scss.dad.currentQtrPayout,  max:D.scss.dad.targetQtrPayout,  c:"#f59e0b"},
+            {label:"Dad TARGET",   v:D.scss.dad.targetQtrPayout,   max:D.scss.dad.targetQtrPayout,  c:"#10b981"},
+            {label:"Mom NOW",      v:D.scss.mom.currentQtrPayout,  max:D.scss.mom.targetQtrPayout,  c:"#fb923c"},
+            {label:"Mom TARGET",   v:D.scss.mom.targetQtrPayout,   max:D.scss.mom.targetQtrPayout,  c:"#10b981"},
+          ].map((r,i)=>(
+            <div key={i} style={{marginBottom:7}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+                <span style={{color:"#94a3b8",fontSize:9}}>{r.label}</span>
+                <span style={{color:r.c,fontSize:10,fontWeight:700}}>{ff(r.v)}/quarter</span>
+              </div>
+              <ProgBar pct={pct(r.v,r.max)} color={r.c} h={5}/>
+            </div>
+          ))}
+        </div>
+
+        {/* Rules */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {[
+            {icon:"🔒",title:"Lock-in: 5 Years",body:"Money locked from deposit date until maturity. Cannot withdraw before 5 years without penalty.",c:"#ef4444"},
+            {icon:"🔄",title:"One-Time Extension: 3 Years",body:"After 5-year maturity, can extend once for 3 more years. Total max 8 years of SCSS.",c:"#06b6d4"},
+            {icon:"💰",title:"Payout: Quarterly",body:"Interest paid quarterly to your bank account — Jan, Apr, Jul, Oct every year.",c:"#10b981"},
+            {icon:"📈",title:"Rate: 8.2% p.a.",body:"Government-backed guaranteed return. Rate reviewed quarterly but existing deposits keep rate.",c:"#f59e0b"},
+          ].map((r,i)=>(
+            <div key={i} style={{background:"#1e293b",borderRadius:8,padding:"10px 12px",border:`1px solid ${r.c}15`}}>
+              <div style={{fontSize:16,marginBottom:4}}>{r.icon}</div>
+              <div style={{color:"white",fontSize:10,fontWeight:700,marginBottom:3}}>{r.title}</div>
+              <div style={{color:"#64748b",fontSize:9,lineHeight:1.5}}>{r.body}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </>);
+  }
+
+  // ══ TAB: FD ════════════════════════════════
+  function FDTab(){
+    const fd=D.sweepFD;
+    return(<>
+      {/* Hero */}
+      <div style={{background:"linear-gradient(135deg,rgba(6,182,212,0.1),rgba(6,182,212,0.03))",border:"1px solid rgba(6,182,212,0.22)",borderRadius:13,padding:"16px 20px",marginBottom:13}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <div style={{color:"#06b6d4",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5}}>🏦 SWEEP FD — FIXED DEPOSIT</div>
+            <div style={{color:"white",fontSize:17,fontWeight:800,marginBottom:3}}>₹15 Lakhs Planned — Not Yet Deposited</div>
+            <div style={{color:"#94a3b8",fontSize:11}}>Once deposited: {ff(fd.targetMonthlyPayout)}/month auto-credited to account</div>
+          </div>
+          <div style={{padding:"7px 13px",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:7}}>
+            <div style={{color:"#f87171",fontSize:10,fontWeight:700}}>⚠️ ACTION NEEDED</div>
+            <div style={{color:"#ef4444",fontSize:11,fontWeight:800}}>Deposit ₹15L to start</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={g2}>
+        {/* FD details */}
+        <Card style={{border:"1px solid rgba(6,182,212,0.18)"}}>
+          <CT icon="📋" color="#06b6d4">Sweep FD Details</CT>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+            {[["Planned Amount",ff(fd.planned)],["Rate",fd.rate+"%"],["Monthly Payout (target)",ff(fd.targetMonthlyPayout)],["Annual Payout (target)",ff(fd.targetAnnual)],["Payout Type","Monthly"],["Status","Pending Deposit"]].map(([k,v])=>(
+              <div key={k} style={{background:"#1e293b",borderRadius:7,padding:"8px 9px"}}>
+                <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:2}}>{k}</div>
+                {editMode&&k==="Planned Amount"
+                  ?<input className="ei" defaultValue={fd.planned} style={{width:"100%"}} onBlur={e=>upd("sweepFD.planned",num(e.target.value))}/>
+                  :<div style={{color:v==="Pending Deposit"?"#f87171":"white",fontSize:10,fontWeight:700}}>{v}</div>}
+              </div>
+            ))}
+          </div>
+
+          {/* After deposit */}
+          <div style={{padding:"11px 13px",background:"rgba(6,182,212,0.07)",border:"1px solid rgba(6,182,212,0.18)",borderRadius:8,marginBottom:10}}>
+            <div style={{color:"#06b6d4",fontSize:10,fontWeight:700,marginBottom:7}}>📈 Once ₹15L is deposited:</div>
+            {[["Monthly income added",ff(fd.targetMonthlyPayout)],["Annual income added",ff(fd.targetAnnual)],["Extra per year from FD",ff(fd.targetAnnual)]].map(([l,v])=>(
+              <div key={l} style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                <span style={{color:"#94a3b8",fontSize:10}}>{l}</span>
+                <span style={{color:"#06b6d4",fontSize:11,fontWeight:700}}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {editMode&&(
+            <div style={{padding:"9px 11px",background:"rgba(16,185,129,0.06)",border:"1px solid rgba(16,185,129,0.15)",borderRadius:7}}>
+              <div style={{color:"#34d399",fontSize:9,fontWeight:700,marginBottom:6}}>Mark as Deposited</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{upd("sweepFD.deposited",true);upd("sweepFD.actual",fd.planned);upd("sweepFD.monthlyPayout",fd.targetMonthlyPayout);upd("sweepFD.annual",fd.targetAnnual);}} style={{flex:1,background:"linear-gradient(135deg,#10b981,#059669)",border:"none",borderRadius:6,padding:"7px",color:"white",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"DM Sans,sans-serif"}}>✅ Mark Deposited</button>
+                <button onClick={()=>{upd("sweepFD.deposited",false);upd("sweepFD.actual",0);upd("sweepFD.monthlyPayout",0);upd("sweepFD.annual",0);}} style={{flex:1,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:6,padding:"7px",color:"#f87171",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"DM Sans,sans-serif"}}>Reset to Pending</button>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {/* What is Sweep FD + income projection */}
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <Card style={{border:"1px solid rgba(6,182,212,0.15)"}}>
+            <CT icon="💡" color="#06b6d4">What is a Sweep FD?</CT>
+            {[
+              {icon:"🔄",title:"Auto-Sweep",body:"Money above your savings account limit auto-converts to FD, earning higher interest"},
+              {icon:"💸",title:"Monthly Payout",body:"Interest is credited to your account every month automatically — like a salary"},
+              {icon:"🔓",title:"Liquid",body:"Unlike regular FDs, you can withdraw when needed (in units) — money isn't fully locked"},
+              {icon:"📈",title:"Higher Rate",body:"Earns 9% vs ~4% in savings account — same safety, much better returns"},
+            ].map((r,i)=>(
+              <div key={i} style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:8,padding:"7px 9px",background:"#1e293b",borderRadius:7}}>
+                <span style={{fontSize:14,flexShrink:0,marginTop:1}}>{r.icon}</span>
+                <div><div style={{color:"white",fontSize:10,fontWeight:700,marginBottom:1}}>{r.title}</div><div style={{color:"#64748b",fontSize:9,lineHeight:1.5}}>{r.body}</div></div>
+              </div>
+            ))}
+          </Card>
+          <Card style={{border:"1px solid rgba(16,185,129,0.15)"}}>
+            <CT icon="📊" color="#10b981">Monthly Income Impact</CT>
+            {[
+              {label:"Without Sweep FD",income:D.income.salary,c:"#64748b"},
+              {label:"With Sweep FD",   income:D.income.salary+fd.targetMonthlyPayout,c:"#10b981"},
+              {label:"Extra per month", income:fd.targetMonthlyPayout,c:"#06b6d4"},
+            ].map((r,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 9px",background:i===2?"rgba(6,182,212,0.07)":"#1e293b",border:i===2?"1px solid rgba(6,182,212,0.18)":"none",borderRadius:7,marginBottom:6}}>
+                <span style={{color:"#94a3b8",fontSize:10}}>{r.label}</span>
+                <span style={{color:r.c,fontSize:11,fontWeight:700}}>{ff(r.income)}/mo</span>
+              </div>
+            ))}
+            <div style={{marginTop:6,padding:"7px 10px",background:"rgba(16,185,129,0.07)",border:"1px solid rgba(16,185,129,0.15)",borderRadius:7}}>
+              <span style={{color:"#34d399",fontSize:10}}>💡 One-time deposit of ₹15L adds ₹1.09L/year to income — effective 7.3% return on capital deployed.</span>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </>);
+  }
+
+  // ══ TAB: LOANS ══════════════════════════════
+  function LoansTab(){
+    return(
+      <div style={g2}>
+        {[{loan:D.sbi,lk:"sbi",title:"SBI Home Loan · Hyderabad",c:"#3b82f6"},{loan:D.icici,lk:"icici",title:"ICICI Home Loan · Wanaparthy",c:"#14b8a6"}].map(({loan,lk,title,c})=>(
+          <Card key={lk} style={{border:`1px solid ${c}18`}}>
+            <CT icon="🏦" color={c}>{title}</CT>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              {[["Principal",loan.principal,true,"principal"],["Rate p.a.",loan.rate,true,"rate"],["Monthly EMI",ff(loan.emi),true,"emi"],["Tenure (months)",loan.tenure,true,"tenure"],["Months Paid",loan.paid,true,"paid"],["Months Left",loan.remaining,true,"remaining"],["Outstanding",ff(loan.outstanding),true,"outstanding"],["Total Interest",ff(loan.totalInterest),false]].map(([k,v,editable,field])=>(
+                <div key={k} style={{background:"#1e293b",borderRadius:6,padding:"7px 9px"}}>
+                  <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:2}}>{k}</div>
+                  {editMode&&editable
+                    ?<input className="ei" defaultValue={v} style={{width:"100%"}} onBlur={e=>upd(`${lk}.${field}`,num(e.target.value))}/>
+                    :<div style={{color:["Outstanding","Total Interest"].includes(k)?"#f87171":"white",fontSize:11,fontWeight:700}}>{k==="Principal"||k==="Outstanding"?ff(v):k==="Rate p.a."?v+"%":k==="Tenure (months)"?v+" months":v}</div>}
+                </div>
+              ))}
+            </div>
+            <div style={{marginBottom:3}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                <span style={{color:"#cbd5e1",fontSize:11,fontWeight:600}}>{loan.label}</span>
+                <span style={{color:"#475569",fontSize:9}}>{loan.paid} paid · {loan.remaining} left</span>
+              </div>
+              <ProgBar pct={((loan.tenure-loan.remaining)/loan.tenure*100).toFixed(1)} color={c} h={5}/>
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  // ══ TAB: MUTUAL FUNDS ═══════════════════════
+  function MutualFundsTab(){
+    const FUNDS=[
+      {id:"motilal",name:"Motilal Oswal Midcap Fund",short:"MO Midcap",category:"Equity · Mid Cap",sip:10000,color:"#f59e0b",emoji:"📊",currentCorpus:86000,retLow:13,retMid:16,retHigh:20,risk:"High",riskColor:"#ef4444",why:"High-growth mid-cap pick. Historically outperforms large-cap over 7+ year horizons.",nextSIP:"5 Feb 2026"},
+      {id:"hdfc50",name:"HDFC Nifty 50 Index Fund",short:"HDFC Nifty 50",category:"Index · Large Cap",sip:20000,color:"#3b82f6",emoji:"📈",currentCorpus:172000,retLow:11,retMid:12,retHigh:14,risk:"Moderate",riskColor:"#f59e0b",why:"Bedrock index fund. Low cost, tracks Nifty 50, zero fund manager risk.",nextSIP:"2 Mar 2026"},
+      {id:"bandhan",name:"Bandhan Small Cap Fund",short:"Bandhan SmallCap",category:"Equity · Small Cap",sip:5000,color:"#ec4899",emoji:"🚀",currentCorpus:43000,retLow:14,retMid:18,retHigh:24,risk:"Very High",riskColor:"#dc2626",why:"Aggressive small-cap. Maximum return potential with higher volatility.",nextSIP:"5 Mar 2026"},
+      {id:"ppfas",name:"Parag Parikh Flexi Cap Fund",short:"PPFAS Flexi Cap",category:"Equity · Flexi Cap",sip:15000,color:"#10b981",emoji:"🌍",currentCorpus:129000,retLow:13,retMid:15,retHigh:18,risk:"Moderate-High",riskColor:"#f59e0b",why:"Best-in-class flexi cap with global diversification. Consistent 5-star rated.",nextSIP:"5 Mar 2026"},
+      {id:"hdfcflexi",name:"HDFC Flexi Cap Fund",short:"HDFC Flexi Cap",category:"Equity · Flexi Cap",sip:5000,color:"#6366f1",emoji:"💼",currentCorpus:43000,retLow:12,retMid:14,retHigh:17,risk:"Moderate-High",riskColor:"#f59e0b",why:"Veteran fund manager-led flexi cap. Solid long-term compounder.",nextSIP:"5 Mar 2026"},
+    ];
+    const TOTAL_SIP=FUNDS.reduce((s,f)=>s+f.sip,0);
+    const TOTAL_CORPUS=FUNDS.reduce((s,f)=>s+f.currentCorpus,0);
+    const STEP_UP=0.15; const YEARS=20;
+
+    // Monthly SIP corpus with yearly step-up — proper algorithm
+    const calcCorpus=(initSIP,annualRate,years,startCorpus=0)=>{
+      const mr=annualRate/100/12;
+      let corpus=startCorpus,invested=startCorpus,sip=initSIP;
+      for(let y=0;y<years;y++){
+        for(let m=0;m<12;m++){corpus=corpus*(1+mr)+sip;invested+=sip;}
+        sip=Math.round(sip*(1+STEP_UP));
+      }
+      return{corpus:Math.round(corpus),invested:Math.round(invested)};
+    };
+    const calcFlat=(initSIP,annualRate,years,startCorpus=0)=>{
+      const mr=annualRate/100/12;
+      let corpus=startCorpus,invested=startCorpus;
+      for(let y=0;y<years;y++){for(let m=0;m<12;m++){corpus=corpus*(1+mr)+initSIP;invested+=initSIP;}}
+      return{corpus:Math.round(corpus),invested:Math.round(invested)};
+    };
+
+    const fundProj=FUNDS.map(f=>({...f,low:calcCorpus(f.sip,f.retLow,YEARS,f.currentCorpus),mid:calcCorpus(f.sip,f.retMid,YEARS,f.currentCorpus),high:calcCorpus(f.sip,f.retHigh,YEARS,f.currentCorpus)}));
+    const portLow={corpus:fundProj.reduce((s,f)=>s+f.low.corpus,0),invested:fundProj.reduce((s,f)=>s+f.low.invested,0)};
+    const portMid={corpus:fundProj.reduce((s,f)=>s+f.mid.corpus,0),invested:fundProj.reduce((s,f)=>s+f.mid.invested,0)};
+    const portHigh={corpus:fundProj.reduce((s,f)=>s+f.high.corpus,0),invested:fundProj.reduce((s,f)=>s+f.high.invested,0)};
+    const flatMid=calcFlat(TOTAL_SIP,14,YEARS,TOTAL_CORPUS);
+    const stepUpExtra=portMid.corpus-flatMid.corpus;
+    const finalYearSIP=Math.round(TOTAL_SIP*Math.pow(1.15,19));
+
+    // Year-by-year journey at blended ~14% rate
+    const journey=[];
+    for(let yr=1;yr<=YEARS;yr++){const r=calcCorpus(TOTAL_SIP,14,yr,TOTAL_CORPUS);journey.push({yr,corpus:r.corpus,invested:r.invested,gain:Math.round((r.corpus-r.invested)/r.invested*100)});}
+
+    const [selFund,setSelFund]=useState(null);
+    const [scenario,setScenario]=useState("mid");
+    const scData={low:portLow,mid:portMid,high:portHigh};
+    const scLabel={low:"Conservative",mid:"Realistic ★",high:"Optimistic"};
+    const scColor={low:"#f87171",mid:"#10b981",high:"#fbbf24"};
+    const scRate={low:"~13% CAGR",mid:"~14-15% CAGR",high:"~18-20% CAGR"};
+
+    // SVG sparkline
+    const maxC=Math.max(...journey.map(y=>y.corpus));
+    const W=280,H=55;
+    const pts=journey.map((y,i)=>`${(i/(YEARS-1))*W},${H-(y.corpus/maxC*H)}`).join(" ");
+    const ptsF=`0,${H} ${pts} ${W},${H}`;
+
+    return(<>
+      {/* Hero */}
+      <div style={{background:"linear-gradient(135deg,rgba(99,102,241,0.12),rgba(167,139,250,0.05))",border:"1px solid rgba(99,102,241,0.22)",borderRadius:13,padding:"18px 22px",marginBottom:13}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+          <div>
+            <div style={{color:"#a78bfa",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5}}>📈 MUTUAL FUNDS PORTFOLIO</div>
+            <div style={{color:"white",fontSize:24,fontWeight:900,marginBottom:2}}>5 Active SIPs · {ff(TOTAL_SIP)}/month</div>
+            <div style={{color:"#64748b",fontSize:11}}>Current corpus: {fmt(TOTAL_CORPUS)} · Invested: ₹4.3L · P&amp;L: +₹653 · 15% step-up every April</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{color:"#64748b",fontSize:9,textTransform:"uppercase",marginBottom:3}}>20-YEAR REALISTIC CORPUS</div>
+            <div style={{color:"#a78bfa",fontSize:26,fontWeight:900,marginBottom:2}}>{fmt(portMid.corpus)}</div>
+            <div style={{color:"#10b981",fontSize:11,fontWeight:700}}>Total gain: {fmt(portMid.corpus-portMid.invested)} · {Math.round((portMid.corpus/portMid.invested-1)*100)}% return</div>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+          {[
+            {l:"SIP This Month",v:ff(TOTAL_SIP),sub:"5 funds combined",c:"#a78bfa"},
+            {l:"20-Year Corpus",v:fmt(portMid.corpus),sub:"At blended ~14-15%",c:"#10b981"},
+            {l:"Total You'll Invest",v:fmt(portMid.invested),sub:"Over 20 years with step-up",c:"white"},
+            {l:"15% Step-Up Bonus",v:fmt(stepUpExtra),sub:"vs flat ₹55k no step-up",c:"#fbbf24"},
+          ].map(({l,v,sub,c})=>(
+            <div key={l} style={{background:"rgba(0,0,0,0.25)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(99,102,241,0.15)"}}>
+              <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:3}}>{l}</div>
+              <div style={{color:c,fontSize:14,fontWeight:900,marginBottom:1}}>{v}</div>
+              <div style={{color:"#475569",fontSize:8}}>{sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Scenario + sparkline */}
+      <div style={{...g2,gridTemplateColumns:"1fr 1fr"}}>
+        <Card>
+          <CT icon="🎯">20-Year Scenario — Switch to compare</CT>
+          <div style={{display:"flex",gap:4,marginBottom:12,background:"#1e293b",borderRadius:8,padding:3}}>
+            {["low","mid","high"].map(s=>(
+              <button key={s} onClick={()=>setScenario(s)} style={{flex:1,padding:"6px 4px",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,background:scenario===s?`${scColor[s]}cc`:"transparent",color:scenario===s?"white":"#64748b",border:"none",fontFamily:"DM Sans,sans-serif",lineHeight:1.4}}>
+                <div>{scLabel[s]}</div>
+                <div style={{fontSize:8,marginTop:1,color:scenario===s?"rgba(255,255,255,0.7)":"#475569"}}>{scRate[s]}</div>
+              </button>
+            ))}
+          </div>
+          <div style={{padding:"14px",background:`${scColor[scenario]}10`,border:`1px solid ${scColor[scenario]}25`,borderRadius:10,marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+              <div>
+                <div style={{color:"#64748b",fontSize:8,marginBottom:2}}>FINAL CORPUS AT 20 YEARS</div>
+                <div style={{color:scColor[scenario],fontSize:26,fontWeight:900}}>{fmt(scData[scenario].corpus)}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{color:"#64748b",fontSize:8,marginBottom:2}}>TOTAL INVESTED</div>
+                <div style={{color:"white",fontSize:16,fontWeight:800}}>{fmt(scData[scenario].invested)}</div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+              {[{l:"Net Profit",v:fmt(scData[scenario].corpus-scData[scenario].invested)},{l:"Wealth Multiple",v:(scData[scenario].corpus/scData[scenario].invested).toFixed(1)+"x"},{l:"SIP in Yr 20",v:ff(finalYearSIP)+"/mo"}].map(({l,v})=>(
+                <div key={l} style={{background:"rgba(0,0,0,0.2)",borderRadius:6,padding:"6px 8px",textAlign:"center"}}>
+                  <div style={{color:"#64748b",fontSize:7,textTransform:"uppercase",marginBottom:2}}>{l}</div>
+                  <div style={{color:"white",fontSize:10,fontWeight:700}}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Sparkline */}
+          <div style={{color:"#94a3b8",fontSize:8,fontWeight:700,textTransform:"uppercase",marginBottom:5}}>Corpus Growth Curve (Realistic Rate)</div>
+          <div style={{background:"#1e293b",borderRadius:8,padding:"10px 8px 6px",overflow:"hidden"}}>
+            <svg width="100%" height={H+8} viewBox={`0 0 ${W} ${H+8}`} preserveAspectRatio="none">
+              <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6366f1" stopOpacity="0.35"/><stop offset="100%" stopColor="#6366f1" stopOpacity="0.02"/></linearGradient></defs>
+              <polygon points={ptsF} fill="url(#cg)"/>
+              <polyline points={pts} fill="none" stroke="#a78bfa" strokeWidth="1.5"/>
+              {[4,9,14,19].map(i=><circle key={i} cx={(i/(YEARS-1))*W} cy={H-(journey[i].corpus/maxC*H)} r="3" fill="#a78bfa"/>)}
+            </svg>
+            <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
+              <span style={{color:"#475569",fontSize:8}}>Now</span>
+              <span style={{color:"#a78bfa",fontSize:8,fontWeight:700}}>Yr5: {fmt(journey[4].corpus)}</span>
+              <span style={{color:"#a78bfa",fontSize:8,fontWeight:700}}>Yr10: {fmt(journey[9].corpus)}</span>
+              <span style={{color:"#a78bfa",fontSize:8,fontWeight:700}}>Yr20: {fmt(journey[19].corpus)}</span>
+            </div>
+          </div>
+          <div style={{marginTop:9,display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div style={{background:"rgba(96,165,250,0.08)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:7,padding:"9px 10px"}}>
+              <div style={{color:"#64748b",fontSize:8,marginBottom:2}}>Flat ₹55k (no step-up)</div>
+              <div style={{color:"#60a5fa",fontSize:13,fontWeight:800}}>{fmt(flatMid.corpus)}</div>
+            </div>
+            <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:7,padding:"9px 10px"}}>
+              <div style={{color:"#64748b",fontSize:8,marginBottom:2}}>With 15% step-up ⭐</div>
+              <div style={{color:"#10b981",fontSize:13,fontWeight:800}}>{fmt(portMid.corpus)}</div>
+              <div style={{color:"#10b981",fontSize:8}}>+{fmt(stepUpExtra)} more!</div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Year-by-year table */}
+        <Card>
+          <CT icon="📅">Year-by-Year Journey</CT>
+          <div style={{display:"grid",gridTemplateColumns:"36px 1fr 1fr 38px",gap:4,marginBottom:5,padding:"3px 6px"}}>
+            {["YR","CORPUS","INVESTED","GAIN"].map(h=><span key={h} style={{color:"#475569",fontSize:7,fontWeight:700}}>{h}</span>)}
+          </div>
+          <div style={{maxHeight:310,overflowY:"auto"}}>
+            {journey.map((y,i)=>{
+              const ms=[5,10,15,20].includes(y.yr);
+              const mo=Math.round(TOTAL_SIP*Math.pow(1.15,y.yr-1));
+              return(
+                <div key={i} style={{display:"grid",gridTemplateColumns:"36px 1fr 1fr 38px",gap:4,padding:"4px 6px",background:ms?"rgba(99,102,241,0.09)":"transparent",borderRadius:ms?5:0,border:ms?"1px solid rgba(99,102,241,0.2)":"none",marginBottom:ms?4:2,alignItems:"center"}}>
+                  <span style={{color:ms?"#a78bfa":"#64748b",fontSize:ms?10:9,fontWeight:ms?800:400}}>{y.yr}</span>
+                  <div>
+                    <div style={{color:ms?"#a78bfa":"#e2e8f0",fontSize:ms?10:9,fontWeight:ms?800:400}}>{fmt(y.corpus)}</div>
+                    {ms&&<div style={{color:"#475569",fontSize:7}}>SIP: {ff(mo)}/mo</div>}
+                  </div>
+                  <span style={{color:"#64748b",fontSize:9}}>{fmt(y.invested)}</span>
+                  <span style={{color:y.gain>100?"#fbbf24":y.gain>50?"#10b981":"#34d399",fontSize:9,fontWeight:700}}>{y.gain}%</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{marginTop:7,padding:"7px 9px",background:"rgba(245,158,11,0.07)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:7}}>
+            <span style={{color:"#fbbf24",fontSize:10}}>💡 Compounding explodes after Year 10. Don't stop or pause SIPs during market dips — that is exactly when to stay invested!</span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Fund breakdown */}
+      <Card style={{marginBottom:12}}>
+        <CT icon="🗂">Your 5 Funds — Tap any fund for its 20-year projection</CT>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:10}}>
+          {fundProj.map((f,i)=>(
+            <div key={f.id} onClick={()=>setSelFund(selFund===f.id?null:f.id)} style={{cursor:"pointer",background:selFund===f.id?`${f.color}15`:"#1e293b",border:`2px solid ${selFund===f.id?f.color:f.color+"18"}`,borderRadius:9,padding:"11px 10px",transition:"all 0.2s"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5}}>
+                <span style={{fontSize:18}}>{f.emoji}</span>
+                <div style={{background:`${f.riskColor}18`,borderRadius:3,padding:"1px 5px"}}><span style={{color:f.riskColor,fontSize:7,fontWeight:700}}>{f.risk}</span></div>
+              </div>
+              <div style={{color:"white",fontSize:9,fontWeight:700,marginBottom:1,lineHeight:1.3}}>{f.short}</div>
+              <div style={{color:"#475569",fontSize:8,marginBottom:7}}>{f.category}</div>
+              <div style={{marginBottom:4}}>
+                <div style={{color:"#64748b",fontSize:7,marginBottom:1}}>Monthly SIP</div>
+                <div style={{color:f.color,fontSize:14,fontWeight:900}}>{ff(f.sip)}</div>
+              </div>
+              <div style={{marginBottom:6}}>
+                <div style={{color:"#64748b",fontSize:7,marginBottom:1}}>20yr corpus</div>
+                <div style={{color:"#10b981",fontSize:10,fontWeight:700}}>{fmt(f.mid.corpus)}</div>
+              </div>
+              <ProgBar pct={(f.sip/TOTAL_SIP*100).toFixed(0)} color={f.color} h={3}/>
+              <div style={{color:"#475569",fontSize:7,marginTop:1}}>{(f.sip/TOTAL_SIP*100).toFixed(0)}% of portfolio</div>
+            </div>
+          ))}
+        </div>
+        {selFund&&(()=>{
+          const f=fundProj.find(x=>x.id===selFund);
+          if(!f) return null;
+          return(
+            <div style={{background:`${f.color}08`,border:`1px solid ${f.color}25`,borderRadius:10,padding:"14px 16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                  <span style={{fontSize:22}}>{f.emoji}</span>
+                  <div>
+                    <div style={{color:f.color,fontSize:13,fontWeight:800}}>{f.name}</div>
+                    <div style={{color:"#64748b",fontSize:10}}>{f.category} · {ff(f.sip)}/month · Next: {f.nextSIP}</div>
+                    <div style={{color:"#94a3b8",fontSize:10,marginTop:3,maxWidth:450}}>{f.why}</div>
+                  </div>
+                </div>
+                <button onClick={()=>setSelFund(null)} style={{background:"transparent",border:"1px solid #334155",borderRadius:5,padding:"3px 9px",color:"#64748b",cursor:"pointer",fontSize:10,fontFamily:"DM Sans,sans-serif"}}>✕</button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+                {[{lbl:"Conservative",proj:f.low,rate:f.retLow+"%",c:"#f87171"},{lbl:"Realistic ★",proj:f.mid,rate:f.retMid+"%",c:f.color},{lbl:"Optimistic",proj:f.high,rate:f.retHigh+"%",c:"#fbbf24"}].map(({lbl,proj,rate,c})=>(
+                  <div key={lbl} style={{background:"rgba(0,0,0,0.25)",borderRadius:8,padding:"12px 13px",border:`1px solid ${c}20`}}>
+                    <div style={{color:c,fontSize:8,fontWeight:700,textTransform:"uppercase",marginBottom:6}}>{lbl} — {rate} CAGR</div>
+                    <div style={{color:c,fontSize:20,fontWeight:900,marginBottom:5}}>{fmt(proj.corpus)}</div>
+                    {[["Invested",fmt(proj.invested)],["Net Gain",fmt(proj.corpus-proj.invested)],["Multiple",(proj.corpus/proj.invested).toFixed(1)+"x"]].map(([k,v])=>(
+                      <div key={k} style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                        <span style={{color:"#64748b",fontSize:9}}>{k}</span>
+                        <span style={{color:k==="Multiple"?c:"white",fontSize:9,fontWeight:700}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+      </Card>
+
+      {/* Allocation + milestones */}
+      <div style={g2}>
+        <Card>
+          <CT icon="🥧">Portfolio Allocation</CT>
+          <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:12}}>
+            <Donut items={FUNDS.map(f=>({v:f.sip,c:f.color}))} size={120}/>
+            <div style={{flex:1}}>
+              {FUNDS.map((f,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                  <div style={{width:8,height:8,borderRadius:2,background:f.color,flexShrink:0}}/>
+                  <div style={{flex:1}}>
+                    <div style={{color:"#e2e8f0",fontSize:9,fontWeight:600}}>{f.short}</div>
+                    <div style={{color:"#475569",fontSize:8}}>{f.category}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{color:f.color,fontSize:10,fontWeight:800}}>{ff(f.sip)}</div>
+                    <div style={{color:"#475569",fontSize:8}}>{(f.sip/TOTAL_SIP*100).toFixed(0)}%</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+            {[{l:"Large Cap (Nifty 50)",pct:36,c:"#3b82f6"},{l:"Mid Cap",pct:18,c:"#f59e0b"},{l:"Flexi Cap",pct:36,c:"#6366f1"},{l:"Small Cap",pct:9,c:"#ec4899"}].map(({l,pct:p,c})=>(
+              <div key={l} style={{background:"#1e293b",borderRadius:6,padding:"6px 8px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                  <span style={{color:"#94a3b8",fontSize:8}}>{l}</span>
+                  <span style={{color:c,fontSize:9,fontWeight:700}}>{p}%</span>
+                </div>
+                <ProgBar pct={p} color={c} h={4}/>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:9,padding:"7px 9px",background:"rgba(16,185,129,0.07)",border:"1px solid rgba(16,185,129,0.15)",borderRadius:6}}>
+            <span style={{color:"#34d399",fontSize:10}}>✅ Well diversified: Index stability + flexi-cap flexibility + mid/small-cap growth engine. No overlap. Balanced for 20-year wealth creation.</span>
+          </div>
+        </Card>
+
+        <Card>
+          <CT icon="🏆">Milestone Map</CT>
+          {[1,3,5,7,10,12,15,17,20].map(yr=>{
+            const r=journey[yr-1];
+            const ms=[5,10,15,20].includes(yr);
+            const mo=Math.round(TOTAL_SIP*Math.pow(1.15,yr-1));
+            return(
+              <div key={yr} style={{display:"flex",gap:10,alignItems:"center",marginBottom:ms?8:4,padding:ms?"7px 9px":"3px 7px",background:ms?"rgba(99,102,241,0.07)":"transparent",border:ms?"1px solid rgba(99,102,241,0.15)":"none",borderRadius:ms?7:0}}>
+                <div style={{background:ms?"linear-gradient(135deg,#6366f1,#a78bfa)":"#1e293b",borderRadius:5,padding:"3px 7px",minWidth:38,textAlign:"center",flexShrink:0}}>
+                  <div style={{color:ms?"white":"#64748b",fontSize:9,fontWeight:ms?800:400}}>Yr {yr}</div>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",justifyContent:"space-between"}}>
+                    <span style={{color:ms?"white":"#94a3b8",fontSize:ms?11:9,fontWeight:ms?700:400}}>{fmt(r.corpus)}</span>
+                    <span style={{color:"#475569",fontSize:8}}>{ff(mo)}/mo</span>
+                  </div>
+                  <ProgBar pct={(r.corpus/journey[19].corpus*100).toFixed(0)} color={ms?"linear-gradient(90deg,#6366f1,#a78bfa)":"#334155"} h={ms?4:2}/>
+                </div>
+                {ms&&<div style={{color:"#fbbf24",fontSize:9,fontWeight:700,flexShrink:0}}>{r.gain}%</div>}
+              </div>
+            );
+          })}
+          <div style={{marginTop:8,padding:"8px 10px",background:"rgba(245,158,11,0.07)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:7}}>
+            <div style={{color:"#fbbf24",fontSize:9,fontWeight:700,marginBottom:4}}>Your SIP step-up schedule</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5}}>
+              {[1,5,10,15].map(yr=><div key={yr} style={{textAlign:"center"}}><div style={{color:"#64748b",fontSize:7}}>Year {yr}</div><div style={{color:"#fbbf24",fontSize:9,fontWeight:700}}>{ff(Math.round(TOTAL_SIP*Math.pow(1.15,yr-1)))}</div></div>)}
+            </div>
+          </div>
+        </Card>
+      </div>
+    </>);
+  }
+  // ══ TAB: INSURANCE (Term) ═══════════════════
+  function InsuranceTab({pk}){
+    const pol=D.ins[pk];
+    const color=pk==="p1"?"#3b82f6":"#8b5cf6";
+    const tag=pk==="p1"?"3 CRORE":"2 CRORE";
+    const total5=pol.yr1+pol.yr2*4;
+    const [sched,setSched]=useState(pol.sched.map(s=>s.paid));
+    const paidAmt=pol.sched.reduce((s,sc,i)=>sched[i]?s+sc.amt:s,0);
+    const togglePaid=i=>{const n=[...sched];n[i]=!n[i];setSched(n);updSchedPaid(pk,i,n[i]);};
+    return(<>
+      <div style={{background:`linear-gradient(135deg,${color}12,${color}04)`,border:`1px solid ${color}25`,borderRadius:12,padding:"15px 18px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{color,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>🛡 {tag} TERM INSURANCE</div>
+          <div style={{color:"white",fontSize:18,fontWeight:800,marginBottom:2}}>{pol.name}</div>
+          <div style={{color:"#94a3b8",fontSize:10}}>TATA AIA · Nominee: {pol.nominee}</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:2}}>SUM ASSURED</div>
+          <div style={{color,fontSize:22,fontWeight:900}}>{fmt(pol.coverage)}</div>
+          <div style={{marginTop:3}}><Badge label="Active ✓" color="#10b981"/></div>
+        </div>
+      </div>
+      <div style={g2}>
+        <Card style={{border:`1px solid ${color}12`}}>
+          <CT icon="📋" color={color}>Policy Details</CT>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            {[["Term",pol.term],["Pay Term",pol.payTerm],["Mode","Annual"],["Maturity",pol.maturity],["Rider",pol.rider||"None"],["Nominee",pol.nominee],["Year 1 Premium",ff(pol.yr1)],["Year 2-5 Premium",ff(pol.yr2)]].map(([k,v])=>(
+              <div key={k} style={{background:"#1e293b",borderRadius:6,padding:"6px 8px"}}>
+                <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:1}}>{k}</div>
+                <div style={{color:"white",fontSize:10,fontWeight:700,lineHeight:1.4}}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card style={{border:`1px solid ${color}12`}}>
+          <CT icon="💰" color={color}>Premium Summary</CT>
+          {[{l:"Year 1 Premium",v:pol.yr1,bg:`${color}10`,tc:color},{l:"Year 2–5 each",v:pol.yr2,bg:"#1e293b",tc:"white"},{l:"Total 5yr Outgo",v:total5,bg:"#1e293b",tc:"#fb923c"},{l:"Paid So Far",v:paidAmt,bg:"rgba(16,185,129,0.07)",tc:"#10b981"},{l:"Balance Left",v:total5-paidAmt,bg:"rgba(239,68,68,0.05)",tc:"#f87171"}].map((r,j)=>(
+            <div key={j} style={{display:"flex",justifyContent:"space-between",padding:"6px 8px",background:r.bg,borderRadius:6,marginBottom:4}}>
+              <span style={{color:"#94a3b8",fontSize:10}}>{r.l}</span>
+              <span style={{color:r.tc,fontSize:11,fontWeight:800}}>{ff(r.v)}</span>
+            </div>
+          ))}
+        </Card>
+      </div>
+      <Card>
+        <CT icon="📅" color={color}>Payment Schedule — tap to mark paid</CT>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
+          {pol.sched.map((s,i)=>(
+            <div key={i} onClick={()=>togglePaid(i)} style={{cursor:"pointer",background:sched[i]?"rgba(16,185,129,0.08)":"#1e293b",border:sched[i]?"1px solid rgba(16,185,129,0.3)":`1px solid ${color}15`,borderRadius:8,padding:"9px 6px",textAlign:"center",transition:"all 0.2s"}}>
+              <div style={{color:"#64748b",fontSize:8,fontWeight:700,textTransform:"uppercase",marginBottom:3}}>Year {s.yr}</div>
+              <div style={{color:sched[i]?"#10b981":color,fontSize:13,fontWeight:800,marginBottom:2}}>{sched[i]?"✓ Paid":"Due"}</div>
+              <div style={{color:"white",fontSize:9,fontWeight:700,marginBottom:1}}>{ff(s.amt)}</div>
+              <div style={{color:"#475569",fontSize:8}}>{s.dt}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:8,padding:"6px 10px",background:"rgba(245,158,11,0.07)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:6}}>
+          <span style={{color:"#fbbf24",fontSize:10}}>Next Due: <strong>{pol.nextDue}</strong> — {ff(pol.nextAmt)} · 📧 Reminder → </span>
+        </div>
+      </Card>
+    </>);
+  }
+
+  // ══ TAB: HEALTH INSURANCE ══════════════════
+  function HealthTab(){
+    const h=D.ins.health;
+    return(<>
+      <div style={{background:"linear-gradient(135deg,rgba(6,182,212,0.12),rgba(6,182,212,0.04))",border:"1px solid rgba(6,182,212,0.25)",borderRadius:12,padding:"15px 18px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{color:"#06b6d4",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>🏥 HEALTH INSURANCE — EVERY 3 YEARS</div>
+          <div style={{color:"white",fontSize:18,fontWeight:800,marginBottom:2}}>{h.name}</div>
+          <div style={{color:"#94a3b8",fontSize:10}}>HDFC ERGO · {h.type} · Full Family Covered</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:2}}>SUM INSURED</div>
+          <div style={{color:"#06b6d4",fontSize:22,fontWeight:900}}>{fmt(h.coverage)}</div>
+          <div style={{marginTop:3}}><Badge label="Active ✓ · 3 Yrs Paid" color="#06b6d4"/></div>
+        </div>
+      </div>
+      <div style={g2}>
+        <Card><CT icon="📋" color="#06b6d4">Policy Details</CT>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            {[["Insurer","HDFC ERGO"],["Type","Family Floater"],["Sum Insured",ff(h.coverage)],["Payment","Every 3 Years"],["Amount",ff(h.premium)],["Years Paid","3 Years ✓"],["Total Paid",ff(h.premium)],["Next Due",h.nextDue]].map(([k,v])=>(
+              <div key={k} style={{background:"#1e293b",borderRadius:6,padding:"6px 8px"}}>
+                <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:1}}>{k}</div>
+                <div style={{color:"white",fontSize:10,fontWeight:700,lineHeight:1.4}}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card><CT icon="🗓" color="#06b6d4">3-Year Payment Cycles</CT>
+          {["2021–2024 (Paid ✓)","2024–2027 (Active ✓)","2027–2030 (Upcoming)"].map((cycle,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:9,marginBottom:7,padding:"7px 9px",background:i<2?"rgba(16,185,129,0.07)":"#1e293b",border:i<2?"1px solid rgba(16,185,129,0.2)":"1px solid rgba(6,182,212,0.12)",borderRadius:7}}>
+              <span style={{fontSize:13}}>{i<2?"✅":"⏳"}</span>
+              <div><div style={{color:"white",fontSize:10,fontWeight:700}}>{cycle}</div><div style={{color:"#64748b",fontSize:8}}>{ff(h.premium)} per cycle</div></div>
+            </div>
+          ))}
+          <div style={{padding:"7px 9px",background:"rgba(245,158,11,0.07)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:6,marginTop:5}}>
+            <span style={{color:"#fbbf24",fontSize:10}}>Next: <strong>Feb 2027</strong> — {ff(h.premium)} · 📧 Email reminder set</span>
+          </div>
+        </Card>
+      </div>
+    </>);
+  }
+
+  // ══ TAB: REMINDERS ════════════════════════
+  function RemindersTab(){
+    const groups=[
+      {freq:"Monthly",c:"#10b981",items:[{day:"5th",l:"ICICI EMI",a:ff(D.icici.emi),email:false},{day:"15th",l:"SBI EMI",a:ff(D.sbi.emi),email:false},{day:"SIP date",l:"Monthly SIP",a:ff(sipAmt),email:false}]},
+      {freq:"Yearly",c:"#f59e0b",items:[{day:"Jan",l:"Internet Bill",a:"₹8,000",email:true},{day:"Jan",l:"JIO / Sun Direct",a:"₹6,000",email:true},{day:"Mar",l:"Car Insurance",a:"₹16,000",email:true},{day:"15-May",l:"3Cr Term Insurance",a:"₹2,52,057",email:true},{day:"17-Feb",l:"2Cr Term Insurance",a:"₹1,80,110",email:true}]},
+      {freq:"Quarterly (SCSS)",c:"#f59e0b",items:[{day:"Jan/Apr/Jul/Oct",l:"Dad SCSS Payout",a:ff(D.scss.dad.currentQtrPayout),email:false},{day:"Jan/Apr/Jul/Oct",l:"Mom SCSS Payout",a:ff(D.scss.mom.currentQtrPayout),email:false}]},
+      {freq:"Every 3 Years",c:"#06b6d4",items:[{day:"Feb 2027",l:"HDFC ERGO Health Ins",a:"₹69,354",email:true}]},
+    ];
+    return(
+      <div style={g2}>
+        <Card>
+          <CT icon="🔔">All Payment Reminders</CT>
+          <div style={{marginBottom:10,padding:"7px 10px",background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:7,display:"flex",gap:8,alignItems:"center"}}>
+            <span style={{fontSize:15}}>📧</span>
+            <div><div style={{color:"#a78bfa",fontSize:9,fontWeight:700}}>Reminders sent to:</div><div style={{color:"white",fontSize:11,fontWeight:700}}></div></div>
+          </div>
+          {groups.map((group,gi)=>(
+            <div key={gi} style={{marginBottom:12}}>
+              <div style={{color:"#64748b",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:7,display:"flex",gap:6,alignItems:"center"}}>
+                <div style={{width:4,height:4,borderRadius:"50%",background:group.c}}/>
+                {group.freq}
+              </div>
+              {group.items.map((r,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:7,marginBottom:5,padding:"6px 9px",background:"#1e293b",borderRadius:6}}>
+                  <div style={{background:`${group.c}15`,border:`1px solid ${group.c}28`,borderRadius:4,padding:"2px 6px",minWidth:65,textAlign:"center"}}>
+                    <div style={{color:group.c,fontSize:7,fontWeight:800,lineHeight:1.4}}>{r.day}</div>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{color:"#e2e8f0",fontSize:10,fontWeight:600}}>{r.l}</div>
+                    <div style={{color:"#64748b",fontSize:8}}>{r.a}</div>
+                  </div>
+                  {r.email&&<Badge label="📧 Email" color="#6366f1"/>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </Card>
+        <Card>
+          <CT icon="📆">Annual Financial Calendar</CT>
+          {[["January","📶 Internet ₹8,000","📺 JIO/Sun Direct ₹6,000","💰 SCSS Qtr Payout ₹41,000"],["February","🛡 2Cr Term Ins ₹1,80,110 (if due)","🏥 Health Ins every 3 yrs ₹69,354"],["March","🚘 Car Insurance ₹16,000"],["April","💰 SCSS Qtr Payout ₹41,000","🏘 Rental income starts (Apr 2026)"],["May","🛡 3Cr Term Insurance ₹2,52,057"],["July","💰 SCSS Qtr Payout ₹41,000"],["October","💰 SCSS Qtr Payout ₹41,000"],["Every Month","🏦 SBI EMI ₹73,377 (15th)","🏦 ICICI EMI ₹42,556 (5th)","📈 MF SIPs ₹55,000/mo","🏦 Sweep FD ₹9,060 (once deposited)"]].map(([month,...events])=>(
+            <div key={month} style={{marginBottom:8,padding:"7px 10px",background:"#1e293b",borderRadius:7}}>
+              <div style={{color:"#fbbf24",fontSize:9,fontWeight:700,marginBottom:4}}>{month}</div>
+              {events.map((e,i)=><div key={i} style={{color:"#94a3b8",fontSize:9,marginBottom:2}}>• {e}</div>)}
+            </div>
+          ))}
+        </Card>
+      </div>
+    );
+  }
+
+  // ══ TAB: AI ════════════════════════════════
+  function AITab(){
+    return(
+      <div style={{...g2,gridTemplateColumns:"1fr 1.4fr",alignItems:"start"}}>
+        <div>
+          <Card style={{marginBottom:10}}>
+            <CT icon="⚡">Quick Questions</CT>
+            {["What is my total current income?","When should I top up SCSS to ₹30L?","How much extra income after SCSS and FD top-up?","Should I prepay ICICI or top up SCSS first?","When will ICICI loan close at current EMI?","How much will rental income be in 5 years?","Am I over or under-insured?","Best use of ₹20L right now?"].map((q,i)=>(
+              <button key={i} style={qb} onClick={()=>setInput(q)} onMouseEnter={e=>{e.target.style.background="#334155";e.target.style.color="white"}} onMouseLeave={e=>{e.target.style.background="#1e293b";e.target.style.color="#94a3b8"}}
+              style={{...qb,marginBottom:5,width:"100%",textAlign:"left"}}>{q}</button>
+            ))}
+          </Card>
+          <Card>
+            <CT icon="🧠">What I Know</CT>
+            {[["Salary","₹2,00,000/month"],["SCSS Dad","₹10L deposited, ₹20L to add"],["SCSS Mom","₹10L deposited, ₹20L to add"],["SCSS Payout Now","₹41,000/quarter combined"],["SCSS Payout Target","₹1,23,000/quarter combined"],["Sweep FD","₹15L planned, NOT deposited"],["Rental","₹1.15L/mo from Apr 2026"],["SBI","₹89.2L · 7.45% · 339mo left"],["ICICI","₹46.1L · 9.5% · 231mo left"],["SIP","₹55K/mo · 15% step-up"]].map(([k,v],i,arr)=>(
+              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:i<arr.length-1?"1px solid #1e293b":"none"}}>
+                <span style={{color:"#94a3b8",fontSize:9,fontWeight:600}}>{k}</span>
+                <span style={{color:"#e2e8f0",fontSize:9,textAlign:"right",maxWidth:"55%"}}>{v}</span>
+              </div>
+            ))}
+          </Card>
+        </div>
+        <div style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:13,display:"flex",flexDirection:"column",height:500}}>
+          <div style={{padding:"9px 12px",borderBottom:"1px solid #1e293b",display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:27,height:27,borderRadius:"50%",background:"linear-gradient(135deg,#6366f1,#a78bfa)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🤖</div>
+            <div><div style={{color:"white",fontSize:11,fontWeight:700}}>AI Financial Advisor</div><div style={{color:apiKey&&apiKey!=="demo"?"#10b981":"#f59e0b",fontSize:9}}>{apiKey&&apiKey!=="demo"?"● Online · Full knowledge":"● Demo mode"}</div></div>
+            {(!apiKey||apiKey==="demo")&&<button onClick={()=>setShowModal(true)} style={{marginLeft:"auto",background:"linear-gradient(135deg,#6366f1,#7c3aed)",border:"none",borderRadius:7,padding:"4px 9px",color:"white",cursor:"pointer",fontSize:9,fontWeight:700,fontFamily:"DM Sans,sans-serif"}}>Add Key</button>}
+          </div>
+          <div style={{flex:1,overflowY:"auto",padding:10,display:"flex",flexDirection:"column",gap:8}}>
+            {msgs.length===0&&<div style={{background:"#1e293b",border:"1px solid #334155",borderRadius:"14px 14px 14px 4px",padding:"9px 12px",fontSize:11,lineHeight:1.7,color:"#cbd5e1"}} className="aib">{apiKey&&apiKey!=="demo"?"Hi Shantan! I know your SCSS status (₹10L+₹10L deposited, ₹20L more each to reach ₹30L target), Sweep FD not yet deposited, rental starting Apr 2026, loans, SIP, and all insurance. Ask anything!":"Add your API key to unlock personalised AI financial advice."}</div>}
+            {msgs.map((m,i)=>(
+              <div key={i} style={{...(m.role==="user"?{background:"linear-gradient(135deg,#6366f1,#7c3aed)",borderRadius:"14px 14px 4px 14px",alignSelf:"flex-end"}:{background:"#1e293b",border:"1px solid #334155",borderRadius:"14px 14px 14px 4px",alignSelf:"flex-start",color:"#cbd5e1"}),padding:"8px 12px",maxWidth:"78%",fontSize:11,lineHeight:1.7}} className="aib">{m.content}</div>
+            ))}
+            {loading&&<div style={{background:"#1e293b",border:"1px solid #334155",borderRadius:"14px 14px 14px 4px",padding:"8px 12px",fontSize:11,color:"#64748b"}}>Analysing<span style={{animation:"pulse 1s infinite"}}>...</span></div>}
+            <div ref={chatRef}/>
+          </div>
+          <div style={{padding:"7px 9px",borderTop:"1px solid #1e293b",display:"flex",gap:6,alignItems:"center"}}>
+            <input style={{flex:1,background:"#1e293b",border:"1px solid #334155",borderRadius:8,padding:"7px 11px",color:"white",fontSize:11,outline:"none",fontFamily:"DM Sans,sans-serif"}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Ask anything about your finances..."/>
+            <button onClick={send} style={{background:"linear-gradient(135deg,#6366f1,#7c3aed)",border:"none",borderRadius:7,padding:"7px 13px",color:"white",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"DM Sans,sans-serif",opacity:loading||!apiKey||apiKey==="demo"?0.5:1}}>{loading?"...":"Ask →"}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── RENDER ─────────────────────────────────
+  const TABS=[["overview","📊 Overview"],["income","💰 Income"],["schemes","🏛 Schemes (SCSS)"],["fd","🏦 FD"],["expenses","💸 Expenses"],["loans","🏠 Loans"],["mf","📈 Mutual Funds"],["ins1","🛡 3Cr Policy"],["ins2","🛡 2Cr Policy"],["health","🏥 Health Ins"],["reminders","🔔 Reminders"],["ai","🤖 AI Advisor"]];
+
+  return(
+    <div style={{minHeight:"100vh",background:"#020817",fontFamily:"'DM Sans',sans-serif",color:"white"}}>
+      {showModal&&<APIModal onSave={saveKey}/>}
+
+      {/* NAV */}
+      <div style={{background:"rgba(2,8,23,0.96)",borderBottom:"1px solid #1e293b",padding:"0 16px",display:"flex",alignItems:"center",justifyContent:"space-between",height:50,position:"sticky",top:0,zIndex:100,backdropFilter:"blur(12px)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:9}}>
+          <div style={{width:27,height:27,borderRadius:6,background:"linear-gradient(135deg,#6366f1,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>💼</div>
+          <div>
+            <div style={{fontSize:12,fontWeight:800,background:"linear-gradient(135deg,#6366f1,#a78bfa)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{displayName}&apos;s Finance Dashboard</div>
+            <div style={{color:"#475569",fontSize:8}}>@{username}</div>
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:11}}>
+          <div style={{textAlign:"right"}}><div style={{color:"#64748b",fontSize:7}}>INCOME NOW</div><div style={{color:"#10b981",fontSize:11,fontWeight:800}}>{fmt(curInc)}/mo</div></div>
+          <div style={{textAlign:"right"}}><div style={{color:"#64748b",fontSize:7}}>SURPLUS</div><div style={{color:"#34d399",fontSize:11,fontWeight:800}}>{fmt(surplus)}/mo</div></div>
+          <div style={{textAlign:"right"}}><div style={{color:"#64748b",fontSize:7}}>EXPENSES</div><div style={{color:"#ef4444",fontSize:11,fontWeight:800}}>{fmt(mT)}/mo</div></div>
+          <button onClick={()=>setEditMode(e=>!e)} style={{background:editMode?"linear-gradient(135deg,#f59e0b,#d97706)":"rgba(255,255,255,0.04)",border:editMode?"none":"1px solid #334155",borderRadius:7,padding:"4px 10px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"DM Sans,sans-serif"}}>
+            {editMode?"💾 Done":"✏️ Edit"}
+          </button>
+          <button onClick={()=>{if(confirm("Sign out of "+displayName+"'s dashboard?")) onLogout();}} style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:7,padding:"4px 10px",color:"#f87171",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"DM Sans,sans-serif"}}>
+            🚪 Logout
+          </button>
+        </div>
+      </div>
+
+      <div style={{maxWidth:1400,margin:"0 auto",padding:"14px 13px"}}>
+        {editMode&&(
+          <div style={{background:"rgba(251,191,36,0.07)",border:"1px solid rgba(251,191,36,0.22)",borderRadius:8,padding:"8px 13px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{fontSize:14}}>✏️</span>
+              <div>
+                <div style={{color:"#fbbf24",fontSize:11,fontWeight:700}}>Edit Mode ON — click any yellow value to update. Changes auto-save to browser.</div>
+                <div style={{color:"#78350f",fontSize:9}}>In FD tab: use Mark Deposited button when you deposit the ₹15L.</div>
+              </div>
+            </div>
+            <button onClick={()=>{if(confirm("Reset all data to defaults?")) {localStorage.removeItem(userDataKey(username));setD(JSON.parse(JSON.stringify(DEF)));} }} style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.22)",borderRadius:5,padding:"3px 8px",color:"#f87171",cursor:"pointer",fontSize:9,fontFamily:"DM Sans,sans-serif"}}>↺ Reset</button>
+          </div>
+        )}
+
+        {/* AI Insight bar */}
+        <div style={{background:"linear-gradient(135deg,rgba(99,102,241,0.09),rgba(167,139,250,0.04))",border:"1px solid rgba(99,102,241,0.16)",borderRadius:10,padding:"11px 13px",marginBottom:14,display:"flex",gap:10,alignItems:"flex-start"}}>
+          <span style={{fontSize:16,flexShrink:0,marginTop:1}}>🤖</span>
+          <div style={{flex:1}}>
+            <div style={{color:"#a78bfa",fontSize:8,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:3}}>AI Financial Snapshot</div>
+            {insightLoad?<div style={{color:"#475569",fontSize:10}}>Analysing your finances...</div>
+              :insight?<div style={{color:"#cbd5e1",fontSize:10,lineHeight:1.7,whiteSpace:"pre-line"}}>{insight}</div>
+              :<div style={{color:"#475569",fontSize:10}}>{apiKey&&apiKey!=="demo"?"Connecting...":"Add API key in AI Advisor tab for personalised insights."}</div>}
+          </div>
+          <button onClick={()=>setTab("ai")} style={{background:"rgba(99,102,241,0.12)",border:"1px solid rgba(99,102,241,0.24)",borderRadius:6,padding:"5px 10px",color:"#a78bfa",cursor:"pointer",fontSize:9,fontWeight:700,fontFamily:"DM Sans,sans-serif",flexShrink:0}}>Ask AI →</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{display:"flex",gap:2,marginBottom:16,background:"#0f172a",borderRadius:9,padding:3,flexWrap:"wrap"}}>
+          {TABS.map(([id,lbl])=>(
+            <button key={id} onClick={()=>setTab(id)} style={{padding:"5px 11px",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:600,transition:"all 0.2s",background:tab===id?"linear-gradient(135deg,#6366f1,#7c3aed)":"transparent",color:tab===id?"white":"#64748b",border:"none",outline:"none",fontFamily:"DM Sans,sans-serif",whiteSpace:"nowrap"}}>{lbl}</button>
+          ))}
+        </div>
+
+        {tab==="overview"  && <Overview/>}
+        {tab==="income"    && <IncomeTab/>}
+        {tab==="schemes"   && <SchemesTab/>}
+        {tab==="fd"        && <FDTab/>}
+        {tab==="expenses"  && (
+          <div style={{...g2,gridTemplateColumns:"1.5fr 1fr",alignItems:"start"}}>
+            <ExpenseView D={D} editMode={editMode} updExp={updExp}/>
+            <Card>
+              <CT icon="📧">Email Reminders</CT>
+              {["Internet — January","JIO/Sun Direct — January","Car Insurance — March","3Cr Term Ins — 15 May","2Cr Term Ins — 17 Feb","Health Ins — Feb 2027"].map((item,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,padding:"5px 8px",background:"#1e293b",borderRadius:6}}>
+                  <span style={{color:"#10b981"}}>✓</span>
+                  <span style={{color:"#e2e8f0",fontSize:10}}>{item}</span>
+                  <div style={{marginLeft:"auto"}}><Badge label="📧 Set" color="#6366f1"/></div>
+                </div>
+              ))}
+              <div style={{marginTop:8,padding:"7px 9px",background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:6}}>
+                <span style={{color:"#a78bfa",fontSize:10}}>→ </span>
+              </div>
+            </Card>
+          </div>
+        )}
+        {tab==="loans"     && <LoansTab/>}
+        {tab==="mf"        && <MutualFundsTab/>}
+        {tab==="ins1"      && <InsuranceTab pk="p1"/>}
+        {tab==="ins2"      && <InsuranceTab pk="p2"/>}
+        {tab==="health"    && <HealthTab/>}
+        {tab==="reminders" && <RemindersTab/>}
+        {tab==="ai"        && <AITab/>}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <AuthGate>
+    {({username, displayName, onLogout}) => (
+      <App username={username} displayName={displayName} onLogout={onLogout}/>
+    )}
+  </AuthGate>
+);
+</script>
+</body>
+</html>
