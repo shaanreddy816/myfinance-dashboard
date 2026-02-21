@@ -464,7 +464,7 @@ function renderInc(scssMonthly){
     +'</select></div>';
   h += row("Rental — Wanaparthy", ff(D.income.rental), "#6366f1", "income.rental");
   h += row("SCSS (Dad+Mom combined/mo)", ff(scssMonthly), "#f59e0b");
-  h += row("Sweep FD (monthly target)", ff(D.fd.targetMonthly), "#06b6d4");
+  h += row("Sweep FD (monthly target)", ff(Math.round(D.fd.planned * D.fd.rate / 100 / 12)), "#06b6d4");
   html("tab-inc", '<div class="card"><div class="ctitle" style="color:#10b981">💰 INCOME SOURCES</div>'+h+'</div>');
 }
 
@@ -545,14 +545,14 @@ function renderScss(){
     + payH + '</div>');
 }
 
-// ── FD (FIXED: target monthly now dynamic) ──
+// ── FD (FIXED: target monthly dynamic + auto-set actual on deposit) ──
 function renderFD(){
   var target = D.fd.planned * D.fd.rate / 100 / 12;
   target = Math.round(target); // round to nearest rupee
 
   var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
     +'<span style="color:#64748b;font-size:12px">Status:</span>'
-    +'<select onchange="D.fd.deposited=this.value===\'true\';autoSave();renderAll();">'
+    +'<select onchange="var newVal=this.value===\'true\'; if(newVal && !D.fd.deposited && D.fd.actualMonthly===0) { D.fd.actualMonthly = Math.round(D.fd.planned * D.fd.rate / 100 / 12); } D.fd.deposited=newVal; autoSave();renderAll();">'
     +'<option value="false"'+(D.fd.deposited?"":" selected")+'>⚠️ Not yet deposited</option>'
     +'<option value="true"'+(D.fd.deposited?" selected":"")+'>✅ Deposited</option>'
     +'</select></div>';
