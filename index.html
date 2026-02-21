@@ -27,6 +27,13 @@ body{background:#020817;font-family:'DM Sans',sans-serif;color:white;min-height:
 </head>
 <body>
 <div id="root"></div>
+<div id="err" style="display:none;color:red;padding:20px;font-family:monospace;background:#111;position:fixed;top:0;left:0;right:0;z-index:9999;white-space:pre-wrap"></div>
+<script>
+window.onerror = function(msg, src, line, col, err) {
+  var d = document.getElementById('err');
+  if(d){ d.style.display='block'; d.textContent = 'JS ERROR: ' + msg + '\nLine: ' + line + '\n' + (err?err.stack:''); }
+};
+</script>
 <script type="text/babel">
 const {useState,useEffect,useRef} = React;
 
@@ -208,7 +215,7 @@ function AuthGate({children}){
 
   // Auto-login if session exists and user record exists
   useEffect(()=>{
-    if(user){ const users=getUsers(); if(!users[user]) { localStorage.removeItem('mfdb_session'); setUser(''); } }
+    // session is managed by Supabase token - no local user check needed
   },[]);
 
   const doRegister = async () => {
@@ -328,7 +335,7 @@ function AuthGate({children}){
 // Default template — blank starting point for new users
 // Each user fills in their own data via Edit Mode
 const DEF = {
-  sbi:{label:"Home Loan 1",principal:5000000,rate:8.5,emi:43391,tenure:240,paid:0,remaining:240,outstanding:5000000,interestPaid:0,totalInterest:5000000},
+  sbi:{label:"SBI Home Loan · Hyderabad",principal:9270000,rate:7.45,emi:73377,tenure:420,paid:22,remaining:338,outstanding:7993315,interestPaid:0,totalInterest:21528540,sanctioned:"29/04/2024",emiDate:"15th of month",accountNo:"42920946856"},
   icici:{label:"Home Loan 2",principal:3000000,rate:9.0,emi:26992,tenure:240,paid:0,remaining:240,outstanding:3000000,totalInterest:3500000},
   sip:{monthly:10000,stepUp:15,ret:12,invested25:25535162,flatCorpus25:18975000,
     miles:[{yr:5,corpus:1076841,inv:809085,mo:17458},{yr:10,corpus:4118727,inv:2436446,mo:35222},{yr:15,corpus:11835224,inv:5709649,mo:71044},{yr:20,corpus:30256305,inv:12293230,mo:143314},{yr:25,corpus:72574793,inv:25535162,mo:288918}],
@@ -342,13 +349,15 @@ const DEF = {
     rate:8.2,
     dad:{
       name:"Dad",
-      deposited:0,              // amount deposited so far
-      target:1500000,           // ₹15L final target
-      remaining:1500000,        // still to deposit
+      deposited:1000000,        // ₹10L deposited on 20 Feb 2026
+      target:3000000,           // ₹30L final target
+      remaining:2000000,        // still to deposit (₹10L deposited)
       lockin:5,                 // lock-in years
       extensionYrs:3,           // one-time extension
       maxTenure:8,              // 5+3
-      depositDate:"Feb 2026",
+      depositDate:"20 Feb 2026",
+      firstPayout:8986,         // proportionate: 40 days Feb20→Mar31 @ 8.2%
+      firstPayoutDate:"31 Mar 2026",
       maturity:"Feb 2031",
       extendedMaturity:"Feb 2034",
       // At target ₹30L @ 8.2%: ₹61,500/quarter, ₹2,46,000/yr
@@ -360,13 +369,15 @@ const DEF = {
     },
     mom:{
       name:"Mom",
-      deposited:0,
-      target:1500000,
-      remaining:1500000,
+      deposited:1000000,
+      target:3000000,
+      remaining:2000000,
       lockin:5,
       extensionYrs:3,
       maxTenure:8,
-      depositDate:"Feb 2026",
+      depositDate:"20 Feb 2026",
+      firstPayout:8986,
+      firstPayoutDate:"31 Mar 2026",
       maturity:"Feb 2031",
       extendedMaturity:"Feb 2034",
       currentQtrPayout:20500,
@@ -392,7 +403,7 @@ const DEF = {
 
   // ── INCOME (all in one place) ─────────────────
   income:{
-    salary:50000,
+    salary:200000,
     rental:{
       monthly:20000,
       increase:5,
@@ -609,8 +620,7 @@ function ExpenseView({D,editMode,updExp}){
                   {view!=="monthly"&&<Badge label="📧 Reminder" color="#6366f1"/>}
                 </div>
               </div>
-              {editMode
-                ?<input className="ei" defaultValue={e.v} style={{width:70}} onBlur={ev=>updExp(view,i,num(ev.target.value))} onKeyDown={ev=>ev.key==="Enter"&&updExp(view,i,num(ev.target.value))}/>
+              {editMode                 ?<input className="ei" defaultValue={e.v} style={{width:70}} onBlur={ev=>updExp(view,i,num(ev.target.value))} onKeyDown={ev=>ev.key==="Enter"&&updExp(view,i,num(ev.target.value))}/>
                 :<span style={{color:e.c,fontSize:11,fontWeight:800,flexShrink:0}}>{ff(e.v)}</span>}
             </div>
           ))}
@@ -756,8 +766,8 @@ Be specific with rupee amounts. Give actionable advice. 2-4 concise paragraphs.`
         <KPI label="SIP Corpus — 25 Years"   value={D.sip.miles[4].corpus} sub="15% step-up · 12% return" color="#a78bfa" accent="#6366f1" delay={240}/>
       </div>
       <div style={g4}>
-        <KPI label="SCSS Deposited (Dad+Mom)" value={D.scss.dad.deposited+D.scss.mom.deposited} sub="₹20L still to add to reach ₹60L" color="#fbbf24" accent="#f59e0b" delay={0}/>
-        <KPI label="SCSS Target (Dad+Mom)"    value={D.scss.dad.target+D.scss.mom.target} sub="@ 8.2% = ₹1,23,000/quarter each" color="#f59e0b" accent="#d97706" delay={80}/>
+        <KPI label="SCSS Deposited (Dad+Mom)" value={D.scss.dad.deposited+D.scss.mom.deposited} sub="₹40L still to add to reach ₹60L" color="#fbbf24" accent="#f59e0b" delay={0}/>
+        <KPI label="SCSS Target (Dad+Mom)"    value={D.scss.dad.target+D.scss.mom.target} sub="@ 8.2% = ₹1,23,000/quarter each when fully funded" color="#f59e0b" accent="#d97706" delay={80}/>
         <KPI label="Sweep FD Planned"         value={D.sweepFD.planned} sub="Not deposited yet · ₹9,060/mo target" color="#06b6d4" accent="#0891b2" delay={160}/>
         <KPI label="Loan Outstanding"         value={D.sbi.outstanding+D.icici.outstanding} sub="SBI + ICICI combined" color="#f87171" accent="#ef4444" delay={240}/>
       </div>
@@ -815,11 +825,11 @@ Be specific with rupee amounts. Give actionable advice. 2-4 concise paragraphs.`
     const scssCurrentQtr = D.scss.dad.currentQtrPayout + D.scss.mom.currentQtrPayout;
     const scssTargetQtr  = D.scss.dad.targetQtrPayout  + D.scss.mom.targetQtrPayout;
     const incomeRows = [
-      {icon:"💼", label:"Salary",              monthly:D.income.salary,   status:"active",  statusLabel:"Active",      c:"#10b981", note:"Fixed monthly income"},
-      {icon:"🏘", label:"Rental — Wanaparthy", monthly:D.income.rental.monthly, status:"pending", statusLabel:"From Apr 2026", c:"#6366f1", note:"5% hike every April"},
-      {icon:"👴", label:"Dad SCSS",            monthly:Math.round(D.scss.dad.currentAnnualPayout/12), status:"partial", statusLabel:"₹10L deposited", c:"#f59e0b", note:`Currently: ${ff(D.scss.dad.currentQtrPayout)}/qtr → Target: ${ff(D.scss.dad.targetQtrPayout)}/qtr`},
-      {icon:"👵", label:"Mom SCSS",            monthly:Math.round(D.scss.mom.currentAnnualPayout/12), status:"partial", statusLabel:"₹10L deposited", c:"#fb923c", note:`Currently: ${ff(D.scss.mom.currentQtrPayout)}/qtr → Target: ${ff(D.scss.mom.targetQtrPayout)}/qtr`},
-      {icon:"🏦", label:"Sweep FD",            monthly:D.sweepFD.monthlyPayout, status:"notyet",  statusLabel:"Not deposited yet", c:"#06b6d4", note:`₹15L planned → ${ff(D.sweepFD.targetMonthlyPayout)}/mo once done`},
+      {icon:"💼", label:"Salary",              monthly:D.income.salary,   rawVal:D.income.salary,   field:"income.salary",         status:"active",  statusLabel:"Active",          c:"#10b981", note:"Fixed monthly income"},
+      {icon:"🏘", label:"Rental — Wanaparthy", monthly:D.income.rental.monthly, rawVal:D.income.rental.monthly, field:"income.rental.monthly", status:"pending", statusLabel:"From Apr 2026",   c:"#6366f1", note:"5% hike every April"},
+      {icon:"👴", label:"Dad SCSS (qtr payout)",monthly:Math.round(D.scss.dad.currentAnnualPayout/12), rawVal:D.scss.dad.currentQtrPayout, field:"scss.dad.currentQtrPayout", status:"partial", statusLabel:"₹10L deposited", c:"#f59e0b", note:`Currently: ${ff(D.scss.dad.currentQtrPayout)}/qtr → Target: ${ff(D.scss.dad.targetQtrPayout)}/qtr`},
+      {icon:"👵", label:"Mom SCSS (qtr payout)",monthly:Math.round(D.scss.mom.currentAnnualPayout/12), rawVal:D.scss.mom.currentQtrPayout, field:"scss.mom.currentQtrPayout", status:"partial", statusLabel:"₹10L deposited", c:"#fb923c", note:`Currently: ${ff(D.scss.mom.currentQtrPayout)}/qtr → Target: ${ff(D.scss.mom.targetQtrPayout)}/qtr`},
+      {icon:"🏦", label:"Sweep FD",            monthly:D.sweepFD.monthlyPayout, rawVal:D.sweepFD.monthlyPayout, field:"sweepFD.monthlyPayout",  status:"notyet",  statusLabel:"Not deposited yet", c:"#06b6d4", note:`₹15L planned → ${ff(D.sweepFD.targetMonthlyPayout)}/mo once done`},
     ];
     const statusColors = {active:"#10b981",pending:"#6366f1",partial:"#f59e0b",notyet:"#475569"};
     const currentTotal = D.income.salary + Math.round(D.scss.dad.currentAnnualPayout/12) + Math.round(D.scss.mom.currentAnnualPayout/12);
@@ -857,9 +867,9 @@ Be specific with rupee amounts. Give actionable advice. 2-4 concise paragraphs.`
                   <div style={{color:"#64748b",fontSize:9}}>{r.note}</div>
                 </div>
                 <div style={{textAlign:"right",flexShrink:0}}>
-                  <div style={{color:r.monthly?r.c:"#475569",fontSize:13,fontWeight:800}}>{r.monthly?ff(r.monthly):"Pending"}</div>
-                  {r.monthly>0&&<div style={{color:"#475569",fontSize:8}}>{fmt(r.monthly*12)}/yr</div>}
-                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  {editMode&&r.field?<input className="ei" defaultValue={r.rawVal} style={{width:90,textAlign:"right"}} onBlur={e=>upd(r.field,num(e.target.value))}/>:<div style={{color:r.monthly?r.c:"#475569",fontSize:13,fontWeight:800}}>{r.monthly?ff(r.monthly):"Pending"}</div>}
+                  {r.monthly>0&&!editMode&&<div style={{color:"#475569",fontSize:8}}>{fmt(r.monthly*12)}/yr</div>}
               </div>
             ))}
           </div>
@@ -902,7 +912,7 @@ Be specific with rupee amounts. Give actionable advice. 2-4 concise paragraphs.`
           </div>
           <div style={{color:"#94a3b8",fontSize:9,fontWeight:700,textTransform:"uppercase",marginBottom:7}}>📅 Payout Months (Quarterly)</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
-            {["Jan","Apr","Jul","Oct"].map(m=>(
+            {["31 Mar","30 Jun","30 Sep","31 Dec"].map(m=>(
               <div key={m} style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:6,padding:"7px 0",textAlign:"center"}}>
                 <div style={{color:"#fbbf24",fontSize:10,fontWeight:700,marginBottom:3}}>{m}</div>
                 <div style={{color:"white",fontSize:9,fontWeight:700}}>{ff(scssCurrentQtr)}</div>
@@ -937,17 +947,17 @@ Be specific with rupee amounts. Give actionable advice. 2-4 concise paragraphs.`
               <div style={{color:"#f87171",fontSize:10,marginTop:3}}>₹15L planned — deposit to unlock ₹9,060/mo income</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
-              {[["Planned Amount",ff(D.sweepFD.planned)],["Rate",D.sweepFD.rate+"%"],["Monthly Payout (target)",ff(D.sweepFD.targetMonthlyPayout)],["Annual Payout (target)",ff(D.sweepFD.targetAnnual)]].map(([k,v])=>(
-                <div key={k} style={{background:"#1e293b",borderRadius:6,padding:"7px 8px"}}>
-                  <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:2}}>{k}</div>
-                  <div style={{color:"white",fontSize:10,fontWeight:700}}>{v}</div>
-                </div>
-              ))}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+            {[["Planned Amount",ff(D.sweepFD.planned),"sweepFD.planned",D.sweepFD.planned],["Rate",D.sweepFD.rate+"%","sweepFD.rate",D.sweepFD.rate],["Monthly Payout (target)",ff(D.sweepFD.targetMonthlyPayout),"sweepFD.targetMonthlyPayout",D.sweepFD.targetMonthlyPayout],["Annual Payout (target)",ff(D.sweepFD.targetAnnual),null,null]].map(([k,v,field,raw])=>(
+              <div key={k} style={{background:"#1e293b",borderRadius:6,padding:"7px 8px"}}>
+                <div style={{color:"#64748b",fontSize:8,textTransform:"uppercase",marginBottom:2}}>{k}</div>
+                {editMode&&field?<input className="ei" defaultValue={raw} style={{width:"100%"}} onBlur={e=>upd(field,num(e.target.value))}/>:<div style={{color:"white",fontSize:10,fontWeight:700}}>{v}</div>}
+              </div>
+            ))}
             </div>
           </Card>
         </div>
       </div>
-
       {/* Bottom: future income targets summary */}
       <Card>
         <CT icon="🎯">Income Growth Plan — What to unlock next</CT>
@@ -1038,11 +1048,13 @@ Be specific with rupee amounts. Give actionable advice. 2-4 concise paragraphs.`
             <div style={{background:"#1e293b",borderRadius:8,padding:"11px 12px",marginBottom:10}}>
               <div style={{color:"#94a3b8",fontSize:9,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>📅 Timeline</div>
               {[
-                {label:"Deposit Date",  value:p.depositDate,  c:"#10b981"},
-                {label:"Lock-in Period",value:"5 Years",       c:"#f59e0b"},
-                {label:"Maturity",      value:p.maturity,      c:"#fbbf24"},
-                {label:"Extension",     value:"+ 3 more years (one-time)", c:"#06b6d4"},
-                {label:"Max Tenure",    value:p.extendedMaturity+" (8 yrs total)", c:"#a78bfa"},
+                {label:"Deposit Date",        value:p.depositDate,                                    c:"#10b981"},
+                {label:"1st Payout (prorated)",value:`~₹${(p.firstPayout||8986).toLocaleString("en-IN")} on ${p.firstPayoutDate||"31 Mar 2026"}`, c:"#22d3a5"},
+                {label:"Full Qtr from",        value:"30 Jun 2026 onwards",                           c:"#fbbf24"},
+                {label:"Lock-in Period",       value:"5 Years",                                       c:"#f59e0b"},
+                {label:"Maturity",             value:p.maturity,                                      c:"#fbbf24"},
+                {label:"Extension",            value:"+ 3 more years (one-time)",                    c:"#06b6d4"},
+                {label:"Max Tenure",           value:p.extendedMaturity+" (8 yrs total)",            c:"#a78bfa"},
               ].map(({label,value,c:col})=>(
                 <div key={label} style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                   <span style={{color:"#64748b",fontSize:9}}>{label}</span>
@@ -1231,7 +1243,7 @@ Be specific with rupee amounts. Give actionable advice. 2-4 concise paragraphs.`
               ))}
             </div>
             <div style={{marginBottom:3}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                 <span style={{color:"#cbd5e1",fontSize:11,fontWeight:600}}>{loan.label}</span>
                 <span style={{color:"#475569",fontSize:9}}>{loan.paid} paid · {loan.remaining} left</span>
               </div>
