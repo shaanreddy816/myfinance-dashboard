@@ -312,7 +312,7 @@ function doLogout(){
 }
 function showApp(){get("auth").style.display="none";get("app").style.display="block";renderAll();}
 
-// ── ENSURE DATA STRUCTURE ──
+// ── ENSURE DATA STRUCTURE (FIXED: ensure insurance schedules exist) ──
 function ensureData(){
   if(!D)D={};
   if(!D.income)D.income={};
@@ -336,6 +336,9 @@ function ensureData(){
   if(!D.ins)D.ins=JSON.parse(JSON.stringify(DEF.ins));
   if(!D.ins.p1)D.ins.p1=JSON.parse(JSON.stringify(DEF.ins.p1));
   if(!D.ins.p2)D.ins.p2=JSON.parse(JSON.stringify(DEF.ins.p2));
+  // Ensure schedules exist (fix for empty term insurance)
+  if(D.ins.p1 && !D.ins.p1.schedule) D.ins.p1.schedule = JSON.parse(JSON.stringify(DEF.ins.p1.schedule));
+  if(D.ins.p2 && !D.ins.p2.schedule) D.ins.p2.schedule = JSON.parse(JSON.stringify(DEF.ins.p2.schedule));
   if(!D.health)D.health=JSON.parse(JSON.stringify(DEF.health));
   if(!D.children)D.children={expenses:[]};
   if(!D.children.expenses)D.children.expenses=[];
@@ -390,7 +393,8 @@ function renderOv(totalIncome,totalExp,surplus,scssMonthly,yearlyMo){
   var sbiEmi=D.loans.sbi.emi,iciciEmi=D.loans.icici.emi;
   var sipVal=0;
   for(var i=0;i<D.expenses.monthly.length;i++){if(D.expenses.monthly[i].id==="sip")sipVal=D.expenses.monthly[i].v;}
-  var otherExp=monthlyExpTotal()-sbiEmi-iciciEmi-sipVal;
+  // Fixed: call monthlyExpTotal() as a function
+  var otherExp=monthlyExpTotal() - sbiEmi - iciciEmi - sipVal;
 
   var h='<div class="g4" style="margin-bottom:12px">'
     +'<div class="kc"><div class="kl">Monthly Income</div><div class="kv" style="color:#10b981">'+fl(totalIncome)+'</div><div class="ks">Husband + Wife + SCSS + Rental</div></div>'
