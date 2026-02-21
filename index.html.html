@@ -214,38 +214,52 @@ function AuthGate({children}){
   const doRegister = async () => {
     setErr(''); setBusy(true);
     const {username,password,confirm,display} = form;
-    if(!username.trim()||!password||!display.trim()){ setErr('Please fill all fields.'); setBusy(false); return; }
-    if(username.trim().length<3){ setErr('Username must be at least 3 characters.'); setBusy(false); return; }
-    if(!/^[a-zA-Z0-9_]+$/.test(username.trim())){ setErr('Username: letters, numbers, underscore only.'); setBusy(false); return; }
+    // Basic validation
+    if(!display.trim()){ setErr('Please enter your full name.'); setBusy(false); return; }
+    if(!username.trim()){ setErr('Please enter your email address.'); setBusy(false); return; }
+    if(!username.trim().includes('@')){ setErr('Please enter a valid email address (e.g. name@gmail.com).'); setBusy(false); return; }
     if(password.length<6){ setErr('Password must be at least 6 characters.'); setBusy(false); return; }
     if(password!==confirm){ setErr('Passwords do not match.'); setBusy(false); return; }
-    const users = getUsers();
-    const uname = username.trim().toLowerCase();
-    if(users[uname]){ setErr('Username already taken. Try another.'); setBusy(false); return; }
-    const hash = await hashPwd(password);
-    users[uname] = { hash, display:display.trim(), created: new Date().toISOString() };
-    saveUsers(users);
-    localStorage.setItem('mfdb_session', uname);
-    setUser(uname);
+    try {
+      const email = username.trim().toLowerCase();
+      const result = await sbRegister(email, password, display.trim());
+      const uname = email.split('@')[0];
+      const dname = display.trim();
+      localStorage.setItem('mfdb_session', uname);
+      localStorage.setItem('mfdb_display_'+uname, dname);
+      setUser(uname);
+      setDisplayName(dname);
+    } catch(e){
+      setErr(e.message||'Registration failed. Try again.');
+    }
     setBusy(false);
   };
 
   const doLogin = async () => {
     setErr(''); setBusy(true);
     const {username,password} = form;
-    if(!username.trim()||!password){ setErr('Enter username and password.'); setBusy(false); return; }
-    const users = getUsers();
-    const uname = username.trim().toLowerCase();
-    if(!users[uname]){ setErr('Username not found.'); setBusy(false); return; }
-    const hash = await hashPwd(password);
-    if(hash!==users[uname].hash){ setErr('Incorrect password.'); setBusy(false); return; }
-    localStorage.setItem('mfdb_session', uname);
-    setUser(uname); setBusy(false);
+    if(!username.trim()){ setErr('Please enter your email address.'); setBusy(false); return; }
+    if(!username.trim().includes('@')){ setErr('Please enter a valid email address (e.g. name@gmail.com).'); setBusy(false); return; }
+    if(!password){ setErr('Please enter your password.'); setBusy(false); return; }
+    try {
+      const email = username.trim().toLowerCase();
+      const result = await sbLogin(email, password);
+      const uname = email.split('@')[0];
+      const dname = result.user?.user_metadata?.display_name || uname;
+      localStorage.setItem('mfdb_session', uname);
+      localStorage.setItem('mfdb_display_'+uname, dname);
+      setUser(uname);
+      setDisplayName(dname);
+    } catch(e){
+      setErr(e.message||'Login failed. Check your email and password.');
+    }
+    setBusy(false);
   };
 
-  const doLogout = () => {
+  const doLogout = async () => {
+    if(USE_SUPABASE) await sbLogout().catch(()=>{});
     localStorage.removeItem('mfdb_session');
-    setUser(''); setForm({username:'',password:'',confirm:'',display:''}); setErr(''); setOk('');
+    setUser(''); setDisplayName(''); setForm({username:'',password:'',confirm:'',display:''}); setErr(''); setOk('');
   };
 
   // Logged in — pass username + logout to children
