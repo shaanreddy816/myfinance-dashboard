@@ -200,11 +200,11 @@ var DEF={
       {id:"misc", label:"Miscellaneous",   v:15000, icon:"💼"}
     ],
     periodic:[
-      {id:"ins3",   label:"3Cr Term Insurance",           v:252057, icon:"🛡",  due:"15-May each year",       years:1},
-      {id:"ins2",   label:"2Cr Term Insurance",           v:180110, icon:"🛡",  due:"17-Feb each year",       years:1},
-      {id:"car",    label:"Car Insurance",                v:11500,  icon:"🚘", due:"Annual (renew in Mar)",   years:1},
-      {id:"health", label:"Health Insurance (Me+Wife)",   v:69354,  icon:"❤️", due:"Feb 2029 (every 3yr)",   years:3},
-      {id:"parents",label:"Parents Health Insurance",     v:368487, icon:"👴", due:"Feb 2029 (every 3yr)",   years:3}
+      {id:"ins3",   label:"3Cr Term Insurance",         v:252057, icon:"🛡",  due:"15-May each year",     years:1},
+      {id:"ins2",   label:"2Cr Term Insurance",         v:180110, icon:"🛡",  due:"17-Feb each year",     years:1},
+      {id:"car",    label:"Car Insurance",              v:11500,  icon:"🚘", due:"Annual (renew in Mar)", years:1},
+      {id:"health", label:"Health Insurance (Me+Wife)", v:69354,  icon:"❤️", due:"Feb 2029 (every 3yr)", years:3},
+      {id:"parents",label:"Parents Health Insurance",   v:368487, icon:"👴", due:"Feb 2029 (every 3yr)", years:3}
     ]
   },
   loans:{
@@ -213,21 +213,33 @@ var DEF={
   },
   sip:{monthly:55000,stepUp:15,rate:12,startYear:2026},
   ins:{
-    p1:{coverage:30000000,schedule:[{yr:2025,date:"15-May-2025",amt:207569,paid:true},{yr:2026,date:"15-May-2026",amt:252057,paid:false},{yr:2027,date:"15-May-2027",amt:252057,paid:false},{yr:2028,date:"15-May-2028",amt:252057,paid:false},{yr:2029,date:"15-May-2029",amt:252057,paid:false}]},
-    p2:{coverage:20000000,schedule:[{yr:2026,date:"17-Feb-2026",amt:141213,paid:true},{yr:2027,date:"17-Feb-2027",amt:180110,paid:false},{yr:2028,date:"17-Feb-2028",amt:180110,paid:false},{yr:2029,date:"17-Feb-2029",amt:180110,paid:false},{yr:2030,date:"17-Feb-2030",amt:180110,paid:false}]}
+    p1:{coverage:30000000,schedule:[
+      {yr:2025,date:"15-May-2025",amt:207569,paid:true},
+      {yr:2026,date:"15-May-2026",amt:252057,paid:false},
+      {yr:2027,date:"15-May-2027",amt:252057,paid:false},
+      {yr:2028,date:"15-May-2028",amt:252057,paid:false},
+      {yr:2029,date:"15-May-2029",amt:252057,paid:false}]},
+    p2:{coverage:20000000,schedule:[
+      {yr:2026,date:"17-Feb-2026",amt:141213,paid:true},
+      {yr:2027,date:"17-Feb-2027",amt:180110,paid:false},
+      {yr:2028,date:"17-Feb-2028",amt:180110,paid:false},
+      {yr:2029,date:"17-Feb-2029",amt:180110,paid:false},
+      {yr:2030,date:"17-Feb-2030",amt:180110,paid:false}]}
   },
   health:{coverage:2500000,premium:69354,nextDue:"Feb 2029"},
-  children:{expenses:[{id:"edu",label:"Education Fees",v:0,icon:"📚"},{id:"sport",label:"Sports / Activities",v:0,icon:"⚽"},{id:"other",label:"Other Children Expense",v:0,icon:"🎒"}]}
+  children:{expenses:[
+    {id:"edu",  label:"Education Fees",        v:0,icon:"📚"},
+    {id:"sport",label:"Sports / Activities",   v:0,icon:"⚽"},
+    {id:"other",label:"Other Children Expense",v:0,icon:"🎒"}
+  ]}
 };
 var D=JSON.parse(JSON.stringify(DEF));
 
-/* ── helpers ── */
 function ff(n){return "₹"+(Number(n)||0).toLocaleString("en-IN");}
 function fl(n){n=Number(n)||0;if(n>=10000000)return "₹"+(n/10000000).toFixed(2)+"Cr";if(n>=100000)return "₹"+(n/100000).toFixed(1)+"L";return "₹"+n.toLocaleString("en-IN");}
-function num(v){var c=String(v).replace(/[₹,\s%]/g,"");return (c!==""&&!isNaN(c))?parseFloat(c):0;}
+function num(v){var c=String(v).replace(/[₹,\s%]/g,"");return(c!==""&&!isNaN(c))?parseFloat(c):0;}
 function get(id){return document.getElementById(id);}
 function setHTML(id,h){var el=get(id);if(el)el.innerHTML=h;}
-
 function togglePw(fid,btn){var f=get(fid);if(f.type==="password"){f.type="text";btn.textContent="🙈";}else{f.type="password";btn.textContent="👁️";}}
 function showErr(m){var e=get("aerr");if(e){e.textContent=m;e.style.display="block";setTimeout(function(){e.style.display="none";},5000);}}
 function switchAuth(t){get("aform-login").style.display=t==="login"?"block":"none";get("aform-reg").style.display=t==="reg"?"block":"none";document.querySelectorAll(".atab").forEach(function(b,i){b.classList.toggle("on",t==="login"?i===0:i===1);});}
@@ -239,10 +251,8 @@ function showPage(n){
   var names=["ov","inc","scss","fd","exp","loans","mf","ins","hlth","kids","rem","zerodha"];
   var idx=names.indexOf(n);
   if(idx>=0){var btns=document.querySelectorAll(".nav-item");if(btns[idx])btns[idx].classList.add("on");}
-  // re-render only the active page for speed
   renderPage(n);
 }
-
 function toggleEdit(){editMode=!editMode;get("ebtn").textContent=editMode?"✅ Done Editing":"✏️ Edit Mode";get("ebanner").style.display=editMode?"flex":"none";renderAll();}
 function autoSave(){clearTimeout(saveTimer);saveTimer=setTimeout(function(){try{localStorage.setItem("mf_data",JSON.stringify(D));}catch(e){}if(sbToken)sbSave(sbToken,sbUid,D);},1500);}
 function upd(path,val){
@@ -253,7 +263,6 @@ function upd(path,val){
   autoSave();renderAll();
 }
 
-/* ── row builder ── */
 function row(label,val,color,path){
   color=color||"#e2e8f0";
   if(editMode&&path){
@@ -269,7 +278,6 @@ function row(label,val,color,path){
     +'</div>';
 }
 
-/* ── supabase ── */
 function sbFetch(path,opts){
   var ctrl=new AbortController();var tid=setTimeout(function(){ctrl.abort();},6000);
   return fetch(SB+path,Object.assign({},opts,{signal:ctrl.signal})).then(function(r){clearTimeout(tid);return r.json();}).catch(function(e){clearTimeout(tid);throw e;});
@@ -279,7 +287,6 @@ function sbSignup(e,p,n){return sbFetch("/auth/v1/signup",{method:"POST",headers
 function sbLoad(tok){return sbFetch("/rest/v1/finance_data?select=data",{headers:{"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+tok}});}
 function sbSave(tok,uid,data){sbFetch("/rest/v1/finance_data",{method:"POST",headers:{"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+tok,"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:uid,data:JSON.stringify(data),updated_at:new Date().toISOString()})}).catch(function(){});}
 
-/* ── auth ── */
 function doLogin(){
   var email=get("l-em").value.trim(),pass=get("l-pw").value;
   if(!email||!pass){showErr("Please fill all fields");return;}
@@ -293,11 +300,11 @@ function doLogin(){
     localStorage.setItem("mf_token",sbToken);localStorage.setItem("mf_uid",sbUid);
     localStorage.setItem("mf_name",name);localStorage.setItem("mf_email",email);
     sbLoad(sbToken).then(function(rows){if(rows&&rows[0]&&rows[0].data){try{D=JSON.parse(rows[0].data);}catch(e){}}showApp();}).catch(function(){showApp();});
-  }).catch(function(e){
+  }).catch(function(){
     btn.disabled=false;btn.textContent="Sign In →";
     var saved=localStorage.getItem("mf_data");if(saved)try{D=JSON.parse(saved);}catch(x){}
     get("uname").textContent=email.split("@")[0];get("uemail").textContent=email;
-    showErr("Network issue – showing local data.");showApp();
+    showErr("Network issue - showing local data.");showApp();
   });
 }
 function doReg(){
@@ -323,7 +330,6 @@ function doLogout(){
 }
 function showApp(){get("auth").style.display="none";get("app").style.display="block";renderAll();}
 
-/* ── ensure data ── */
 function ensureData(){
   if(!D)D={};
   if(!D.income)D.income={};
@@ -356,7 +362,6 @@ function ensureData(){
   if(!D.children.expenses)D.children.expenses=[];
 }
 
-/* ── computed ── */
 function getScssDadQtr(){return D.scss.dad.deposited*D.scss.dad.rate/400;}
 function getScssMomQtr(){return D.scss.mom.deposited*D.scss.mom.rate/400;}
 function getScssMonthly(){return Math.round((getScssDadQtr()+getScssMomQtr())/3);}
@@ -364,20 +369,16 @@ function getMonthlyExpTotal(){var t=0;for(var i=0;i<D.expenses.monthly.length;i+
 function getPeriodicMo(){var t=0;for(var i=0;i<D.expenses.periodic.length;i++)t+=Math.round(D.expenses.periodic[i].v/(D.expenses.periodic[i].years*12));return t;}
 function getChildMo(){var t=0;if(D.children&&D.children.expenses)for(var i=0;i<D.children.expenses.length;i++)t+=D.children.expenses[i].v;return t;}
 
-/* ── renderAll ── */
 function renderAll(){
   try{ensureData();}catch(e){console.error("ensureData:",e);}
-  var scssMonthly=getScssMonthly();
-  var fdMonthly=D.fd.deposited?D.fd.actualMonthly:0;
-  var rentalMonthly=D.income.rentalActive?D.income.rental:0;
-  var totalIncome=D.income.husband+D.income.wife+scssMonthly+fdMonthly+rentalMonthly;
-  var totalExp=getMonthlyExpTotal()+getPeriodicMo()+getChildMo();
-  var surplus=totalIncome-totalExp;
-  get("t-inc").textContent=fl(totalIncome)+"/mo";
-  get("t-exp").textContent=fl(totalExp)+"/mo";
-  get("t-sur").textContent=fl(surplus)+"/mo";
-  get("t-sur").style.color=surplus>=0?"#6366f1":"#ef4444";
-
+  var sm=getScssMonthly(),fm=D.fd.deposited?D.fd.actualMonthly:0,rm=D.income.rentalActive?D.income.rental:0;
+  var ti=D.income.husband+D.income.wife+sm+fm+rm;
+  var te=getMonthlyExpTotal()+getPeriodicMo()+getChildMo();
+  var sur=ti-te;
+  get("t-inc").textContent=fl(ti)+"/mo";
+  get("t-exp").textContent=fl(te)+"/mo";
+  get("t-sur").textContent=fl(sur)+"/mo";
+  get("t-sur").style.color=sur>=0?"#6366f1":"#ef4444";
   var active=document.querySelector(".page.on");
   var pid=active?active.id.replace("page-",""):"ov";
   renderPage(pid);
@@ -385,97 +386,86 @@ function renderAll(){
 
 function renderPage(n){
   try{ensureData();}catch(e){}
-  var scssMonthly=getScssMonthly();
-  var fdMonthly=D.fd.deposited?D.fd.actualMonthly:0;
-  var rentalMonthly=D.income.rentalActive?D.income.rental:0;
-  var totalIncome=D.income.husband+D.income.wife+scssMonthly+fdMonthly+rentalMonthly;
-  var totalExp=getMonthlyExpTotal()+getPeriodicMo()+getChildMo();
-  var surplus=totalIncome-totalExp;
+  var sm=getScssMonthly(),fm=D.fd.deposited?D.fd.actualMonthly:0,rm=D.income.rentalActive?D.income.rental:0;
+  var ti=D.income.husband+D.income.wife+sm+fm+rm;
+  var te=getMonthlyExpTotal()+getPeriodicMo()+getChildMo();
   switch(n){
-    case "ov":    try{renderOv(totalIncome,totalExp,surplus,scssMonthly);}catch(e){console.error("ov:",e);}break;
-    case "inc":   try{renderInc(scssMonthly);}catch(e){console.error("inc:",e);}break;
-    case "scss":  try{renderScss();}catch(e){console.error("scss:",e);}break;
-    case "fd":    try{renderFD();}catch(e){console.error("fd:",e);}break;
-    case "exp":   try{renderExp();}catch(e){console.error("exp:",e);}break;
-    case "loans": try{renderLoans();}catch(e){console.error("loans:",e);}break;
-    case "mf":    try{renderMF();}catch(e){console.error("mf:",e);}break;
-    case "ins":   try{renderIns();}catch(e){console.error("ins:",e);}break;
-    case "hlth":  try{renderHlth();}catch(e){console.error("hlth:",e);}break;
-    case "kids":  try{renderKids();}catch(e){console.error("kids:",e);}break;
-    case "rem":     try{renderRem();}catch(e){console.error("rem:",e);}break;
-    case "zerodha": try{renderZerodha();}catch(e){console.error("zerodha:",e);}break;
+    case "ov":      try{renderOv(ti,te,ti-te,sm);}catch(e){console.error(e);}break;
+    case "inc":     try{renderInc(sm);}catch(e){console.error(e);}break;
+    case "scss":    try{renderScss();}catch(e){console.error(e);}break;
+    case "fd":      try{renderFD();}catch(e){console.error(e);}break;
+    case "exp":     try{renderExp();}catch(e){console.error(e);}break;
+    case "loans":   try{renderLoans();}catch(e){console.error(e);}break;
+    case "mf":      try{renderMF();}catch(e){console.error(e);}break;
+    case "ins":     try{renderIns();}catch(e){console.error(e);}break;
+    case "hlth":    try{renderHlth();}catch(e){console.error(e);}break;
+    case "kids":    try{renderKids();}catch(e){console.error(e);}break;
+    case "rem":     try{renderRem();}catch(e){console.error(e);}break;
+    case "zerodha": try{renderZerodha();}catch(e){console.error(e);}break;
   }
 }
 
-/* ════════════════════════════
-   PAGE RENDERERS
-════════════════════════════ */
-function renderOv(totalIncome,totalExp,surplus,scssMonthly){
-  var totalLoan=D.loans.sbi.outstanding+D.loans.icici.outstanding;
-  var totalScss=D.scss.dad.deposited+D.scss.mom.deposited;
-  var sipVal=0;for(var i=0;i<D.expenses.monthly.length;i++){if(D.expenses.monthly[i].id==="sip")sipVal=D.expenses.monthly[i].v;}
-  var otherExp=getMonthlyExpTotal()-D.loans.sbi.emi-D.loans.icici.emi-sipVal;
-
-  var h='<div class="page-header"><div class="page-title">📊 Overview</div><div class="page-sub">India Relocation Financial Plan — All figures in ₹</div></div>'
+function renderOv(ti,te,surplus,sm){
+  var tl=D.loans.sbi.outstanding+D.loans.icici.outstanding;
+  var ts=D.scss.dad.deposited+D.scss.mom.deposited;
+  var sipV=0;for(var i=0;i<D.expenses.monthly.length;i++){if(D.expenses.monthly[i].id==="sip")sipV=D.expenses.monthly[i].v;}
+  var other=getMonthlyExpTotal()-D.loans.sbi.emi-D.loans.icici.emi-sipV;
+  var h='<div class="page-header"><div class="page-title">📊 Overview</div><div class="page-sub">India Relocation Financial Plan</div></div>'
     +'<div class="g4" style="margin-bottom:14px">'
-    +'<div class="kc"><div class="kl">Monthly Income</div><div class="kv" style="color:#10b981">'+fl(totalIncome)+'</div><div class="ks">Husband + Wife + SCSS + Rental</div></div>'
-    +'<div class="kc"><div class="kl">Monthly Surplus</div><div class="kv" style="color:'+(surplus>=0?"#6366f1":"#ef4444")+'">'+fl(surplus)+'</div><div class="ks">Income minus all expenses</div></div>'
-    +'<div class="kc"><div class="kl">Total Loans</div><div class="kv" style="color:#ef4444">'+fl(totalLoan)+'</div><div class="ks">SBI '+fl(D.loans.sbi.outstanding)+' + ICICI '+fl(D.loans.icici.outstanding)+'</div></div>'
-    +'<div class="kc"><div class="kl">SCSS Deposited</div><div class="kv" style="color:#f59e0b">'+fl(totalScss)+'</div><div class="ks">Dad + Mom · Target '+fl(D.scss.dad.target+D.scss.mom.target)+'</div></div>'
-    +'</div>'
-    +'<div class="g2">'
+    +'<div class="kc"><div class="kl">Monthly Income</div><div class="kv" style="color:#10b981">'+fl(ti)+'</div><div class="ks">Husband + Wife + SCSS</div></div>'
+    +'<div class="kc"><div class="kl">Monthly Surplus</div><div class="kv" style="color:'+(surplus>=0?"#6366f1":"#ef4444")+'">'+fl(surplus)+'</div><div class="ks">Income minus expenses</div></div>'
+    +'<div class="kc"><div class="kl">Total Loans</div><div class="kv" style="color:#ef4444">'+fl(tl)+'</div><div class="ks">SBI + ICICI</div></div>'
+    +'<div class="kc"><div class="kl">SCSS Deposited</div><div class="kv" style="color:#f59e0b">'+fl(ts)+'</div><div class="ks">Dad + Mom</div></div>'
+    +'</div><div class="g2">'
     +'<div class="card"><div class="ctitle" style="color:#10b981">💰 INCOME SNAPSHOT</div>'
     +row(D.income.husbandLabel,ff(D.income.husband),D.income.husband>0?"#10b981":"#475569","income.husband")
     +row(D.income.wifeLabel,ff(D.income.wife),D.income.wife>0?"#10b981":"#475569","income.wife")
-    +row("SCSS Payout (combined/mo)",ff(scssMonthly),"#f59e0b")
-    +row("Rental — Wanaparthy",D.income.rentalActive?ff(D.income.rental):"⏳ Pending Apr 2026","#6366f1")
-    +row("Sweep FD",D.fd.deposited?ff(D.fd.actualMonthly):"⏳ Not deposited","#06b6d4")
+    +row("SCSS Payout (combined/mo)",ff(sm),"#f59e0b")
+    +row("Rental — Wanaparthy",D.income.rentalActive?ff(D.income.rental):"Pending Apr 2026","#6366f1")
+    +row("Sweep FD",D.fd.deposited?ff(D.fd.actualMonthly):"Not deposited","#06b6d4")
     +'</div>'
     +'<div class="card"><div class="ctitle" style="color:#ef4444">💸 EXPENSE SNAPSHOT</div>'
     +row("SBI Loan EMI",ff(D.loans.sbi.emi),"#3b82f6")
     +row("ICICI Loan EMI",ff(D.loans.icici.emi),"#8b5cf6")
-    +row("SIP Investment",ff(sipVal),"#6366f1")
-    +row("3Cr Term Insurance (amortized)",ff(Math.round(252057/12))+"/mo","#f59e0b")
-    +row("2Cr Term Insurance (amortized)",ff(Math.round(180110/12))+"/mo","#a78bfa")
-    +row("Health Ins — Me+Wife (amortized)",ff(Math.round(69354/36))+"/mo","#06b6d4")
+    +row("SIP Investment",ff(sipV),"#6366f1")
+    +row("3Cr Term Ins (amortized)",ff(Math.round(252057/12))+"/mo","#f59e0b")
+    +row("2Cr Term Ins (amortized)",ff(Math.round(180110/12))+"/mo","#a78bfa")
+    +row("Health Ins (amortized)",ff(Math.round(69354/36))+"/mo","#06b6d4")
     +row("Parents Health Ins (amortized)",ff(Math.round(368487/36))+"/mo","#22d3a5")
     +row("Car Insurance (amortized)",ff(Math.round(11500/12))+"/mo","#f97316")
-    +row("Other Monthly Expenses",ff(otherExp>0?otherExp:0),"#94a3b8")
+    +row("Other Monthly",ff(other>0?other:0),"#94a3b8")
     +'</div></div>';
   setHTML("page-ov",h);
 }
 
-function renderInc(scssMonthly){
-  var h='<div class="page-header"><div class="page-title">💰 Income</div><div class="page-sub">India Relocation Planner — set target income for when you move back</div></div>'
+function renderInc(sm){
+  var h='<div class="page-header"><div class="page-title">💰 Income</div></div>'
     +'<div class="card">'
-    +'<div style="background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:#64748b">'
-    +'🎯 Currently in USA. Set your expected India income to plan your relocation finances.</div>'
+    +'<div style="background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:#64748b">🎯 Currently in USA. Set expected India income for relocation planning.</div>'
     +row(D.income.husbandLabel,ff(D.income.husband),"#10b981","income.husband")
     +row(D.income.wifeLabel,ff(D.income.wife),"#10b981","income.wife")
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px">'
     +'<span style="color:#64748b;font-size:12px">Rental Status</span>'
     +'<select onchange="D.income.rentalActive=this.value===\'true\';autoSave();renderAll();">'
-    +'<option value="false"'+(D.income.rentalActive?"":" selected")+'>⏳ Pending — Apr 2026</option>'
-    +'<option value="true"'+(D.income.rentalActive?" selected":"")+'>✅ Active</option>'
+    +'<option value="false"'+(D.income.rentalActive?"":" selected")+'>Pending - Apr 2026</option>'
+    +'<option value="true"'+(D.income.rentalActive?" selected":"")+'>Active</option>'
     +'</select></div>'
-    +row("Rental — Wanaparthy",ff(D.income.rental),"#6366f1","income.rental")
-    +row("SCSS (Dad+Mom combined/mo)",ff(scssMonthly),"#f59e0b")
-    +row("Sweep FD (monthly payout)",D.fd.deposited?ff(D.fd.actualMonthly):"⏳ Not deposited","#06b6d4")
+    +row("Rental - Wanaparthy",ff(D.income.rental),"#6366f1","income.rental")
+    +row("SCSS (combined/mo)",ff(sm),"#f59e0b")
+    +row("Sweep FD",D.fd.deposited?ff(D.fd.actualMonthly):"Not deposited","#06b6d4")
     +'</div>';
   setHTML("page-inc",h);
 }
 
 function renderScss(){
   var yr=2026;var sel=get("scss-yr");if(sel)yr=parseInt(sel.value)||2026;
-  var dadQtr=getScssDadQtr(),momQtr=getScssMomQtr();
-  var dadFirst=D.scss.dad.deposited*D.scss.dad.rate/100*36/365;
-  var momFirst=D.scss.mom.deposited*D.scss.mom.rate/100*36/365;
-  var firstCombined=dadFirst+momFirst;
-  var qtrCombined=dadQtr+momQtr;
-
+  var dq=getScssDadQtr(),mq=getScssMomQtr();
+  var df=D.scss.dad.deposited*D.scss.dad.rate/100*36/365;
+  var mf=D.scss.mom.deposited*D.scss.mom.rate/100*36/365;
   var accH=function(lbl,d,path,c){
+    var qtr=lbl==="Dad"?dq:mq;
     return '<div style="background:#1e293b;border-radius:10px;padding:14px;border:1px solid '+c+'25">'
-      +'<div style="color:'+c+';font-size:11px;font-weight:700;margin-bottom:8px">👤 '+lbl+'\'s SCSS Account</div>'
+      +'<div style="color:'+c+';font-size:11px;font-weight:700;margin-bottom:8px">'+lbl+"'s SCSS Account</div>"
       +'<div style="font-size:22px;font-weight:900;margin-bottom:2px">'+fl(d.deposited)+'</div>'
       +'<div style="font-size:11px;color:#64748b;margin-bottom:6px">of '+fl(d.target)+' target</div>'
       +'<div class="prog"><div class="bar" style="width:'+Math.min(100,Math.round(d.deposited/d.target*100))+'%;background:'+c+'"></div></div>'
@@ -483,42 +473,29 @@ function renderScss(){
       +row("Deposited",ff(d.deposited),c,path+".deposited")
       +row("Target",ff(d.target),"white",path+".target")
       +row("Rate",d.rate+"%","white",path+".rate")
-      +row("Qtr Payout (current)",ff(lbl==="Dad"?dadQtr:momQtr),c)
-      +row("Qtr Payout (at target)",ff(lbl==="Dad"?D.scss.dad.target*D.scss.dad.rate/400:D.scss.mom.target*D.scss.mom.rate/400),"#10b981")
-      +'<div style="background:#0f172a;border-radius:7px;padding:10px;margin-top:8px">'
-      +row("Deposit Date","23 Feb 2026","#10b981")
-      +row("1st Payout (prorated 36 days)","₹"+Math.round(lbl==="Dad"?dadFirst:momFirst).toLocaleString("en-IN")+" on 31 Mar 2026","#22d3a5")
-      +row("Full Quarters from","30 Jun 2026 onwards","#fbbf24")
-      +row("Lock-in","5 Years","#f59e0b")
+      +row("Qtr Payout (current)",ff(qtr),c)
+      +row("Full Quarters from","30 Jun 2026","#fbbf24")
       +row("Maturity","Feb 2031","#fbbf24")
-      +'</div></div>';
+      +'</div>';
   };
-
-  var qSel='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
-    +'<span style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase">📅 Quarterly Payout — Year:</span>'
+  var qSel='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span style="color:#94a3b8;font-size:11px;font-weight:700">Quarterly Payout - Year:</span>'
     +'<select id="scss-yr" onchange="renderScss()">';
-  for(var y=2026;y<=2034;y++)qSel+='<option value="'+y+'"'+(yr===y?' selected':'')+'>'+y+'</option>';
+  for(var y=2026;y<=2034;y++)qSel+='<option value="'+y+'"'+(yr===y?" selected":"")+'>'+y+'</option>';
   qSel+='</select></div>';
-
   var qtrs=[{l:"31 Mar",m:3},{l:"30 Jun",m:6},{l:"30 Sep",m:9},{l:"31 Dec",m:12}];
   var qH='<div class="g4">';
   for(var qi=0;qi<qtrs.length;qi++){
     var q=qtrs[qi];var isFirst=yr===2026&&q.m===3;
-    var payout=isFirst?firstCombined:qtrCombined;
-    var note=isFirst
-      ?'36 days prorated (Feb 23 – Mar 31)<br>₹'+Math.round(dadFirst).toLocaleString("en-IN")+' Dad + ₹'+Math.round(momFirst).toLocaleString("en-IN")+' Mom'
-      :'Full quarter · Dad ₹'+Math.round(dadQtr).toLocaleString("en-IN")+' + Mom ₹'+Math.round(momQtr).toLocaleString("en-IN");
+    var payout=isFirst?(df+mf):(dq+mq);
+    var note=isFirst?"36 days prorated (Feb 23 - Mar 31)":"Full quarter · Dad + Mom";
     qH+='<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:12px">'
       +'<div style="color:#fbbf24;font-size:11px;font-weight:700;margin-bottom:4px">'+q.l+' '+yr+'</div>'
       +'<div style="font-size:18px;font-weight:900;margin-bottom:4px">'+ff(payout)+'</div>'
-      +'<div style="color:#64748b;font-size:10px;line-height:1.6">'+note+'</div>'
-      +'</div>';
+      +'<div style="color:#64748b;font-size:10px">'+note+'</div></div>';
   }
   qH+='</div>';
-
   setHTML("page-scss",'<div class="page-header"><div class="page-title">🏦 Schemes (SCSS)</div><div class="page-sub">Parents · Deposit: 23 Feb 2026 · Rate 8.2% p.a.</div></div>'
-    +'<div class="card" style="border-color:rgba(245,158,11,0.25)">'
-    +'<div class="ctitle" style="color:#f59e0b">🏦 SENIOR CITIZENS SAVINGS SCHEME</div>'
+    +'<div class="card"><div class="ctitle" style="color:#f59e0b">🏦 SENIOR CITIZENS SAVINGS SCHEME</div>'
     +'<div class="g2">'+accH("Dad",D.scss.dad,"scss.dad","#f59e0b")+accH("Mom",D.scss.mom,"scss.mom","#fb923c")+'</div>'
     +'<div style="margin-top:14px">'+qSel+qH+'</div></div>');
 }
@@ -528,48 +505,41 @@ function renderFD(){
   var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
     +'<span style="color:#64748b;font-size:12px">Status:</span>'
     +'<select onchange="var nv=this.value===\'true\';if(nv&&!D.fd.deposited)D.fd.actualMonthly=Math.round(D.fd.planned*D.fd.rate/100/12);D.fd.deposited=nv;autoSave();renderAll();">'
-    +'<option value="false"'+(D.fd.deposited?"":" selected")+'>⚠️ Not yet deposited</option>'
-    +'<option value="true"'+(D.fd.deposited?" selected":"")+'>✅ Deposited</option>'
+    +'<option value="false"'+(D.fd.deposited?"":" selected")+'>Not yet deposited</option>'
+    +'<option value="true"'+(D.fd.deposited?" selected":"")+'>Deposited</option>'
     +'</select></div>'
     +row("Planned Amount",ff(D.fd.planned),"white","fd.planned")
     +row("Rate",D.fd.rate+"%","white","fd.rate")
-    +(D.fd.deposited
-      ?row("Monthly Payout",ff(D.fd.actualMonthly),"#22d3a5","fd.actualMonthly")
-      :row("Expected Monthly Payout",ff(calc),"#64748b"));
+    +(D.fd.deposited?row("Monthly Payout",ff(D.fd.actualMonthly),"#22d3a5","fd.actualMonthly"):row("Expected Monthly",ff(calc),"#64748b"));
   setHTML("page-fd",'<div class="page-header"><div class="page-title">📅 Sweep FD</div></div><div class="card"><div class="ctitle" style="color:#06b6d4">🏦 SWEEP FD</div>'+h+'</div>');
 }
 
 function renderExp(){
   var moH="";
   for(var i=0;i<D.expenses.monthly.length;i++){
-    var ex=D.expenses.monthly[i];var idx=i;
-    moH+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px'+(editMode?';border:1px solid rgba(245,158,11,0.2)':'')+'">';
+    var ex=D.expenses.monthly[i];
+    moH+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px'+(editMode?";border:1px solid rgba(245,158,11,0.2)":"")+'">';
     if(editMode){
-      moH+='<span style="color:#64748b;font-size:12px">'+ex.icon+' <input style="background:transparent;border:none;border-bottom:1px solid #334155;color:#94a3b8;font-size:12px;outline:none;font-family:inherit;width:140px" value="'+ex.label+'" onblur="D.expenses.monthly['+idx+'].label=this.value;autoSave();renderAll();"/></span>';
-      moH+='<div style="display:flex;align-items:center;gap:5px"><input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:80px;text-align:right;font-family:inherit" value="'+ex.v+'" onblur="D.expenses.monthly['+idx+'].v=num(this.value);autoSave();renderAll();"/><button onclick="D.expenses.monthly.splice('+idx+',1);autoSave();renderAll();" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:14px">🗑</button></div>';
+      moH+='<span style="color:#64748b;font-size:12px">'+ex.icon+' <input style="background:transparent;border:none;border-bottom:1px solid #334155;color:#94a3b8;font-size:12px;outline:none;font-family:inherit;width:130px" value="'+ex.label+'" onblur="D.expenses.monthly['+i+'].label=this.value;autoSave();renderAll();"/></span>';
+      moH+='<div style="display:flex;align-items:center;gap:5px"><input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:80px;text-align:right;font-family:inherit" value="'+ex.v+'" onblur="D.expenses.monthly['+i+'].v=num(this.value);autoSave();renderAll();"/><button onclick="D.expenses.monthly.splice('+i+',1);autoSave();renderAll();" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:14px">🗑</button></div>';
     } else {
       moH+='<span style="color:#64748b;font-size:12px">'+ex.icon+' '+ex.label+'</span><span style="color:white;font-size:12px;font-weight:700">'+ff(ex.v)+'</span>';
     }
     moH+='</div>';
   }
   moH+='<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba(239,68,68,0.08);border-radius:6px;margin-top:6px"><strong style="font-size:12px">Total Monthly</strong><strong style="color:#ef4444">'+ff(getMonthlyExpTotal())+'</strong></div>';
-
-  // periodic split by years
-  var yr1=[],yr3=[],yrX=[];
-  for(var j=0;j<D.expenses.periodic.length;j++){var pe=D.expenses.periodic[j];if(pe.years===1)yr1.push(pe);else if(pe.years===3)yr3.push(pe);else yrX.push(pe);}
-  function pList(arr,c,years){
+  var yr1=[],yr3=[];
+  for(var j=0;j<D.expenses.periodic.length;j++){var pe=D.expenses.periodic[j];if(pe.years===1)yr1.push(pe);else yr3.push(pe);}
+  function pList(arr,c,yrs){
     var h="",tot=0;
-    arr.forEach(function(pe){
-      tot+=pe.v;
+    for(var k=0;k<arr.length;k++){var pe=arr[k];tot+=pe.v;
       h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:8px 10px;background:#1e293b;border-radius:6px">'
         +'<div><div style="color:#94a3b8;font-size:12px">'+pe.icon+' '+pe.label+'</div><div style="color:#475569;font-size:10px">'+pe.due+'</div></div>'
-        +'<div style="text-align:right"><div style="color:'+c+';font-size:12px;font-weight:700">'+ff(pe.v)+'/'+(years===1?'yr':years+'yr')+'</div>'
-        +'<div style="color:#475569;font-size:10px">≈ '+ff(Math.round(pe.v/(pe.years*12)))+'/mo</div></div></div>';
-    });
-    if(arr.length>0)h+='<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba(0,0,0,0.2);border-radius:6px;margin-top:4px"><strong style="font-size:12px">Total</strong><strong style="color:'+c+'">'+ff(tot)+'</strong></div>';
+        +'<div style="text-align:right"><div style="color:'+c+';font-size:12px;font-weight:700">'+ff(pe.v)+'</div><div style="color:#475569;font-size:10px">~'+ff(Math.round(pe.v/(pe.years*12)))+'/mo</div></div></div>';
+    }
+    if(arr.length)h+='<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba(0,0,0,0.2);border-radius:6px;margin-top:4px"><strong style="font-size:12px">Total</strong><strong style="color:'+c+'">'+ff(tot)+'</strong></div>';
     return h;
   }
-
   setHTML("page-exp",'<div class="page-header"><div class="page-title">💸 Expenses</div></div>'
     +'<div class="card"><div class="ctitle" style="color:#ef4444">💸 MONTHLY EXPENSES</div>'+moH
     +'<button class="addbtn" onclick="addExp()">+ Add Monthly Expense</button></div>'
@@ -578,8 +548,8 @@ function renderExp(){
     +'<div class="card"><div class="ctitle" style="color:#22d3a5">🔄 3-YEAR PAYMENTS</div>'+pList(yr3,"#22d3a5",3)
     +'<button class="addbtn" onclick="addPeriodic(3)">+ Add 3-Year Payment</button></div>');
 }
-function addExp(){var l=prompt("Expense name:","");if(!l)return;var v=prompt("Monthly amount (₹):","0");D.expenses.monthly.push({id:"c"+Date.now(),label:l,v:num(v)||0,icon:"💰"});autoSave();renderAll();}
-function addPeriodic(yrs){var l=prompt("Expense name:","");if(!l)return;var v=prompt("Amount (₹) for "+(yrs===1?"year":yrs+"yrs")+":","0");var due=prompt("Due date:","Annual");D.expenses.periodic.push({id:"p"+Date.now(),label:l,v:num(v)||0,icon:"📅",due:due,years:yrs});autoSave();renderAll();}
+function addExp(){var l=prompt("Expense name:","");if(!l)return;var v=prompt("Monthly amount:","0");D.expenses.monthly.push({id:"c"+Date.now(),label:l,v:num(v)||0,icon:"💰"});autoSave();renderAll();}
+function addPeriodic(yrs){var l=prompt("Expense name:","");if(!l)return;var v=prompt("Amount:","0");var due=prompt("Due date:","Annual");D.expenses.periodic.push({id:"p"+Date.now(),label:l,v:num(v)||0,icon:"📅",due:due,years:yrs});autoSave();renderAll();}
 
 function renderLoans(){
   var lH=function(key,d,c){
@@ -596,7 +566,7 @@ function renderLoans(){
       +row("EMIs Remaining",d.tenure-d.paid,"#f59e0b")
       +row("Outstanding",ff(d.outstanding),"#ef4444","loans."+key+".outstanding")
       +'<div class="prog" style="margin-top:8px"><div class="bar" style="width:'+Math.min(100,Math.round(d.paid/d.tenure*100))+'%;background:'+c+'"></div></div>'
-      +'<div style="color:#475569;font-size:9px;text-align:right;margin-top:3px">'+d.paid+' paid · '+(d.tenure-d.paid)+' remaining</div></div>';
+      +'<div style="color:#475569;font-size:9px;text-align:right;margin-top:3px">'+d.paid+' paid / '+(d.tenure-d.paid)+' remaining</div></div>';
   };
   setHTML("page-loans",'<div class="page-header"><div class="page-title">🏠 Loans</div></div><div class="g2">'+lH("sbi",D.loans.sbi,"#3b82f6")+lH("icici",D.loans.icici,"#8b5cf6")+'</div>');
 }
@@ -604,17 +574,11 @@ function renderLoans(){
 function renderMF(){
   var mo=D.sip.monthly,rate=D.sip.rate,stepUp=D.sip.stepUp,startYr=D.sip.startYear||2026;
   var corpus=0,cumInv=0,curMo=mo;
-  var tH='<div style="overflow-x:auto"><table>'
-    +'<tr><th>Year</th><th style="text-align:right">Monthly SIP</th><th style="text-align:right">Yearly</th><th style="text-align:right">Total Invested</th><th style="text-align:right">Est. Corpus</th></tr>';
+  var tH='<div style="overflow-x:auto"><table><tr><th>Year</th><th style="text-align:right">Monthly SIP</th><th style="text-align:right">Yearly</th><th style="text-align:right">Total Invested</th><th style="text-align:right">Est. Corpus</th></tr>';
   var curYr=new Date().getFullYear();
   for(var y=startYr;y<=startYr+24;y++){
     for(var m=0;m<12;m++){corpus=corpus*(1+rate/1200)+curMo;cumInv+=curMo;}
-    tH+='<tr style="'+(y===curYr?"background:rgba(99,102,241,0.05)":"")+'">'
-      +'<td style="color:'+(y===curYr?"#6366f1":"#94a3b8")+';font-weight:'+(y===curYr?700:400)+'">'+y+'</td>'
-      +'<td style="text-align:right;color:white">'+ff(curMo)+'</td>'
-      +'<td style="text-align:right;color:#64748b">'+ff(curMo*12)+'</td>'
-      +'<td style="text-align:right;color:#475569">'+fl(cumInv)+'</td>'
-      +'<td style="text-align:right;color:#fbbf24;font-weight:700">'+fl(Math.round(corpus))+'</td></tr>';
+    tH+='<tr style="'+(y===curYr?"background:rgba(99,102,241,0.05)":"")+'"><td style="color:'+(y===curYr?"#6366f1":"#94a3b8")+';font-weight:'+(y===curYr?700:400)+'">'+y+'</td><td style="text-align:right;color:white">'+ff(curMo)+'</td><td style="text-align:right;color:#64748b">'+ff(curMo*12)+'</td><td style="text-align:right;color:#475569">'+fl(cumInv)+'</td><td style="text-align:right;color:#fbbf24;font-weight:700">'+fl(Math.round(corpus))+'</td></tr>';
     if(y<startYr+24)curMo=Math.round(curMo*(1+stepUp/100));
   }
   tH+='</table></div>';
@@ -627,7 +591,7 @@ function renderMF(){
     +'<div style="color:#475569;font-size:11px;margin-top:3px">Total invested: '+fl(Math.round(cumInv))+'</div></div>';
   setHTML("page-mf",'<div class="page-header"><div class="page-title">📈 Mutual Funds</div></div>'
     +'<div class="card"><div class="ctitle" style="color:#6366f1">📈 SIP SUMMARY</div>'+sumH+'</div>'
-    +'<div class="card"><div class="ctitle" style="color:#a78bfa">📊 YEAR-BY-YEAR GROWTH (15% Annual Step-up)</div>'+tH+'</div>');
+    +'<div class="card"><div class="ctitle" style="color:#a78bfa">📊 YEAR-BY-YEAR GROWTH</div>'+tH+'</div>');
 }
 
 function renderIns(){
@@ -637,14 +601,11 @@ function renderIns(){
       +'<table><tr><th>Year</th><th>Due Date</th><th style="text-align:right">Premium</th><th style="text-align:center">Status</th></tr>';
     for(var i=0;i<ins.schedule.length;i++){
       var s=ins.schedule[i];
-      h+='<tr><td style="color:#94a3b8">'+s.yr+'</td><td style="color:#94a3b8">'+s.date+'</td>'
-        +'<td style="text-align:right;color:'+c+';font-weight:700">'+ff(s.amt)+'</td>'
-        +'<td style="text-align:center"><span style="background:'+(s.paid?"rgba(16,185,129,0.1)":"rgba(245,158,11,0.1)")+';color:'+(s.paid?"#10b981":"#f59e0b")+';border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">'+(s.paid?"✅ Paid":"⏳ Due")+'</span></td></tr>';
+      h+='<tr><td style="color:#94a3b8">'+s.yr+'</td><td style="color:#94a3b8">'+s.date+'</td><td style="text-align:right;color:'+c+';font-weight:700">'+ff(s.amt)+'</td><td style="text-align:center"><span style="background:'+(s.paid?"rgba(16,185,129,0.1)":"rgba(245,158,11,0.1)")+';color:'+(s.paid?"#10b981":"#f59e0b")+';border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">'+(s.paid?"Paid":"Due")+'</span></td></tr>';
     }
     return '<div class="card">'+h+'</table></div>';
   };
-  setHTML("page-ins",'<div class="page-header"><div class="page-title">🛡 Term Insurance</div></div>'
-    +'<div class="g2">'+iCard(D.ins.p1,"#f59e0b","3 CRORE TERM INSURANCE")+iCard(D.ins.p2,"#a78bfa","2 CRORE TERM INSURANCE")+'</div>');
+  setHTML("page-ins",'<div class="page-header"><div class="page-title">🛡 Term Insurance</div></div><div class="g2">'+iCard(D.ins.p1,"#f59e0b","3 CRORE")+iCard(D.ins.p2,"#a78bfa","2 CRORE")+'</div>');
 }
 
 function renderHlth(){
@@ -652,21 +613,18 @@ function renderHlth(){
     +row("Premium Paid (Feb 2026)",ff(D.health.premium),"#06b6d4","health.premium")
     +row("Next Due",D.health.nextDue,"#fbbf24")
     +row("Type","Family Floater","#94a3b8")
-    +'<div style="background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.2);border-radius:7px;padding:10px;margin-top:8px;font-size:11px;color:#64748b">'
-    +'ℹ️ Paid every 3 years. Monthly equivalent: <strong style="color:#06b6d4">'+ff(Math.round(D.health.premium/36))+'/mo</strong>. Next due: <strong style="color:#fbbf24">Feb 2029</strong></div>';
-  setHTML("page-hlth",'<div class="page-header"><div class="page-title">❤️ Health Insurance</div></div>'
-    +'<div class="card"><div class="ctitle" style="color:#06b6d4">❤️ HEALTH INSURANCE — HDFC ERGO</div>'+h+'</div>');
+    +'<div style="background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.2);border-radius:7px;padding:10px;margin-top:8px;font-size:11px;color:#64748b">Paid every 3 years. Monthly equivalent: <strong style="color:#06b6d4">'+ff(Math.round(D.health.premium/36))+'/mo</strong>. Next due: <strong style="color:#fbbf24">Feb 2029</strong></div>';
+  setHTML("page-hlth",'<div class="page-header"><div class="page-title">❤️ Health Insurance</div></div><div class="card"><div class="ctitle" style="color:#06b6d4">❤️ HEALTH INSURANCE — HDFC ERGO</div>'+h+'</div>');
 }
 
 function renderKids(){
-  var h="";
-  if(!D.children.expenses||D.children.expenses.length===0){
-    h='<div style="color:#475569;font-size:12px;text-align:center;padding:20px 0">No children expenses yet. Add below.</div>';
+  var h="",childTotal=0;
+  if(!D.children.expenses||!D.children.expenses.length){
+    h='<div style="color:#475569;font-size:12px;text-align:center;padding:20px 0">No children expenses yet.</div>';
   } else {
-    var childTotal=0;
     for(var i=0;i<D.children.expenses.length;i++){
       var ex=D.children.expenses[i];childTotal+=ex.v;
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px'+(editMode?';border:1px solid rgba(245,158,11,0.2)':'')+'">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px'+(editMode?";border:1px solid rgba(245,158,11,0.2)":"")+'">';
       if(editMode){
         h+='<input style="background:transparent;border:none;border-bottom:1px solid #334155;color:#94a3b8;font-size:12px;outline:none;font-family:inherit;flex:1;margin-right:10px" value="'+ex.label+'" onblur="D.children.expenses['+i+'].label=this.value;autoSave();renderAll();"/>';
         h+='<input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:80px;text-align:right;font-family:inherit" value="'+ex.v+'" onblur="D.children.expenses['+i+'].v=num(this.value);autoSave();renderAll();"/>';
@@ -676,170 +634,126 @@ function renderKids(){
       }
       h+='</div>';
     }
-    h+='<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba(34,211,165,0.08);border-radius:6px;margin-top:6px"><strong style="font-size:12px">Total Children</strong><strong style="color:#22d3a5">'+ff(childTotal)+'/mo</strong></div>';
+    h+='<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba(34,211,165,0.08);border-radius:6px;margin-top:6px"><strong style="font-size:12px">Total</strong><strong style="color:#22d3a5">'+ff(childTotal)+'/mo</strong></div>';
   }
-  setHTML("page-kids",'<div class="page-header"><div class="page-title">👶 Children</div></div>'
-    +'<div class="card"><div class="ctitle" style="color:#22d3a5">👶 CHILDREN\'S EXPENSES</div>'+h
-    +'<button class="addbtn" onclick="addKid()">+ Add Children\'s Expense</button></div>');
+  setHTML("page-kids",'<div class="page-header"><div class="page-title">👶 Children</div></div><div class="card"><div class="ctitle" style="color:#22d3a5">👶 CHILDREN\'S EXPENSES</div>'+h+'<button class="addbtn" onclick="addKid()">+ Add Expense</button></div>');
 }
-function addKid(){var l=prompt("Expense name (e.g. School Fees, Sports):","");if(!l)return;var v=prompt("Monthly amount (₹):","0");D.children.expenses.push({id:"k"+Date.now(),label:l,v:num(v)||0,icon:"📚"});autoSave();renderAll();}
+function addKid(){var l=prompt("Expense name:","");if(!l)return;var v=prompt("Monthly amount:","0");D.children.expenses.push({id:"k"+Date.now(),label:l,v:num(v)||0,icon:"📚"});autoSave();renderAll();}
 
 function renderRem(){
   var sipV=0;for(var i=0;i<D.expenses.monthly.length;i++){if(D.expenses.monthly[i].id==="sip")sipV=D.expenses.monthly[i].v;}
   var items=[
-    {l:"SBI Loan EMI",              d:"15th every month",              a:ff(D.loans.sbi.emi),   c:"#3b82f6"},
-    {l:"ICICI Loan EMI",            d:"10th every month",              a:ff(D.loans.icici.emi), c:"#8b5cf6"},
-    {l:"SIP Investment",            d:"4th every month (auto-debit)",  a:ff(sipV),              c:"#6366f1"},
-    {l:"3Cr Term Insurance",        d:"15-May each year",              a:ff(252057)+"/yr",      c:"#f59e0b"},
-    {l:"2Cr Term Insurance",        d:"17-Feb each year",              a:ff(180110)+"/yr",      c:"#a78bfa"},
-    {l:"Health Ins (Me+Wife)",      d:"Feb 2029 (every 3 years)",      a:ff(69354)+"/3yr",      c:"#06b6d4"},
-    {l:"Parents Health Insurance",  d:"Feb 2029 (every 3 years)",      a:ff(368487)+"/3yr",     c:"#22d3a5"},
-    {l:"Car Insurance",             d:"Annual — renew in Mar",         a:ff(11500)+"/yr",       c:"#f97316"}
+    {l:"SBI Loan EMI",           d:"15th every month",             a:ff(D.loans.sbi.emi),  c:"#3b82f6"},
+    {l:"ICICI Loan EMI",         d:"10th every month",             a:ff(D.loans.icici.emi),c:"#8b5cf6"},
+    {l:"SIP Investment",         d:"4th every month (auto-debit)", a:ff(sipV),             c:"#6366f1"},
+    {l:"3Cr Term Insurance",     d:"15-May each year",             a:ff(252057)+"/yr",     c:"#f59e0b"},
+    {l:"2Cr Term Insurance",     d:"17-Feb each year",             a:ff(180110)+"/yr",     c:"#a78bfa"},
+    {l:"Health Ins (Me+Wife)",   d:"Feb 2029 (every 3 years)",     a:ff(69354)+"/3yr",     c:"#06b6d4"},
+    {l:"Parents Health Ins",     d:"Feb 2029 (every 3 years)",     a:ff(368487)+"/3yr",    c:"#22d3a5"},
+    {l:"Car Insurance",          d:"Annual - renew in Mar",        a:ff(11500)+"/yr",      c:"#f97316"}
   ];
   var h="";
-  for(var j=0;j<items.length;j++){
-    var it=items[j];
+  for(var j=0;j<items.length;j++){var it=items[j];
     h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:#1e293b;border-radius:8px;margin-bottom:8px;border-left:3px solid '+it.c+'">'
       +'<div><div style="font-size:13px;font-weight:600">'+it.l+'</div><div style="font-size:11px;color:#475569;margin-top:2px">'+it.d+'</div></div>'
       +'<div style="color:'+it.c+';font-size:13px;font-weight:800">'+it.a+'</div></div>';
   }
-  setHTML("page-rem",'<div class="page-header"><div class="page-title">🔔 Reminders</div></div>'
-    +'<div class="card"><div class="ctitle" style="color:#fbbf24">🔔 PAYMENT REMINDERS</div>'+h+'</div>');
+  setHTML("page-rem",'<div class="page-header"><div class="page-title">🔔 Reminders</div></div><div class="card"><div class="ctitle" style="color:#fbbf24">🔔 PAYMENT REMINDERS</div>'+h+'</div>');
 }
 
-
 function renderZerodha(){
-  var h='<div class="page-header"><div class="page-title">📊 Zerodha AI Integration</div>'
-    +'<div class="page-sub">Connect your Zerodha portfolio to Claude AI via Kite MCP</div></div>';
+  var h='<div class="page-header"><div class="page-title">📊 Zerodha AI</div><div class="page-sub">Connect your portfolio to Claude AI via Kite MCP</div></div>';
 
-  // Status card
   h+='<div class="card" style="border-color:rgba(99,102,241,0.3)">'
     +'<div class="ctitle" style="color:#6366f1">🔌 CONNECTION STATUS</div>'
     +'<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#1e293b;border-radius:8px;margin-bottom:14px">'
     +'<div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>'
     +'<div><div style="font-size:13px;font-weight:600;color:#fbbf24">Not Connected</div>'
-    +'<div style="font-size:11px;color:#475569;margin-top:2px">Link your Zerodha account to see live portfolio, P&L and AI analysis</div></div>'
-    +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">'
+    +'<div style="font-size:11px;color:#475569;margin-top:2px">Link Zerodha to see live portfolio, P&L and AI analysis</div></div></div>'
+    +'<div class="g3">'
     +'<div style="background:#1e293b;border-radius:8px;padding:12px;text-align:center"><div style="font-size:20px;margin-bottom:4px">📂</div><div style="font-size:11px;color:#94a3b8">Portfolio Holdings</div><div style="font-size:10px;color:#475569;margin-top:2px">Live P&L</div></div>'
     +'<div style="background:#1e293b;border-radius:8px;padding:12px;text-align:center"><div style="font-size:20px;margin-bottom:4px">📈</div><div style="font-size:11px;color:#94a3b8">Live Quotes</div><div style="font-size:10px;color:#475569;margin-top:2px">Nifty, stocks</div></div>'
     +'<div style="background:#1e293b;border-radius:8px;padding:12px;text-align:center"><div style="font-size:20px;margin-bottom:4px">🤖</div><div style="font-size:11px;color:#94a3b8">AI Analysis</div><div style="font-size:10px;color:#475569;margin-top:2px">Claude powered</div></div>'
-    +'</div>'
-    +'</div>';
-
-  // How to connect - step by step
-  h+='<div class="card">'
-    +'<div class="ctitle" style="color:#10b981">🚀 HOW TO CONNECT — STEP BY STEP</div>'
-    +'<div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:#64748b">'
-    +'💡 Integration uses <strong style="color:#10b981">Kite MCP (Model Context Protocol)</strong> — officially supported by Zerodha. Your credentials never pass through this app. 100% secure.</div>'
-
-    +'<div style="display:flex;flex-direction:column;gap:10px">'
-
-    // Step 1
-    +'<div style="display:flex;gap:12px;padding:12px;background:#1e293b;border-radius:8px;align-items:flex-start">'
-    +'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">1</div>'
-    +'<div><div style="font-size:13px;font-weight:600;margin-bottom:4px">Install Node.js (v18+)</div>'
-    +'<div style="font-size:11px;color:#475569;margin-bottom:6px">Required to run the MCP server locally on your computer.</div>'
-    +'<button onclick="window.open('https://nodejs.org','_blank')" style="background:#6366f1;border:none;border-radius:6px;padding:5px 12px;color:white;font-size:11px;font-weight:600;cursor:pointer">⬇️ Download Node.js</button>'
-    +'</div></div>'
-
-    // Step 2
-    +'<div style="display:flex;gap:12px;padding:12px;background:#1e293b;border-radius:8px;align-items:flex-start">'
-    +'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">2</div>'
-    +'<div><div style="font-size:13px;font-weight:600;margin-bottom:4px">Install Claude Desktop App</div>'
-    +'<div style="font-size:11px;color:#475569;margin-bottom:6px">The MCP integration works through the Claude Desktop app (free).</div>'
-    +'<button onclick="window.open('https://claude.ai/download','_blank')" style="background:#6366f1;border:none;border-radius:6px;padding:5px 12px;color:white;font-size:11px;font-weight:600;cursor:pointer">⬇️ Download Claude Desktop</button>'
-    +'</div></div>'
-
-    // Step 3
-    +'<div style="display:flex;gap:12px;padding:12px;background:#1e293b;border-radius:8px;align-items:flex-start">'
-    +'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">3</div>'
-    +'<div style="flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:4px">Configure Claude Desktop</div>'
-    +'<div style="font-size:11px;color:#475569;margin-bottom:8px">Open Claude Desktop → Settings → Developer → Edit Config. Paste this JSON:</div>'
-    +'<div style="background:#0f172a;border:1px solid #334155;border-radius:6px;padding:10px;font-family:monospace;font-size:11px;color:#22d3a5;position:relative" id="mcp-config-box">'
-    +'{
-  "mcpServers": {
-    "kite": {
-      "command": "npx",
-      "args": ["mcp-remote", "https://mcp.kite.trade/sse"]
-    }
-  }
-}'
-    +'</div>'
-    +'<button onclick="copyMcpConfig()" style="margin-top:6px;background:#334155;border:none;border-radius:6px;padding:5px 12px;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer" id="copy-cfg-btn">📋 Copy Config</button>'
-    +'</div></div>'
-
-    // Step 4
-    +'<div style="display:flex;gap:12px;padding:12px;background:#1e293b;border-radius:8px;align-items:flex-start">'
-    +'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">4</div>'
-    +'<div><div style="font-size:13px;font-weight:600;margin-bottom:4px">Restart Claude & Authenticate</div>'
-    +'<div style="font-size:11px;color:#475569">Restart Claude Desktop. You'll see a 🔨 hammer icon — click it and look for "kite". Then authorize your Zerodha account via the browser link (secure OAuth — your password never leaves Zerodha).</div>'
-    +'</div></div>'
-
     +'</div></div>';
 
-  // What you can ask Claude
-  h+='<div class="card">'
-    +'<div class="ctitle" style="color:#f59e0b">💬 SAMPLE PROMPTS FOR CLAUDE DESKTOP</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h+='<div class="card"><div class="ctitle" style="color:#10b981">🚀 SETUP — 4 STEPS</div>'
+    +'<div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:#64748b">'
+    +'Uses official Kite MCP by Zerodha. Your credentials never pass through this app.</div>'
+    +'<div style="display:flex;flex-direction:column;gap:10px">';
 
-  var prompts=[
-    {cat:"Portfolio",icon:"📂",q:"Show me my current holdings with P&L"},
-    {cat:"Portfolio",icon:"📊",q:"What is my sector-wise allocation?"},
-    {cat:"Market",icon:"📈",q:"What is the current price of RELIANCE?"},
-    {cat:"Market",icon:"💹",q:"Show me Nifty 50 performance today"},
-    {cat:"Analysis",icon:"🤖",q:"Analyze my portfolio diversification"},
-    {cat:"Analysis",icon:"📉",q:"Which holding has the highest loss today?"},
-    {cat:"Margin",icon:"💰",q:"What is my available margin and buying power?"},
-    {cat:"GTT",icon:"🛑",q:"Set GTT stop-loss for RELIANCE at 5% below current"}
+  var steps=[
+    {n:1,t:"Install Node.js (v18+)",d:"Required to run the MCP server. Download from nodejs.org",btn:"Download Node.js",link:"https://nodejs.org"},
+    {n:2,t:"Install Claude Desktop",d:"The MCP integration works through the Claude Desktop app (free).",btn:"Download Claude Desktop",link:"https://claude.ai/download"},
+    {n:3,t:"Configure Claude Desktop",d:"Open Claude Desktop → Settings → Developer → Edit Config. Add the config shown below, then click Copy.",btn:null,link:null},
+    {n:4,t:"Restart & Authenticate",d:"Restart Claude Desktop. Look for the hammer icon. Click Authorize to connect your Zerodha account via secure browser OAuth.",btn:null,link:null}
   ];
 
-  for(var i=0;i<prompts.length;i++){
-    var p=prompts[i];
-    h+='<div style="background:#1e293b;border-radius:8px;padding:10px;cursor:pointer;border:1px solid transparent" '
-      +'onmouseover="this.style.borderColor='#6366f1'" onmouseout="this.style.borderColor='transparent'">'
-      +'<div style="font-size:10px;color:#6366f1;font-weight:700;text-transform:uppercase;margin-bottom:4px">'+p.icon+' '+p.cat+'</div>'
-      +'<div style="font-size:12px;color:#94a3b8">"'+p.q+'"</div>'
-      +'</div>';
+  for(var si=0;si<steps.length;si++){
+    var s=steps[si];
+    h+='<div style="display:flex;gap:12px;padding:12px;background:#1e293b;border-radius:8px;align-items:flex-start">'
+      +'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;color:white">'+s.n+'</div>'
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:4px">'+s.t+'</div>'
+      +'<div style="font-size:11px;color:#475569;margin-bottom:'+(s.btn?"6":"0")+'px">'+s.d+'</div>';
+    if(s.btn){
+      h+='<button onclick="zOpen('+si+')" style="background:#6366f1;border:none;border-radius:6px;padding:5px 12px;color:white;font-size:11px;font-weight:600;cursor:pointer">'+s.btn+'</button>';
+    }
+    h+='</div></div>';
   }
   h+='</div></div>';
 
-  // What is / is not available
+  h+='<div class="card"><div class="ctitle" style="color:#f59e0b">⚙️ MCP CONFIG</div>'
+    +'<div style="font-size:11px;color:#64748b;margin-bottom:8px">Paste this into Claude Desktop → Settings → Developer → Edit Config:</div>'
+    +'<pre id="zcfg" style="background:#0a0f1e;border:1px solid #334155;border-radius:8px;padding:12px;font-size:11px;color:#22d3a5;overflow-x:auto;white-space:pre"></pre>'
+    +'<button onclick="zCopy()" id="zcopy-btn" style="margin-top:8px;background:#334155;border:none;border-radius:6px;padding:6px 14px;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer">📋 Copy Config</button>'
+    +'</div>';
+
+  h+='<div class="card"><div class="ctitle" style="color:#a78bfa">💬 SAMPLE PROMPTS (in Claude Desktop)</div><div class="g2">';
+  var prompts=[
+    ["📂 Portfolio","Show my current holdings with P&L"],
+    ["📊 Allocation","What is my sector-wise allocation?"],
+    ["📈 Market","Current price of RELIANCE"],
+    ["💹 Index","Nifty 50 performance today"],
+    ["🤖 Analysis","Analyze my portfolio diversification"],
+    ["📉 Loss","Which holding has the highest loss today?"],
+    ["💰 Margin","What is my available buying power?"],
+    ["🛑 GTT","Set GTT stop-loss for RELIANCE at 5% below current"]
+  ];
+  for(var pi=0;pi<prompts.length;pi++){
+    h+='<div style="background:#1e293b;border-radius:8px;padding:10px">'
+      +'<div style="font-size:10px;color:#6366f1;font-weight:700;margin-bottom:4px">'+prompts[pi][0]+'</div>'
+      +'<div style="font-size:12px;color:#94a3b8">"'+prompts[pi][1]+'"</div></div>';
+  }
+  h+='</div></div>';
+
   h+='<div class="g2">'
-    +'<div class="card" style="border-color:rgba(16,185,129,0.2)">'
-    +'<div class="ctitle" style="color:#10b981">✅ AVAILABLE NOW</div>';
-  var avail=["Portfolio holdings & positions","Real-time quotes & market data","User profile & margin info","GTT order placement","Historical data for analysis","Multi-language (Hindi, Telugu, etc.)"];
-  for(var j=0;j<avail.length;j++)h+='<div style="padding:6px 0;border-bottom:1px solid #1e293b;font-size:12px;color:#94a3b8">✅ '+avail[j]+'</div>';
-  h+='</div>'
-    +'<div class="card" style="border-color:rgba(245,158,11,0.2)">'
-    +'<div class="ctitle" style="color:#f59e0b">⏳ COMING SOON</div>';
-  var coming=["Direct buy/sell orders (read-only for now)","Historical trade data","Advanced portfolio metrics","Auto-rebalancing suggestions","SIP tracking integration"];
-  for(var k=0;k<coming.length;k++)h+='<div style="padding:6px 0;border-bottom:1px solid #1e293b;font-size:12px;color:#94a3b8">⏳ '+coming[k]+'</div>';
-  h+='</div></div>'
+    +'<div class="card" style="border-color:rgba(16,185,129,0.2)"><div class="ctitle" style="color:#10b981">✅ AVAILABLE NOW</div>';
+  var avail=["Portfolio holdings & positions","Real-time quotes & market data","User profile & margin info","GTT order placement","Historical data","Multi-language (Hindi, Telugu...)"];
+  for(var ai=0;ai<avail.length;ai++)h+='<div style="padding:5px 0;border-bottom:1px solid #1e293b;font-size:12px;color:#94a3b8">✅ '+avail[ai]+'</div>';
+  h+='</div><div class="card" style="border-color:rgba(245,158,11,0.2)"><div class="ctitle" style="color:#f59e0b">⏳ COMING SOON</div>';
+  var coming=["Direct buy/sell orders","Historical trade data","Advanced metrics","Auto-rebalancing","SIP tracking"];
+  for(var ci=0;ci<coming.length;ci++)h+='<div style="padding:5px 0;border-bottom:1px solid #1e293b;font-size:12px;color:#94a3b8">⏳ '+coming[ci]+'</div>';
+  h+='</div></div>';
 
-    +'<div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:12px;font-size:11px;color:#475569;text-align:center;margin-top:4px">'
-    +'⚠️ This integration uses Claude Desktop (separate app). Your trading credentials are handled directly by Zerodha's secure OAuth. This dashboard does not store or access any Zerodha credentials.</div>';
+  setHTML("page-zerodha",h);
 
-  setHTML("page-zerodha", h);
+  var cfgEl=get("zcfg");
+  if(cfgEl){
+    cfgEl.textContent='{\n  "mcpServers": {\n    "kite": {\n      "command": "npx",\n      "args": ["mcp-remote", "https://mcp.kite.trade/sse"]\n    }\n  }\n}';
+  }
 }
 
-function copyMcpConfig(){
-  var h1="https",h2="://mcp.kite.trade/sse";
-  var url=h1+h2;
-  var cfg=["{","  \"mcpServers\": {","    \"kite\": {","      \"command\": \"npx\",","      \"args\": [\"mcp-remote\", \""+url+"\"]","    }","  }","}"].join("\n");
+var zLinks=["https://nodejs.org","https://claude.ai/download"];
+function zOpen(i){if(zLinks[i])window.open(zLinks[i],"_blank");}
+function zCopy(){
+  var el=get("zcfg");if(!el)return;
+  var txt=el.textContent;
   if(navigator.clipboard){
-    navigator.clipboard.writeText(cfg).then(function(){
-      var btn=get("copy-cfg-btn");
-      if(btn){btn.textContent="Copied!";setTimeout(function(){btn.textContent="Copy Config";},2000);}
+    navigator.clipboard.writeText(txt).then(function(){
+      var btn=get("zcopy-btn");if(btn){btn.textContent="Copied!";setTimeout(function(){btn.textContent="Copy Config";},2000);}
     });
-  } else {
-    var ta=document.createElement("textarea");ta.value=cfg;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);
-    var btn=get("copy-cfg-btn");if(btn){btn.textContent="Copied!";}
   }
-}}
+}
 
-
-/* ── auto login ── */
 window.onload=function(){
   var token=localStorage.getItem("mf_token");
   var uid=localStorage.getItem("mf_uid");
@@ -857,6 +771,7 @@ window.onload=function(){
     }).catch(function(){showApp();});
   }
 };
+
 </script>
 </body>
 </html>
