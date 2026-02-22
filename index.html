@@ -647,7 +647,7 @@ function renderFD(){
   html("tab-fd", '<div class="card"><div class="ctitle" style="color:#06b6d4">🏦 SWEEP FD</div>'+h+'</div>');
 }
 
-// ── EXPENSES (with updated total labels) ──
+// ── EXPENSES (with corrected totals – sum of original amounts) ──
 function renderExp(periodicMo){
   // Monthly expenses
   var moH="";
@@ -681,11 +681,11 @@ function renderExp(periodicMo){
 
   function renderPeriodicList(arr, color, years, categoryName, totalLabel) {
     var html = "";
-    var totalMonthlyFromCat = 0;
+    var totalPeriodSum = 0;
     for(var idx=0; idx<arr.length; idx++){
       var pe = arr[idx];
       var monthlyAmt = Math.round(pe.v / (pe.years * 12));
-      totalMonthlyFromCat += monthlyAmt;
+      totalPeriodSum += pe.v;  // sum of original amounts
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:8px 10px;background:#1e293b;border-radius:6px">'
         +'<div><div style="color:#94a3b8;font-size:12px">'+pe.icon+' '+pe.label+'</div><div style="color:#475569;font-size:10px">'+pe.due+'</div></div>'
         +'<div style="text-align:right"><div style="color:'+color+';font-size:12px;font-weight:700">'+ff(pe.v)+'/'+years+(years===1?'yr':'yrs')+'</div>'
@@ -693,15 +693,14 @@ function renderExp(periodicMo){
         +'</div>';
     }
     if(arr.length>0){
-      var labelToUse = totalLabel || ('Total Monthly from '+categoryName);
-      html += '<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba('+(color==="#fbbf24"?"245,158,11,0.08":(color==="#22d3a5"?"34,211,165,0.08":"99,102,241,0.08"))+');border-radius:6px;margin-top:6px"><strong style="font-size:12px">'+labelToUse+'</strong><strong style="color:'+color+'">'+ff(totalMonthlyFromCat)+'</strong></div>';
+      html += '<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba('+(color==="#fbbf24"?"245,158,11,0.08":(color==="#22d3a5"?"34,211,165,0.08":"99,102,241,0.08"))+');border-radius:6px;margin-top:6px"><strong style="font-size:12px">'+totalLabel+'</strong><strong style="color:'+color+'">'+ff(totalPeriodSum)+'</strong></div>';
     }
     return html;
   }
 
   var yearlyHtml = renderPeriodicList(yearlyItems, "#fbbf24", 1, "Yearly Payments", "Yearly Total Payments");
   var threeYearHtml = renderPeriodicList(threeYearItems, "#22d3a5", 3, "3‑Year Payments", "Total 3 Year Payments");
-  var otherHtml = renderPeriodicList(otherPeriodic, "#94a3b8", '?', "Other Periodic");
+  var otherHtml = renderPeriodicList(otherPeriodic, "#94a3b8", '?', "Other Periodic", "Other Total");
 
   // Add buttons to add new periodic items
   var addYearlyBtn = '<button class="addbtn" onclick="addPeriodic(1)">+ Add Yearly Payment</button>';
