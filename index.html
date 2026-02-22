@@ -144,6 +144,7 @@ td{padding:7px 8px;border-top:1px solid #1e293b}
         <button class="nav-item" onclick="showPage('hlth')"><span class="ni">❤️</span> Health Ins</button>
         <button class="nav-item" onclick="showPage('kids')"><span class="ni">👶</span> Children</button>
         <button class="nav-item" onclick="showPage('rem')"><span class="ni">🔔</span> Reminders</button>
+        <button class="nav-item" onclick="showPage('zerodha')"><span class="ni">📊</span> Zerodha AI</button>
       </div>
       <div class="sb-footer">
         <button class="edit-btn" id="ebtn" onclick="toggleEdit()">✏️ Edit Mode</button>
@@ -168,7 +169,8 @@ td{padding:7px 8px;border-top:1px solid #1e293b}
       <div id="page-ins"   class="page"></div>
       <div id="page-hlth"  class="page"></div>
       <div id="page-kids"  class="page"></div>
-      <div id="page-rem"   class="page"></div>
+      <div id="page-rem"    class="page"></div>
+      <div id="page-zerodha" class="page"></div>
     </div>
 
   </div>
@@ -234,7 +236,7 @@ function showPage(n){
   document.querySelectorAll(".page").forEach(function(p){p.classList.remove("on");});
   document.querySelectorAll(".nav-item").forEach(function(b){b.classList.remove("on");});
   var el=get("page-"+n);if(el)el.classList.add("on");
-  var names=["ov","inc","scss","fd","exp","loans","mf","ins","hlth","kids","rem"];
+  var names=["ov","inc","scss","fd","exp","loans","mf","ins","hlth","kids","rem","zerodha"];
   var idx=names.indexOf(n);
   if(idx>=0){var btns=document.querySelectorAll(".nav-item");if(btns[idx])btns[idx].classList.add("on");}
   // re-render only the active page for speed
@@ -400,7 +402,8 @@ function renderPage(n){
     case "ins":   try{renderIns();}catch(e){console.error("ins:",e);}break;
     case "hlth":  try{renderHlth();}catch(e){console.error("hlth:",e);}break;
     case "kids":  try{renderKids();}catch(e){console.error("kids:",e);}break;
-    case "rem":   try{renderRem();}catch(e){console.error("rem:",e);}break;
+    case "rem":     try{renderRem();}catch(e){console.error("rem:",e);}break;
+    case "zerodha": try{renderZerodha();}catch(e){console.error("zerodha:",e);}break;
   }
 }
 
@@ -703,6 +706,138 @@ function renderRem(){
   setHTML("page-rem",'<div class="page-header"><div class="page-title">🔔 Reminders</div></div>'
     +'<div class="card"><div class="ctitle" style="color:#fbbf24">🔔 PAYMENT REMINDERS</div>'+h+'</div>');
 }
+
+
+function renderZerodha(){
+  var h='<div class="page-header"><div class="page-title">📊 Zerodha AI Integration</div>'
+    +'<div class="page-sub">Connect your Zerodha portfolio to Claude AI via Kite MCP</div></div>';
+
+  // Status card
+  h+='<div class="card" style="border-color:rgba(99,102,241,0.3)">'
+    +'<div class="ctitle" style="color:#6366f1">🔌 CONNECTION STATUS</div>'
+    +'<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#1e293b;border-radius:8px;margin-bottom:14px">'
+    +'<div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>'
+    +'<div><div style="font-size:13px;font-weight:600;color:#fbbf24">Not Connected</div>'
+    +'<div style="font-size:11px;color:#475569;margin-top:2px">Link your Zerodha account to see live portfolio, P&L and AI analysis</div></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">'
+    +'<div style="background:#1e293b;border-radius:8px;padding:12px;text-align:center"><div style="font-size:20px;margin-bottom:4px">📂</div><div style="font-size:11px;color:#94a3b8">Portfolio Holdings</div><div style="font-size:10px;color:#475569;margin-top:2px">Live P&L</div></div>'
+    +'<div style="background:#1e293b;border-radius:8px;padding:12px;text-align:center"><div style="font-size:20px;margin-bottom:4px">📈</div><div style="font-size:11px;color:#94a3b8">Live Quotes</div><div style="font-size:10px;color:#475569;margin-top:2px">Nifty, stocks</div></div>'
+    +'<div style="background:#1e293b;border-radius:8px;padding:12px;text-align:center"><div style="font-size:20px;margin-bottom:4px">🤖</div><div style="font-size:11px;color:#94a3b8">AI Analysis</div><div style="font-size:10px;color:#475569;margin-top:2px">Claude powered</div></div>'
+    +'</div>'
+    +'</div>';
+
+  // How to connect - step by step
+  h+='<div class="card">'
+    +'<div class="ctitle" style="color:#10b981">🚀 HOW TO CONNECT — STEP BY STEP</div>'
+    +'<div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:#64748b">'
+    +'💡 Integration uses <strong style="color:#10b981">Kite MCP (Model Context Protocol)</strong> — officially supported by Zerodha. Your credentials never pass through this app. 100% secure.</div>'
+
+    +'<div style="display:flex;flex-direction:column;gap:10px">'
+
+    // Step 1
+    +'<div style="display:flex;gap:12px;padding:12px;background:#1e293b;border-radius:8px;align-items:flex-start">'
+    +'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">1</div>'
+    +'<div><div style="font-size:13px;font-weight:600;margin-bottom:4px">Install Node.js (v18+)</div>'
+    +'<div style="font-size:11px;color:#475569;margin-bottom:6px">Required to run the MCP server locally on your computer.</div>'
+    +'<button onclick="window.open('https://nodejs.org','_blank')" style="background:#6366f1;border:none;border-radius:6px;padding:5px 12px;color:white;font-size:11px;font-weight:600;cursor:pointer">⬇️ Download Node.js</button>'
+    +'</div></div>'
+
+    // Step 2
+    +'<div style="display:flex;gap:12px;padding:12px;background:#1e293b;border-radius:8px;align-items:flex-start">'
+    +'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">2</div>'
+    +'<div><div style="font-size:13px;font-weight:600;margin-bottom:4px">Install Claude Desktop App</div>'
+    +'<div style="font-size:11px;color:#475569;margin-bottom:6px">The MCP integration works through the Claude Desktop app (free).</div>'
+    +'<button onclick="window.open('https://claude.ai/download','_blank')" style="background:#6366f1;border:none;border-radius:6px;padding:5px 12px;color:white;font-size:11px;font-weight:600;cursor:pointer">⬇️ Download Claude Desktop</button>'
+    +'</div></div>'
+
+    // Step 3
+    +'<div style="display:flex;gap:12px;padding:12px;background:#1e293b;border-radius:8px;align-items:flex-start">'
+    +'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">3</div>'
+    +'<div style="flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:4px">Configure Claude Desktop</div>'
+    +'<div style="font-size:11px;color:#475569;margin-bottom:8px">Open Claude Desktop → Settings → Developer → Edit Config. Paste this JSON:</div>'
+    +'<div style="background:#0f172a;border:1px solid #334155;border-radius:6px;padding:10px;font-family:monospace;font-size:11px;color:#22d3a5;position:relative" id="mcp-config-box">'
+    +'{
+  "mcpServers": {
+    "kite": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://mcp.kite.trade/sse"]
+    }
+  }
+}'
+    +'</div>'
+    +'<button onclick="copyMcpConfig()" style="margin-top:6px;background:#334155;border:none;border-radius:6px;padding:5px 12px;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer" id="copy-cfg-btn">📋 Copy Config</button>'
+    +'</div></div>'
+
+    // Step 4
+    +'<div style="display:flex;gap:12px;padding:12px;background:#1e293b;border-radius:8px;align-items:flex-start">'
+    +'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">4</div>'
+    +'<div><div style="font-size:13px;font-weight:600;margin-bottom:4px">Restart Claude & Authenticate</div>'
+    +'<div style="font-size:11px;color:#475569">Restart Claude Desktop. You'll see a 🔨 hammer icon — click it and look for "kite". Then authorize your Zerodha account via the browser link (secure OAuth — your password never leaves Zerodha).</div>'
+    +'</div></div>'
+
+    +'</div></div>';
+
+  // What you can ask Claude
+  h+='<div class="card">'
+    +'<div class="ctitle" style="color:#f59e0b">💬 SAMPLE PROMPTS FOR CLAUDE DESKTOP</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+
+  var prompts=[
+    {cat:"Portfolio",icon:"📂",q:"Show me my current holdings with P&L"},
+    {cat:"Portfolio",icon:"📊",q:"What is my sector-wise allocation?"},
+    {cat:"Market",icon:"📈",q:"What is the current price of RELIANCE?"},
+    {cat:"Market",icon:"💹",q:"Show me Nifty 50 performance today"},
+    {cat:"Analysis",icon:"🤖",q:"Analyze my portfolio diversification"},
+    {cat:"Analysis",icon:"📉",q:"Which holding has the highest loss today?"},
+    {cat:"Margin",icon:"💰",q:"What is my available margin and buying power?"},
+    {cat:"GTT",icon:"🛑",q:"Set GTT stop-loss for RELIANCE at 5% below current"}
+  ];
+
+  for(var i=0;i<prompts.length;i++){
+    var p=prompts[i];
+    h+='<div style="background:#1e293b;border-radius:8px;padding:10px;cursor:pointer;border:1px solid transparent" '
+      +'onmouseover="this.style.borderColor='#6366f1'" onmouseout="this.style.borderColor='transparent'">'
+      +'<div style="font-size:10px;color:#6366f1;font-weight:700;text-transform:uppercase;margin-bottom:4px">'+p.icon+' '+p.cat+'</div>'
+      +'<div style="font-size:12px;color:#94a3b8">"'+p.q+'"</div>'
+      +'</div>';
+  }
+  h+='</div></div>';
+
+  // What is / is not available
+  h+='<div class="g2">'
+    +'<div class="card" style="border-color:rgba(16,185,129,0.2)">'
+    +'<div class="ctitle" style="color:#10b981">✅ AVAILABLE NOW</div>';
+  var avail=["Portfolio holdings & positions","Real-time quotes & market data","User profile & margin info","GTT order placement","Historical data for analysis","Multi-language (Hindi, Telugu, etc.)"];
+  for(var j=0;j<avail.length;j++)h+='<div style="padding:6px 0;border-bottom:1px solid #1e293b;font-size:12px;color:#94a3b8">✅ '+avail[j]+'</div>';
+  h+='</div>'
+    +'<div class="card" style="border-color:rgba(245,158,11,0.2)">'
+    +'<div class="ctitle" style="color:#f59e0b">⏳ COMING SOON</div>';
+  var coming=["Direct buy/sell orders (read-only for now)","Historical trade data","Advanced portfolio metrics","Auto-rebalancing suggestions","SIP tracking integration"];
+  for(var k=0;k<coming.length;k++)h+='<div style="padding:6px 0;border-bottom:1px solid #1e293b;font-size:12px;color:#94a3b8">⏳ '+coming[k]+'</div>';
+  h+='</div></div>'
+
+    +'<div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:12px;font-size:11px;color:#475569;text-align:center;margin-top:4px">'
+    +'⚠️ This integration uses Claude Desktop (separate app). Your trading credentials are handled directly by Zerodha's secure OAuth. This dashboard does not store or access any Zerodha credentials.</div>';
+
+  setHTML("page-zerodha", h);
+}
+
+function copyMcpConfig(){
+  var h1="https",h2="://mcp.kite.trade/sse";
+  var url=h1+h2;
+  var cfg=["{","  \"mcpServers\": {","    \"kite\": {","      \"command\": \"npx\",","      \"args\": [\"mcp-remote\", \""+url+"\"]","    }","  }","}"].join("\n");
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(cfg).then(function(){
+      var btn=get("copy-cfg-btn");
+      if(btn){btn.textContent="Copied!";setTimeout(function(){btn.textContent="Copy Config";},2000);}
+    });
+  } else {
+    var ta=document.createElement("textarea");ta.value=cfg;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);
+    var btn=get("copy-cfg-btn");if(btn){btn.textContent="Copied!";}
+  }
+}}
+
 
 /* ── auto login ── */
 window.onload=function(){
