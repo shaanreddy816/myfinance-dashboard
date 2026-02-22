@@ -647,7 +647,7 @@ function renderFD(){
   html("tab-fd", '<div class="card"><div class="ctitle" style="color:#06b6d4">🏦 SWEEP FD</div>'+h+'</div>');
 }
 
-// ── EXPENSES (with totals for each periodic section) ──
+// ── EXPENSES (with updated total labels) ──
 function renderExp(periodicMo){
   // Monthly expenses
   var moH="";
@@ -679,7 +679,7 @@ function renderExp(periodicMo){
     else otherPeriodic.push(pe);
   }
 
-  function renderPeriodicList(arr, color, years, categoryName) {
+  function renderPeriodicList(arr, color, years, categoryName, totalLabel) {
     var html = "";
     var totalMonthlyFromCat = 0;
     for(var idx=0; idx<arr.length; idx++){
@@ -693,13 +693,14 @@ function renderExp(periodicMo){
         +'</div>';
     }
     if(arr.length>0){
-      html += '<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba('+(color==="#fbbf24"?"245,158,11,0.08":(color==="#22d3a5"?"34,211,165,0.08":"99,102,241,0.08"))+');border-radius:6px;margin-top:6px"><strong style="font-size:12px">Total Monthly from '+categoryName+'</strong><strong style="color:'+color+'">'+ff(totalMonthlyFromCat)+'</strong></div>';
+      var labelToUse = totalLabel || ('Total Monthly from '+categoryName);
+      html += '<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba('+(color==="#fbbf24"?"245,158,11,0.08":(color==="#22d3a5"?"34,211,165,0.08":"99,102,241,0.08"))+');border-radius:6px;margin-top:6px"><strong style="font-size:12px">'+labelToUse+'</strong><strong style="color:'+color+'">'+ff(totalMonthlyFromCat)+'</strong></div>';
     }
     return html;
   }
 
-  var yearlyHtml = renderPeriodicList(yearlyItems, "#fbbf24", 1, "Yearly Payments");
-  var threeYearHtml = renderPeriodicList(threeYearItems, "#22d3a5", 3, "3‑Year Payments");
+  var yearlyHtml = renderPeriodicList(yearlyItems, "#fbbf24", 1, "Yearly Payments", "Yearly Total Payments");
+  var threeYearHtml = renderPeriodicList(threeYearItems, "#22d3a5", 3, "3‑Year Payments", "Total 3 Year Payments");
   var otherHtml = renderPeriodicList(otherPeriodic, "#94a3b8", '?', "Other Periodic");
 
   // Add buttons to add new periodic items
