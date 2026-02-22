@@ -621,7 +621,7 @@ function renderFD(){
   html("tab-fd", '<div class="card"><div class="ctitle" style="color:#06b6d4">🏦 SWEEP FD</div>'+h+'</div>');
 }
 
-// ── EXPENSES (updated with multi‑year sections) ──
+// ── EXPENSES (with totals for each periodic section) ──
 function renderExp(periodicMo){
   // Monthly expenses
   var moH="";
@@ -653,23 +653,28 @@ function renderExp(periodicMo){
     else otherPeriodic.push(pe);
   }
 
-  function renderPeriodicList(arr, color, years) {
+  function renderPeriodicList(arr, color, years, categoryName) {
     var html = "";
+    var totalMonthlyFromCat = 0;
     for(var idx=0; idx<arr.length; idx++){
       var pe = arr[idx];
       var monthlyAmt = Math.round(pe.v / (pe.years * 12));
+      totalMonthlyFromCat += monthlyAmt;
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:8px 10px;background:#1e293b;border-radius:6px">'
         +'<div><div style="color:#94a3b8;font-size:12px">'+pe.icon+' '+pe.label+'</div><div style="color:#475569;font-size:10px">'+pe.due+'</div></div>'
         +'<div style="text-align:right"><div style="color:'+color+';font-size:12px;font-weight:700">'+ff(pe.v)+'/'+years+(years===1?'yr':'yrs')+'</div>'
         +'<div style="color:#475569;font-size:10px">≈ '+ff(monthlyAmt)+'/mo</div></div>'
         +'</div>';
     }
+    if(arr.length>0){
+      html += '<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba('+(color==="#fbbf24"?"245,158,11,0.08":(color==="#22d3a5"?"34,211,165,0.08":"99,102,241,0.08"))+');border-radius:6px;margin-top:6px"><strong style="font-size:12px">Total Monthly from '+categoryName+'</strong><strong style="color:'+color+'">'+ff(totalMonthlyFromCat)+'</strong></div>';
+    }
     return html;
   }
 
-  var yearlyHtml = renderPeriodicList(yearlyItems, "#fbbf24", 1);
-  var threeYearHtml = renderPeriodicList(threeYearItems, "#22d3a5", 3);
-  var otherHtml = renderPeriodicList(otherPeriodic, "#94a3b8", '?');
+  var yearlyHtml = renderPeriodicList(yearlyItems, "#fbbf24", 1, "Yearly Payments");
+  var threeYearHtml = renderPeriodicList(threeYearItems, "#22d3a5", 3, "3‑Year Payments");
+  var otherHtml = renderPeriodicList(otherPeriodic, "#94a3b8", '?', "Other Periodic");
 
   // Add buttons to add new periodic items
   var addYearlyBtn = '<button class="addbtn" onclick="addPeriodic(1)">+ Add Yearly Payment</button>';
