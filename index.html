@@ -139,7 +139,7 @@ var SB="https://ffvvavyhepnxdkvurzqn.supabase.co";
 var SK="sb_publishable_4AwUBcWY4fOnnJuX43v_EQ_zU-WWibr";
 var sbToken=null,sbUid=null,saveTimer=null,editMode=false;
 
-// ── DEFAULT DATA ──
+// ── DEFAULT DATA (with multi‑year support) ──
 var DEF={
   income:{husband:0,wife:0,husbandLabel:"Husband Salary / Income",wifeLabel:"Wife Salary / Income",rental:115000,rentalActive:false},
   scss:{dad:{deposited:1000000,target:3000000,rate:8.2,qtrPayout:20500,targetQtrPayout:61500},
@@ -159,10 +159,12 @@ var DEF={
       {id:"sip",  label:"SIP Investment",   v:55000, icon:"📈"},
       {id:"misc", label:"Miscellaneous",    v:15000, icon:"💼"}
     ],
-    yearly:[
-      {id:"ins3",  label:"3Cr Term Insurance",  v:252057, icon:"🛡", due:"15-May each year"},
-      {id:"ins2",  label:"2Cr Term Insurance",  v:180110, icon:"🛡", due:"17-Feb each year"},
-      {id:"health",label:"Health Insurance",    v:69354,  icon:"❤️", due:"Feb 2029 (every 3yr)"}
+    periodic:[ // renamed from yearly, now with years field
+      {id:"ins3",  label:"3Cr Term Insurance",  v:252057, icon:"🛡", due:"15-May each year", years:1},
+      {id:"ins2",  label:"2Cr Term Insurance",  v:180110, icon:"🛡", due:"17-Feb each year", years:1},
+      {id:"car",   label:"Car Insurance",       v:11500,  icon:"🚘", due:"Annual (renew in Mar)", years:1},
+      {id:"health",label:"Health Insurance (Me & Wife)", v:69354, icon:"❤️", due:"Feb 2029 (every 3yr)", years:3},
+      {id:"parents",label:"Parents Health Insurance",   v:368487, icon:"👴👵", due:"Feb 2029 (every 3yr)", years:3}
     ]
   },
   loans:{
@@ -218,7 +220,6 @@ function upd(path,val){
   var keys=path.split(".");var obj=D;
   for(var i=0;i<keys.length-1;i++){if(obj[keys[i]]===undefined)return;obj=obj[keys[i]];}
   var v=num(val); obj[keys[keys.length-1]]=v;
-  // Special handling for FD: if deposited and we change planned or rate, update actual to new target
   if(path.startsWith("fd.") && (path==="fd.planned" || path==="fd.rate") && D.fd.deposited) {
     D.fd.actualMonthly = Math.round(D.fd.planned * D.fd.rate / 100 / 12);
   }
@@ -238,7 +239,7 @@ function row(label,val,color,path){
     var raw=String(val).replace(/₹|,/g,"");
     return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px;border:1px solid rgba(245,158,11,0.3)">'
       +'<span style="color:#64748b;font-size:12px">'+label+'</span>'
-      +'<input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:120px;text-align:right;font-family:inherit" value="'+raw+'" onchange="upd(\''+path+'\',this.value)" onblur="upd(\''+path+'\',this.value)"/>'
+      +'<input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:120px;text-align:right;font-family:inherit" value="'+raw+'" onchange="upd(\''+path+'\',this.value)" onblur="upd(\''+path\',this.value)"/>'
       +'</div>';
   }
   return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px">'
@@ -259,7 +260,6 @@ function sbLoad(token){
   return sbFetch("/rest/v1/finance_data?select=data",{headers:{"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+token}});
 }
 function sbSave(token,uid,data){
-  // Also save to localStorage as backup
   try{localStorage.setItem("mf_data", JSON.stringify(data));}catch(e){}
   return sbFetch("/rest/v1/finance_data",{method:"POST",headers:{"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+token,"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:uid,data:JSON.stringify(data),updated_at:new Date().toISOString()})});
 }
@@ -316,7 +316,7 @@ function doLogout(){
 }
 function showApp(){get("auth").style.display="none";get("app").style.display="block";renderAll();}
 
-// ── ENSURE DATA STRUCTURE (with rate fallback) ──
+// ── ENSURE DATA STRUCTURE (with periodic items) ──
 function ensureData(){
   if(!D)D={};
   if(!D.income)D.income={};
@@ -329,13 +329,12 @@ function ensureData(){
   if(!D.scss)D.scss=JSON.parse(JSON.stringify(DEF.scss));
   if(!D.scss.dad)D.scss.dad=JSON.parse(JSON.stringify(DEF.scss.dad));
   if(!D.scss.mom)D.scss.mom=JSON.parse(JSON.stringify(DEF.scss.mom));
-  // Ensure rates exist
   if(D.scss.dad.rate===undefined) D.scss.dad.rate=DEF.scss.dad.rate;
   if(D.scss.mom.rate===undefined) D.scss.mom.rate=DEF.scss.mom.rate;
   if(!D.fd)D.fd=JSON.parse(JSON.stringify(DEF.fd));
-  if(!D.expenses)D.expenses={monthly:[],yearly:[]};
+  if(!D.expenses)D.expenses={monthly:[],periodic:[]};
   if(!D.expenses.monthly||!D.expenses.monthly.length)D.expenses.monthly=JSON.parse(JSON.stringify(DEF.expenses.monthly));
-  if(!D.expenses.yearly||!D.expenses.yearly.length)D.expenses.yearly=JSON.parse(JSON.stringify(DEF.expenses.yearly));
+  if(!D.expenses.periodic||!D.expenses.periodic.length)D.expenses.periodic=JSON.parse(JSON.stringify(DEF.expenses.periodic));
   if(!D.loans)D.loans=JSON.parse(JSON.stringify(DEF.loans));
   if(!D.loans.sbi)D.loans.sbi=JSON.parse(JSON.stringify(DEF.loans.sbi));
   if(!D.loans.icici)D.loans.icici=JSON.parse(JSON.stringify(DEF.loans.icici));
@@ -343,7 +342,6 @@ function ensureData(){
   if(!D.ins)D.ins=JSON.parse(JSON.stringify(DEF.ins));
   if(!D.ins.p1)D.ins.p1=JSON.parse(JSON.stringify(DEF.ins.p1));
   if(!D.ins.p2)D.ins.p2=JSON.parse(JSON.stringify(DEF.ins.p2));
-  // Ensure schedules exist
   if(D.ins.p1 && !D.ins.p1.schedule) D.ins.p1.schedule = JSON.parse(JSON.stringify(DEF.ins.p1.schedule));
   if(D.ins.p2 && !D.ins.p2.schedule) D.ins.p2.schedule = JSON.parse(JSON.stringify(DEF.ins.p2.schedule));
   if(!D.health)D.health=JSON.parse(JSON.stringify(DEF.health));
@@ -351,26 +349,13 @@ function ensureData(){
   if(!D.children.expenses)D.children.expenses=[];
 }
 
-// ── DYNAMIC SCSS CALCULATIONS ──
-function getScssDadQtr() {
-  return D.scss.dad.deposited * D.scss.dad.rate / 400;
-}
-function getScssMomQtr() {
-  return D.scss.mom.deposited * D.scss.mom.rate / 400;
-}
-function getScssDadTargetQtr() {
-  return D.scss.dad.target * D.scss.dad.rate / 400;
-}
-function getScssMomTargetQtr() {
-  return D.scss.mom.target * D.scss.mom.rate / 400;
-}
-function getScssMonthly() {
-  return Math.round((getScssDadQtr() + getScssMomQtr()) / 3);
-}
-function getFirstPayoutPerAcc(deposited, rate) {
-  // 36 days from 23 Feb to 31 Mar
-  return deposited * rate / 100 * 36 / 365;
-}
+// ── DYNAMIC SCSS ──
+function getScssDadQtr() { return D.scss.dad.deposited * D.scss.dad.rate / 400; }
+function getScssMomQtr() { return D.scss.mom.deposited * D.scss.mom.rate / 400; }
+function getScssDadTargetQtr() { return D.scss.dad.target * D.scss.dad.rate / 400; }
+function getScssMomTargetQtr() { return D.scss.mom.target * D.scss.mom.rate / 400; }
+function getScssMonthly() { return Math.round((getScssDadQtr() + getScssMomQtr()) / 3); }
+function getFirstPayoutPerAcc(deposited, rate) { return deposited * rate / 100 * 36 / 365; }
 
 // ── RENDER ALL ──
 function renderAll(){
@@ -383,30 +368,31 @@ function renderAll(){
 
   var monthlyExpTotal = 0;
   for(var i=0;i<D.expenses.monthly.length;i++) monthlyExpTotal += D.expenses.monthly[i].v;
-  // Yearly expenses amortized monthly
-  var yearlyMo = 0;
-  for(var j=0;j<D.expenses.yearly.length;j++){
-    var ye = D.expenses.yearly[j];
-    yearlyMo += ye.id==="health" ? Math.round(ye.v/36) : Math.round(ye.v/12);
+
+  // Periodic expenses amortized monthly
+  var periodicMo = 0;
+  for(var j=0;j<D.expenses.periodic.length;j++){
+    var pe = D.expenses.periodic[j];
+    periodicMo += Math.round(pe.v / (pe.years * 12));
   }
+
   var childMo = 0;
   if(D.children && D.children.expenses){
     for(var k=0;k<D.children.expenses.length;k++) childMo += D.children.expenses[k].v;
   }
-  var totalExp = monthlyExpTotal + yearlyMo + childMo;
+  var totalExp = monthlyExpTotal + periodicMo + childMo;
   var surplus = totalIncome - totalExp;
 
-  // Topbar
   get("t-inc").textContent = fl(totalIncome)+"/mo";
   get("t-exp").textContent = fl(totalExp)+"/mo";
   get("t-sur").textContent = fl(surplus)+"/mo";
   get("t-sur").style.color = surplus>=0 ? "#6366f1" : "#ef4444";
 
-  try{renderOv(totalIncome,totalExp,surplus,scssMonthly,yearlyMo);}catch(e){console.error("renderOv:",e);}
+  try{renderOv(totalIncome,totalExp,surplus,scssMonthly,periodicMo);}catch(e){console.error("renderOv:",e);}
   try{renderInc(scssMonthly);}catch(e){console.error("renderInc:",e);}
   try{renderScss();}catch(e){console.error("renderScss:",e);}
   try{renderFD();}catch(e){console.error("renderFD:",e);}
-  try{renderExp(yearlyMo);}catch(e){console.error("renderExp:",e);}
+  try{renderExp(periodicMo);}catch(e){console.error("renderExp:",e);}
   try{renderLoans();}catch(e){console.error("renderLoans:",e);}
   try{renderMF();}catch(e){console.error("renderMF:",e);}
   try{renderIns();}catch(e){console.error("renderIns:",e);}
@@ -416,7 +402,7 @@ function renderAll(){
 }
 
 // ── OVERVIEW ──
-function renderOv(totalIncome,totalExp,surplus,scssMonthly,yearlyMo){
+function renderOv(totalIncome,totalExp,surplus,scssMonthly,periodicMo){
   var totalLoan = D.loans.sbi.outstanding + D.loans.icici.outstanding;
   var totalScss = D.scss.dad.deposited + D.scss.mom.deposited;
   var sbiEmi = D.loans.sbi.emi, iciciEmi = D.loans.icici.emi;
@@ -447,6 +433,8 @@ function renderOv(totalIncome,totalExp,surplus,scssMonthly,yearlyMo){
     +row("3Cr Term Insurance (amortized)", ff(Math.round(252057/12))+"/mo", "#f59e0b")
     +row("2Cr Term Insurance (amortized)", ff(Math.round(180110/12))+"/mo", "#a78bfa")
     +row("Health Insurance (amortized)", ff(Math.round(69354/36))+"/mo", "#06b6d4")
+    +row("Parents Health Ins (amortized)", ff(Math.round(368487/36))+"/mo", "#22d3a5")
+    +row("Car Insurance (amortized)", ff(Math.round(11500/12))+"/mo", "#f97316")
     +row("Other Monthly Expenses", ff(otherExp>0?otherExp:0), "#94a3b8")
     +'</div></div>';
 
@@ -472,7 +460,7 @@ function renderInc(scssMonthly){
   html("tab-inc", '<div class="card"><div class="ctitle" style="color:#10b981">💰 INCOME SOURCES</div>'+h+'</div>');
 }
 
-// ── SCSS ──
+// ── SCSS (unchanged) ──
 function renderScss(){
   var yr=2026;
   var sel=get("scss-yr"); if(sel) yr = parseInt(sel.value) || 2026;
@@ -481,10 +469,8 @@ function renderScss(){
   var momQtr = getScssMomQtr();
   var dadTargetQtr = getScssDadTargetQtr();
   var momTargetQtr = getScssMomTargetQtr();
-
   var qtrCombined = dadQtr + momQtr;
 
-  // First payout (36 days from 23 Feb to 31 Mar)
   var dadFirst = getFirstPayoutPerAcc(D.scss.dad.deposited, D.scss.dad.rate);
   var momFirst = getFirstPayoutPerAcc(D.scss.mom.deposited, D.scss.mom.rate);
   var firstCombined = dadFirst + momFirst;
@@ -549,7 +535,7 @@ function renderScss(){
     + payH + '</div>');
 }
 
-// ── FD (SIMPLIFIED: single payout field) ──
+// ── FD (simplified) ──
 function renderFD(){
   var calc = D.fd.planned * D.fd.rate / 100 / 12;
   calc = Math.round(calc);
@@ -572,8 +558,9 @@ function renderFD(){
   html("tab-fd", '<div class="card"><div class="ctitle" style="color:#06b6d4">🏦 SWEEP FD</div>'+h+'</div>');
 }
 
-// ── EXPENSES ──
-function renderExp(yearlyMo){
+// ── EXPENSES (updated with multi‑year sections) ──
+function renderExp(periodicMo){
+  // Monthly expenses
   var moH="";
   for(var i=0;i<D.expenses.monthly.length;i++){
     var ex=D.expenses.monthly[i];
@@ -589,30 +576,73 @@ function renderExp(yearlyMo){
     }
     moH+='</div>';
   }
-  var total=monthlyExpTotal();
-  moH+='<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba(239,68,68,0.08);border-radius:6px;margin-top:6px"><strong style="font-size:12px">Total Monthly</strong><strong style="color:#ef4444">'+ff(total)+'</strong></div>';
+  var totalMonthly = monthlyExpTotal();
+  moH+='<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba(239,68,68,0.08);border-radius:6px;margin-top:6px"><strong style="font-size:12px">Total Monthly</strong><strong style="color:#ef4444">'+ff(totalMonthly)+'</strong></div>';
 
-  var yrH="";
-  for(var j=0;j<D.expenses.yearly.length;j++){
-    var ye=D.expenses.yearly[j];
-    yrH+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:8px 10px;background:#1e293b;border-radius:6px">'
-      +'<div><div style="color:#94a3b8;font-size:12px">'+ye.icon+' '+ye.label+'</div><div style="color:#475569;font-size:10px">'+ye.due+'</div></div>'
-      +'<div style="text-align:right"><div style="color:#fbbf24;font-size:12px;font-weight:700">'+ff(ye.v)+'/yr</div>'
-      +'<div style="color:#475569;font-size:10px">≈ '+ff(ye.id==="health"?Math.round(ye.v/36):Math.round(ye.v/12))+'/mo</div></div>'
-      +'</div>';
+  // Separate periodic expenses by years
+  var yearlyItems = [];
+  var threeYearItems = [];
+  var otherPeriodic = [];
+  for(var j=0;j<D.expenses.periodic.length;j++){
+    var pe = D.expenses.periodic[j];
+    if(pe.years === 1) yearlyItems.push(pe);
+    else if(pe.years === 3) threeYearItems.push(pe);
+    else otherPeriodic.push(pe);
   }
 
-  html("tab-exp",
-    '<div class="card"><div class="ctitle" style="color:#ef4444">💸 MONTHLY EXPENSES</div>'+moH
+  function renderPeriodicList(arr, color, years) {
+    var html = "";
+    for(var idx=0; idx<arr.length; idx++){
+      var pe = arr[idx];
+      var monthlyAmt = Math.round(pe.v / (pe.years * 12));
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:8px 10px;background:#1e293b;border-radius:6px">'
+        +'<div><div style="color:#94a3b8;font-size:12px">'+pe.icon+' '+pe.label+'</div><div style="color:#475569;font-size:10px">'+pe.due+'</div></div>'
+        +'<div style="text-align:right"><div style="color:'+color+';font-size:12px;font-weight:700">'+ff(pe.v)+'/'+years+(years===1?'yr':'yrs')+'</div>'
+        +'<div style="color:#475569;font-size:10px">≈ '+ff(monthlyAmt)+'/mo</div></div>'
+        +'</div>';
+    }
+    return html;
+  }
+
+  var yearlyHtml = renderPeriodicList(yearlyItems, "#fbbf24", 1);
+  var threeYearHtml = renderPeriodicList(threeYearItems, "#22d3a5", 3);
+  var otherHtml = renderPeriodicList(otherPeriodic, "#94a3b8", '?');
+
+  // Add buttons to add new periodic items (simplified – just push with prompt)
+  var addYearlyBtn = '<button class="addbtn" onclick="addPeriodic(1)">+ Add Yearly Payment</button>';
+  var addThreeYearBtn = '<button class="addbtn" onclick="addPeriodic(3)">+ Add 3‑Year Payment</button>';
+
+  var finalHtml = '<div class="card"><div class="ctitle" style="color:#ef4444">💸 MONTHLY EXPENSES</div>'+moH
     +'<button class="addbtn" onclick="addExp()">+ Add Monthly Expense</button></div>'
-    +'<div class="card"><div class="ctitle" style="color:#f59e0b">📅 YEARLY / PERIODIC EXPENSES</div>'+yrH+'</div>'
-  );
+    + '<div class="card"><div class="ctitle" style="color:#fbbf24">📅 YEARLY PAYMENTS (1 year)</div>'+yearlyHtml+addYearlyBtn+'</div>'
+    + '<div class="card"><div class="ctitle" style="color:#22d3a5">🔄 3‑YEAR PAYMENTS</div>'+threeYearHtml+addThreeYearBtn+'</div>';
+  if(otherHtml) {
+    finalHtml += '<div class="card"><div class="ctitle" style="color:#94a3b8">⏳ OTHER PERIODIC</div>'+otherHtml+'</div>';
+  }
+  html("tab-exp", finalHtml);
 }
+
 function addExp(){
   var label=prompt("Expense name:","");
   if(!label) return;
   var val=prompt("Monthly amount (₹):","0");
   D.expenses.monthly.push({id:"c"+Date.now(), label:label, v:num(val)||0, icon:"💰"});
+  autoSave(); renderAll();
+}
+function addPeriodic(years){
+  var label=prompt("Expense name:","");
+  if(!label) return;
+  var val=prompt("Amount (₹) for "+(years===1?"year":years+" years")+":","0");
+  var due = prompt("Due date / description (e.g. '15-May each year'):","");
+  var icon = prompt("Icon (emoji, e.g. 🛡):","📅");
+  D.expenses.periodic.push({
+    id:"p"+Date.now(),
+    label:label,
+    v:num(val)||0,
+    icon:icon,
+    due:due,
+    years:years
+  });
   autoSave(); renderAll();
 }
 
@@ -679,7 +709,7 @@ function renderMF(){
     + '<div class="card"><div class="ctitle" style="color:#a78bfa">📊 YEAR-BY-YEAR GROWTH (15% Step-up)</div>'+tH+'</div>');
 }
 
-// ── INSURANCE ──
+// ── TERM INSURANCE ──
 function renderIns(){
   var insCard = function(ins,c,title){
     var h='<div class="ctitle" style="color:'+c+'">🛡 '+title+'</div>'
@@ -703,7 +733,7 @@ function renderIns(){
   html("tab-ins", '<div class="g2">'+insCard(D.ins.p1,"#f59e0b","3 CRORE TERM INSURANCE")+insCard(D.ins.p2,"#a78bfa","2 CRORE TERM INSURANCE")+'</div>');
 }
 
-// ── HEALTH ──
+// ── HEALTH INSURANCE (standalone) ──
 function renderHlth(){
   var h = row("Coverage", fl(D.health.coverage), "#10b981")
     + row("Premium Paid (Feb 2026)", ff(D.health.premium), "#06b6d4", "health.premium")
@@ -756,7 +786,9 @@ function renderRem(){
     {l:"SIP Investment",        d:"4th every month (auto-debit)", a:ff(sipV),              c:"#6366f1"},
     {l:"3Cr Term Insurance",    d:"15-May each year",             a:ff(252057)+"/yr",      c:"#f59e0b"},
     {l:"2Cr Term Insurance",    d:"17-Feb each year",             a:ff(180110)+"/yr",      c:"#a78bfa"},
-    {l:"Health Insurance",      d:"Feb 2029 (every 3 years)",     a:ff(D.health.premium)+"/3yr", c:"#06b6d4"}
+    {l:"Health Insurance (Me & Wife)", d:"Feb 2029 (every 3yr)",  a:ff(69354)+"/3yr",      c:"#06b6d4"},
+    {l:"Parents Health Insurance", d:"Feb 2029 (every 3yr)",      a:ff(368487)+"/3yr",     c:"#22d3a5"},
+    {l:"Car Insurance",         d:"Annual (renew in Mar)",        a:ff(11500)+"/yr",       c:"#f97316"}
   ];
   var h = "";
   for(var j=0;j<items.length;j++){
@@ -768,7 +800,7 @@ function renderRem(){
   html("tab-rem", '<div class="card"><div class="ctitle" style="color:#fbbf24">🔔 PAYMENT REMINDERS</div>'+h+'</div>');
 }
 
-// ── AUTO LOGIN ON PAGE LOAD ──
+// ── AUTO LOGIN ──
 window.onload = function(){
   var token = localStorage.getItem("mf_token");
   var uid   = localStorage.getItem("mf_uid");
@@ -782,17 +814,14 @@ window.onload = function(){
     get("uname").textContent  = name  || "Dashboard";
     get("uemail").textContent = email || "";
 
-    // Load local data immediately so UI shows fast
     if(savedData){ try{ D = JSON.parse(savedData); } catch(e){} }
 
-    // Then try to refresh from cloud
     sbLoad(sbToken).then(function(rows){
       if(rows && rows[0] && rows[0].data){
         try{ D = JSON.parse(rows[0].data); } catch(e){}
       }
       showApp();
     }).catch(function(){
-      // Cloud failed but we have local data — still show app
       showApp();
     });
   }
