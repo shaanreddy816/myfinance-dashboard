@@ -19,6 +19,7 @@ body{background:#020817;color:#e2e8f0;font-family:'Segoe UI',sans-serif;min-heig
 .ainp{width:100%;background:#1e293b;border:1px solid #334155;border-radius:9px;padding:11px 14px;color:white;font-size:13px;outline:none;font-family:inherit;margin-bottom:10px}
 .ainp:focus{border-color:#6366f1}
 .abtn{width:100%;background:linear-gradient(135deg,#6366f1,#7c3aed);border:none;border-radius:9px;padding:13px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.abtn.loading{opacity:0.6;pointer-events:none}
 .aerr{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:7px;padding:9px 12px;color:#fca5a5;font-size:12px;margin-bottom:10px;display:none}
 /* APP */
 #app{display:none}
@@ -73,7 +74,7 @@ select{background:#1e293b;border:1px solid #334155;border-radius:7px;padding:6px
     <div id="aform-login">
       <input id="l-em" class="ainp" type="email" placeholder="Email"/>
       <input id="l-pw" class="ainp" type="password" placeholder="Password"/>
-      <button class="abtn" onclick="doLogin()">Sign In →</button>
+      <button class="abtn" id="loginBtn" onclick="doLogin()">Sign In →</button>
     </div>
     <div id="aform-reg" style="display:none">
       <input id="r-nm" class="ainp" type="text" placeholder="Full name"/>
@@ -159,7 +160,7 @@ var DEF={
       {id:"sip",  label:"SIP Investment",   v:55000, icon:"📈"},
       {id:"misc", label:"Miscellaneous",    v:15000, icon:"💼"}
     ],
-    periodic:[ // renamed from yearly, now with years field
+    periodic:[
       {id:"ins3",  label:"3Cr Term Insurance",  v:252057, icon:"🛡", due:"15-May each year", years:1},
       {id:"ins2",  label:"2Cr Term Insurance",  v:180110, icon:"🛡", due:"17-Feb each year", years:1},
       {id:"car",   label:"Car Insurance",       v:11500,  icon:"🚘", due:"Annual (renew in Mar)", years:1},
@@ -239,7 +240,7 @@ function row(label,val,color,path){
     var raw=String(val).replace(/₹|,/g,"");
     return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px;border:1px solid rgba(245,158,11,0.3)">'
       +'<span style="color:#64748b;font-size:12px">'+label+'</span>'
-      +'<input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:120px;text-align:right;font-family:inherit" value="'+raw+'" onchange="upd(\''+path+'\',this.value)" onblur="upd(\''+path\',this.value)"/>'
+      +'<input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:120px;text-align:right;font-family:inherit" value="'+raw+'" onchange="upd(\''+path+'\',this.value)" onblur="upd(\''+path+'\',this.value)"/>'
       +'</div>';
   }
   return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px">'
@@ -248,8 +249,19 @@ function row(label,val,color,path){
     +'</div>';
 }
 
-// ── SUPABASE ──
-function sbFetch(path,opts){return fetch(SB+path,opts).then(function(r){return r.json();});}
+// ── SUPABASE (with timeout) ──
+async function sbFetch(path,opts){
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+  try {
+    const response = await fetch(SB+path, { ...opts, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return await response.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
 function sbSignup(email,pass,name){
   return sbFetch("/auth/v1/signup",{method:"POST",headers:{"Content-Type":"application/json","apikey":SK},body:JSON.stringify({email:email,password:pass,data:{display_name:name}})});
 }
@@ -261,36 +273,82 @@ function sbLoad(token){
 }
 function sbSave(token,uid,data){
   try{localStorage.setItem("mf_data", JSON.stringify(data));}catch(e){}
-  return sbFetch("/rest/v1/finance_data",{method:"POST",headers:{"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+token,"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:uid,data:JSON.stringify(data),updated_at:new Date().toISOString()})});
+  return sbFetch("/rest/v1/finance_data",{method:"POST",headers:{"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+token,"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:uid,data:JSON.stringify(data),updated_at:new Date().toISOString()})}).catch(()=>{});
 }
 
-// ── AUTH ──
-function doLogin(){
+// ── AUTH (with fallback) ──
+async function doLogin(){
   var email=get("l-em").value.trim(),pass=get("l-pw").value;
   if(!email||!pass){showErr("Please fill all fields");return;}
-  sbSignin(email,pass).then(function(d){
-    if(!d.access_token){showErr(d.error_description||d.msg||"Login failed");return;}
-    sbToken=d.access_token;
-    sbUid=(d.user&&d.user.id)||"user";
-    var name=(d.user&&d.user.user_metadata&&d.user.user_metadata.display_name)||email.split("@")[0];
-    get("uname").textContent=name+"'s Finance Dashboard";
-    get("uemail").textContent=email;
+
+  var btn = get("loginBtn");
+  btn.classList.add("loading");
+  btn.textContent = "Signing in...";
+
+  try {
+    var d = await sbSignin(email,pass);
+    btn.classList.remove("loading");
+    btn.textContent = "Sign In →";
+
+    if(!d.access_token){
+      // If cloud fails, fall back to local data
+      showErr("Cloud login failed, using local data.");
+      fallbackLogin(email);
+      return;
+    }
+
+    sbToken = d.access_token;
+    sbUid = (d.user&&d.user.id) || "user";
+    var name = (d.user&&d.user.user_metadata&&d.user.user_metadata.display_name) || email.split("@")[0];
+    get("uname").textContent = name+"'s Finance Dashboard";
+    get("uemail").textContent = email;
+
     localStorage.setItem("mf_token", sbToken);
     localStorage.setItem("mf_uid", sbUid);
     localStorage.setItem("mf_name", get("uname").textContent);
     localStorage.setItem("mf_email", email);
-    sbLoad(sbToken).then(function(rows){
-      if(rows&&rows[0]&&rows[0].data){try{D=JSON.parse(rows[0].data);}catch(e){}}
-      showApp();
-    }).catch(function(){showApp();});
-  }).catch(function(e){showErr("Login failed: "+e.message);});
+
+    try {
+      var rows = await sbLoad(sbToken);
+      if(rows && rows[0] && rows[0].data){
+        try{ D = JSON.parse(rows[0].data); } catch(e){}
+      }
+    } catch(e) {
+      console.warn("Failed to load cloud data, using local.");
+    }
+    showApp();
+  } catch(e) {
+    btn.classList.remove("loading");
+    btn.textContent = "Sign In →";
+    console.warn("Login error, falling back to local.", e);
+    showErr("Network error – using local data.");
+    fallbackLogin(email);
+  }
 }
+
+function fallbackLogin(email) {
+  var name = email.split("@")[0];
+  get("uname").textContent = name+"'s Finance Dashboard (local)";
+  get("uemail").textContent = email;
+  // Try to load from localStorage
+  var saved = localStorage.getItem("mf_data");
+  if(saved) { try { D = JSON.parse(saved); } catch(e){} }
+  showApp();
+}
+
 function doReg(){
   var name=get("r-nm").value.trim(),email=get("r-em").value.trim(),pass=get("r-pw").value,pass2=get("r-pw2").value;
   if(!name||!email||!pass){showErr("Please fill all fields");return;}
   if(pass!==pass2){showErr("Passwords do not match");return;}
   if(pass.length<6){showErr("Password must be 6+ chars");return;}
+
+  var btn = document.querySelector("#aform-reg .abtn");
+  btn.classList.add("loading");
+  btn.textContent = "Creating...";
+
   sbSignup(email,pass,name).then(function(d){
+    btn.classList.remove("loading");
+    btn.textContent = "Create Account →";
     sbToken=(d.session&&d.session.access_token)||d.access_token||null;
     sbUid=(d.user&&d.user.id)||"user";
     get("uname").textContent=name+"'s Finance Dashboard";
@@ -302,8 +360,13 @@ function doReg(){
       localStorage.setItem("mf_email", email);
     }
     showApp();
-  }).catch(function(e){showErr("Registration failed: "+e.message);});
+  }).catch(function(e){
+    btn.classList.remove("loading");
+    btn.textContent = "Create Account →";
+    showErr("Registration failed: "+e.message);
+  });
 }
+
 function doLogout(){
   sbToken=null;sbUid=null;
   localStorage.removeItem("mf_token");
@@ -608,7 +671,7 @@ function renderExp(periodicMo){
   var threeYearHtml = renderPeriodicList(threeYearItems, "#22d3a5", 3);
   var otherHtml = renderPeriodicList(otherPeriodic, "#94a3b8", '?');
 
-  // Add buttons to add new periodic items (simplified – just push with prompt)
+  // Add buttons to add new periodic items
   var addYearlyBtn = '<button class="addbtn" onclick="addPeriodic(1)">+ Add Yearly Payment</button>';
   var addThreeYearBtn = '<button class="addbtn" onclick="addPeriodic(3)">+ Add 3‑Year Payment</button>';
 
