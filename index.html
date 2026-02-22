@@ -1,925 +1,677 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>MyFinance Dashboard</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#020817;color:#e2e8f0;font-family:'Segoe UI',sans-serif;min-height:100vh}
-::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
-/* AUTH */
-#auth{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
-.abox{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:32px;width:100%;max-width:400px}
-.alogo{text-align:center;margin-bottom:24px}
-.aicon{width:52px;height:52px;background:linear-gradient(135deg,#6366f1,#7c3aed);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px}
-.atabs{display:flex;gap:4px;background:#1e293b;border-radius:9px;padding:4px;margin-bottom:20px}
-.atab{flex:1;padding:9px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;color:#64748b}
-.atab.on{background:linear-gradient(135deg,#6366f1,#7c3aed);color:white}
-/* password field container */
-.pw-container{position:relative;width:100%;margin-bottom:10px}
-.pw-container .ainp{padding-right:40px;margin-bottom:0}
-.pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px}
-.pw-toggle:hover{color:#6366f1}
-.ainp{width:100%;background:#1e293b;border:1px solid #334155;border-radius:9px;padding:11px 14px;color:white;font-size:13px;outline:none;font-family:inherit}
-.ainp:focus{border-color:#6366f1}
-.abtn{width:100%;background:linear-gradient(135deg,#6366f1,#7c3aed);border:none;border-radius:9px;padding:13px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
-.abtn.loading{opacity:0.6;pointer-events:none}
-.aerr{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:7px;padding:9px 12px;color:#fca5a5;font-size:12px;margin-bottom:10px;display:none}
-/* APP */
-#app{display:none}
-.topbar{background:#0a0f1e;border-bottom:1px solid #1e293b;padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
-.tl{display:flex;align-items:center;gap:10px}
-.ticon{width:34px;height:34px;background:linear-gradient(135deg,#6366f1,#7c3aed);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px}
-.tr{display:flex;align-items:center;gap:8px}
-.tkpi{font-size:11px;text-align:right;margin-right:6px}
-.tkpi .tl2{color:#475569;font-size:9px;text-transform:uppercase;letter-spacing:.04em}
-.tkpi .tv{font-weight:800;font-size:13px}
-.ebtn{background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:8px;padding:7px 16px;color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
-.lbtn{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:7px 14px;color:#94a3b8;font-size:12px;cursor:pointer;font-family:inherit}
-/* TABS */
-.tabs{display:flex;padding:0 12px;background:#0a0f1e;border-bottom:1px solid #1e293b;overflow-x:auto;gap:0}
-.tabs::-webkit-scrollbar{height:3px}
-.ttab{padding:11px 13px;border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;border-bottom:2px solid transparent}
-.ttab.on{color:#6366f1;border-bottom-color:#6366f1}
-/* CONTENT */
-.content{padding:16px;max-width:1400px;margin:0 auto}
-.tc{display:none}.tc.on{display:block}
-.card{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:16px;margin-bottom:12px}
-.ctitle{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;display:flex;align-items:center;gap:6px}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-@media(max-width:800px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
-.kc{background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:14px}
-.kc .kl{color:#64748b;font-size:9px;text-transform:uppercase;font-weight:700;margin-bottom:5px;letter-spacing:.04em}
-.kc .kv{font-size:20px;font-weight:900;margin-bottom:3px}
-.kc .ks{font-size:10px;color:#475569}
-.prog{height:5px;background:#1e293b;border-radius:3px;overflow:hidden;margin:6px 0}
-.prog .bar{height:100%;border-radius:3px}
-.ebanner{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;color:#fbbf24;font-size:12px;font-weight:600;margin-bottom:14px;display:none;align-items:center;gap:8px}
-select{background:#1e293b;border:1px solid #334155;border-radius:7px;padding:6px 10px;color:white;font-size:12px;outline:none;font-family:inherit;cursor:pointer}
-.addbtn{background:rgba(99,102,241,0.08);border:1px dashed rgba(99,102,241,0.35);border-radius:7px;padding:8px;color:#6366f1;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;margin-top:8px}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FamLedgerAI – Family Finance</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; }
+        body { background:#0f172a; color:#e2e8f0; min-height:100vh; display:flex; }
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width:260px; background:#0a0f1e; border-right:1px solid #1e293b;
+            display:flex; flex-direction:column; padding:24px 12px;
+            position:fixed; top:0; left:0; bottom:0; overflow-y:auto;
+        }
+        .sidebar-logo { display:flex; align-items:center; gap:8px; padding:0 12px 24px; border-bottom:1px solid #1e293b; margin-bottom:20px; }
+        .logo-icon { width:36px; height:36px; background:linear-gradient(135deg,#6366f1,#7c3aed); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+        .logo-text { font-weight:700; font-size:18px; background:linear-gradient(135deg,#6366f1,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .sidebar-profile { padding:0 12px 20px; border-bottom:1px solid #1e293b; margin-bottom:20px; }
+        .profile-selector { width:100%; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:8px 10px; color:white; font-size:13px; font-weight:500; outline:none; cursor:pointer; }
+        .month-picker { margin-top:12px; display:flex; flex-direction:column; gap:4px; }
+        .month-picker label { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; }
+        .month-picker input { background:#1e293b; border:1px solid #334155; border-radius:8px; padding:8px 10px; color:white; font-size:13px; outline:none; }
+        .sidebar-nav { flex:1; display:flex; flex-direction:column; gap:4px; }
+        .nav-item { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:8px; color:#94a3b8; font-size:14px; font-weight:500; cursor:pointer; transition:all 0.2s; }
+        .nav-item i { width:20px; font-size:16px; text-align:center; }
+        .nav-item:hover { background:#1e293b; color:#e2e8f0; }
+        .nav-item.active { background:linear-gradient(135deg,#6366f1,#7c3aed); color:white; box-shadow:0 4px 10px rgba(99,102,241,0.3); }
+        .sidebar-footer { border-top:1px solid #1e293b; margin-top:20px; padding-top:16px; }
+        .lang-selector select { width:100%; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:8px 10px; color:white; font-size:13px; outline:none; cursor:pointer; margin-bottom:12px; }
+        .theme-toggle { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#1e293b; border-radius:8px; margin-bottom:12px; font-size:13px; color:#94a3b8; }
+        .theme-toggle i { font-size:16px; }
+        .logout-btn { display:flex; align-items:center; gap:12px; padding:10px 14px; color:#ef4444; font-size:14px; font-weight:500; cursor:pointer; border-radius:8px; transition:all 0.2s; }
+        .logout-btn:hover { background:rgba(239,68,68,0.1); }
+        /* ===== MAIN CONTENT ===== */
+        .main { margin-left:260px; flex:1; min-height:100vh; background:#0f172a; padding:20px 30px; }
+        .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; }
+        .page-title { font-size:24px; font-weight:700; background:linear-gradient(135deg,#6366f1,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .user-badge { display:flex; align-items:center; gap:12px; background:#1e293b; padding:8px 16px; border-radius:30px; }
+        .user-avatar { width:32px; height:32px; background:#334155; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600; color:white; }
+        .user-email { font-size:13px; color:#94a3b8; }
+        .snap-btn { background:#10b981; border:none; border-radius:8px; padding:7px 12px; color:white; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; }
+        .ebtn { background:linear-gradient(135deg,#f59e0b,#d97706); border:none; border-radius:8px; padding:7px 16px; color:white; font-size:12px; font-weight:700; cursor:pointer; }
+        .lbtn { background:#1e293b; border:1px solid #334155; border-radius:8px; padding:7px 14px; color:#94a3b8; font-size:12px; cursor:pointer; }
+        /* ===== PAGES ===== */
+        .page { display:none; }
+        .page.active-page { display:block; }
+        .card { background:#0f172a; border:1px solid #1e293b; border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 4px 20px rgba(0,0,0,0.3); }
+        .card-title { font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+        .card-title i { color:#6366f1; }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+        .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+        .kpi-card { background:#1e293b; border-radius:12px; padding:20px; }
+        .kpi-label { font-size:12px; color:#64748b; text-transform:uppercase; margin-bottom:8px; }
+        .kpi-value { font-size:28px; font-weight:700; margin-bottom:4px; }
+        .kpi-sub { font-size:12px; color:#475569; }
+        .row-flex { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #1e293b; }
+        .row-flex:last-child { border-bottom:none; }
+        .yellow-input { background:#1e293b; border:1px solid #f59e0b; border-radius:6px; padding:6px 10px; color:#f59e0b; font-size:13px; font-weight:600; outline:none; width:100px; text-align:right; }
+        .add-btn { background:rgba(99,102,241,0.1); border:1px dashed #6366f1; border-radius:8px; padding:10px; color:#6366f1; font-size:13px; font-weight:600; cursor:pointer; width:100%; text-align:center; margin-top:12px; }
+        /* ===== MODAL & LOADING ===== */
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:1000; }
+        .modal-content { background:#0f172a; border:1px solid #334155; border-radius:16px; padding:24px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto; }
+        .modal-content h3 { margin-bottom:16px; color:#e2e8f0; }
+        .review-item { display:flex; gap:8px; margin-bottom:12px; align-items:center; }
+        .review-item input, .review-item select { background:#1e293b; border:1px solid #334155; border-radius:6px; padding:8px; color:white; font-size:13px; }
+        .review-item input[type="text"] { flex:2; }
+        .review-item input[type="number"] { width:100px; }
+        .review-item select { width:120px; }
+        .modal-buttons { display:flex; gap:12px; justify-content:flex-end; margin-top:20px; }
+        .confirm-btn { background:#10b981; border:none; border-radius:6px; padding:8px 16px; color:white; font-weight:600; cursor:pointer; }
+        .cancel-btn { background:#1e293b; border:1px solid #334155; border-radius:6px; padding:8px 16px; color:#94a3b8; font-weight:600; cursor:pointer; }
+        .loading { border:3px solid #334155; border-top-color:#6366f1; border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+    </style>
 </head>
 <body>
 
-<div id="auth">
-  <div class="abox">
-    <div class="alogo">
-      <div class="aicon">💼</div>
-      <h1 style="font-size:20px;font-weight:900;background:linear-gradient(135deg,#6366f1,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">MyFinance Dashboard</h1>
-      <p style="color:#475569;font-size:11px;margin-top:4px">India relocation planning · Private & secure</p>
+<!-- SIDEBAR (dynamic text via data-i18n) -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-icon">💰</div>
+        <div class="logo-text">FamLedgerAI</div>
     </div>
-    <div class="atabs">
-      <button class="atab on" onclick="switchAuth('login')">🔑 Sign In</button>
-      <button class="atab" onclick="switchAuth('reg')">✨ Register</button>
+    <div class="sidebar-profile">
+        <select class="profile-selector" id="profileSelect">
+            <option>Me</option>
+            <option>Wife</option>
+            <option>Kid</option>
+        </select>
+        <div class="month-picker">
+            <label data-i18n="choosePeriod">Choose period</label>
+            <input type="month" id="monthPicker" value="2026-02">
+        </div>
     </div>
-    <div id="aerr" class="aerr"></div>
-    <div id="aform-login">
-      <input id="l-em" class="ainp" type="email" placeholder="Email"/>
-      <div class="pw-container">
-        <input id="l-pw" class="ainp" type="password" placeholder="Password"/>
-        <button class="pw-toggle" onclick="togglePassword('l-pw', this)" type="button">👁️</button>
-      </div>
-      <button class="abtn" id="loginBtn" onclick="doLogin()">Sign In →</button>
+    <div class="sidebar-nav" id="sidebarNav">
+        <div class="nav-item active" data-page="overview" data-i18n="overview"><i class="fas fa-chart-pie"></i> <span>Overview</span></div>
+        <div class="nav-item" data-page="accounts" data-i18n="accounts"><i class="fas fa-university"></i> <span>Accounts</span></div>
+        <div class="nav-item" data-page="insights" data-i18n="insights"><i class="fas fa-lightbulb"></i> <span>Insights</span></div>
+        <div class="nav-item" data-page="transactions" data-i18n="transactions"><i class="fas fa-exchange-alt"></i> <span>Transactions</span></div>
+        <div class="nav-item" data-page="plan" data-i18n="plan"><i class="fas fa-calendar-check"></i> <span>Plan</span></div>
+        <div class="nav-item" data-page="debt" data-i18n="debt"><i class="fas fa-hand-holding-usd"></i> <span>Debt payoff plan</span></div>
+        <div class="nav-item" data-page="goals" data-i18n="goals"><i class="fas fa-bullseye"></i> <span>Goals</span></div>
+        <div class="nav-item" data-page="help" data-i18n="help"><i class="fas fa-question-circle"></i> <span>Help & Support</span></div>
+        <div class="nav-item" data-page="settings" data-i18n="settings"><i class="fas fa-cog"></i> <span>Settings</span></div>
     </div>
-    <div id="aform-reg" style="display:none">
-      <input id="r-nm" class="ainp" type="text" placeholder="Full name"/>
-      <input id="r-em" class="ainp" type="email" placeholder="Email"/>
-      <div class="pw-container">
-        <input id="r-pw" class="ainp" type="password" placeholder="Password (min 6 chars)"/>
-        <button class="pw-toggle" onclick="togglePassword('r-pw', this)" type="button">👁️</button>
-      </div>
-      <div class="pw-container">
-        <input id="r-pw2" class="ainp" type="password" placeholder="Confirm password"/>
-        <button class="pw-toggle" onclick="togglePassword('r-pw2', this)" type="button">👁️</button>
-      </div>
-      <button class="abtn" onclick="doReg()">Create Account →</button>
+    <div class="sidebar-footer">
+        <div class="lang-selector">
+            <select id="langSelect" onchange="changeLanguage(this.value)">
+                <option value="en">English</option>
+                <option value="hi">हिन्दी</option>
+                <option value="te">తెలుగు</option>
+            </select>
+        </div>
+        <div class="theme-toggle">
+            <span><i class="fas fa-moon"></i> <span data-i18n="darkMode">Dark mode</span></span>
+            <span>🌙</span>
+        </div>
+        <div class="logout-btn" onclick="doLogout()">
+            <i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Log out</span>
+        </div>
     </div>
-    <div style="background:#1e293b;border-radius:8px;padding:10px;font-size:11px;color:#475569;margin-top:12px">🔒 Data synced securely to Supabase cloud.</div>
-  </div>
 </div>
 
-<div id="app">
-  <div class="topbar">
-    <div class="tl">
-      <div class="ticon">💼</div>
-      <div>
-        <div id="uname" style="font-size:13px;font-weight:700">Dashboard</div>
-        <div id="uemail" style="font-size:10px;color:#475569"></div>
-      </div>
+<!-- MAIN CONTENT -->
+<div class="main">
+    <div class="top-bar">
+        <h1 class="page-title" id="pageTitle">Overview</h1>
+        <div style="display:flex; gap:8px;">
+            <button class="snap-btn" onclick="captureImage()">📸 <span data-i18n="snapTrack">Snap & Track</span></button>
+            <button class="ebtn" id="ebtn" onclick="toggleEdit()"><span data-i18n="edit">Edit</span></button>
+            <button class="lbtn" onclick="doLogout()"><span data-i18n="logout">Logout</span></button>
+        </div>
     </div>
-    <div class="tr">
-      <div class="tkpi"><div class="tl2">Income/mo</div><div class="tv" id="t-inc" style="color:#10b981">—</div></div>
-      <div class="tkpi"><div class="tl2">Expenses/mo</div><div class="tv" id="t-exp" style="color:#ef4444">—</div></div>
-      <div class="tkpi"><div class="tl2">Surplus</div><div class="tv" id="t-sur" style="color:#6366f1">—</div></div>
-      <button class="ebtn" id="ebtn" onclick="toggleEdit()">✏️ Edit</button>
-      <button class="lbtn" onclick="doLogout()">Logout</button>
-    </div>
-  </div>
-  <div class="tabs">
-    <button class="ttab on" onclick="showTab('ov')">📊 Overview</button>
-    <button class="ttab" onclick="showTab('inc')">💰 Income</button>
-    <button class="ttab" onclick="showTab('scss')">🏦 Schemes</button>
-    <button class="ttab" onclick="showTab('fd')">📅 FD</button>
-    <button class="ttab" onclick="showTab('exp')">💸 Expenses</button>
-    <button class="ttab" onclick="showTab('loans')">🏠 Loans</button>
-    <button class="ttab" onclick="showTab('mf')">📈 Mutual Funds</button>
-    <button class="ttab" onclick="showTab('ins')">🛡 Term Insurance</button>
-    <button class="ttab" onclick="showTab('hlth')">❤️ Health Ins</button>
-    <button class="ttab" onclick="showTab('kids')">👶 Children</button>
-    <button class="ttab" onclick="showTab('rem')">🔔 Reminders</button>
-  </div>
-  <div class="content">
-    <div class="ebanner" id="ebanner">✏️ Edit Mode — tap any yellow value to change. Auto-saves to cloud.
-      <button onclick="toggleEdit()" style="margin-left:auto;background:#f59e0b;border:none;border-radius:6px;padding:4px 12px;color:#000;font-weight:700;cursor:pointer;font-family:inherit">✅ Done</button>
-    </div>
-    <div id="tab-ov" class="tc on"></div>
-    <div id="tab-inc" class="tc"></div>
-    <div id="tab-scss" class="tc"></div>
-    <div id="tab-fd" class="tc"></div>
-    <div id="tab-exp" class="tc"></div>
-    <div id="tab-loans" class="tc"></div>
-    <div id="tab-mf" class="tc"></div>
-    <div id="tab-ins" class="tc"></div>
-    <div id="tab-hlth" class="tc"></div>
-    <div id="tab-kids" class="tc"></div>
-    <div id="tab-rem" class="tc"></div>
-  </div>
+
+    <!-- PAGES -->
+    <div id="page-overview" class="page active-page"></div>
+    <div id="page-accounts" class="page"></div>
+    <div id="page-insights" class="page"></div>
+    <div id="page-transactions" class="page"></div>
+    <div id="page-plan" class="page"></div>
+    <div id="page-debt" class="page"></div>
+    <div id="page-goals" class="page"></div>
+    <div id="page-help" class="page"></div>
+    <div id="page-settings" class="page"></div>
 </div>
 
 <script>
-var SB="https://ffvvavyhepnxdkvurzqn.supabase.co";
-var SK="sb_publishable_4AwUBcWY4fOnnJuX43v_EQ_zU-WWibr";
-var sbToken=null,sbUid=null,saveTimer=null,editMode=false;
+    // ========== TRANSLATIONS ==========
+    const translations = {
+        en: {
+            overview: 'Overview',
+            accounts: 'Accounts',
+            insights: 'Insights',
+            transactions: 'Transactions',
+            plan: 'Plan',
+            debt: 'Debt payoff plan',
+            goals: 'Goals',
+            help: 'Help & Support',
+            settings: 'Settings',
+            logout: 'Log out',
+            darkMode: 'Dark mode',
+            choosePeriod: 'Choose period',
+            snapTrack: 'Snap & Track',
+            edit: 'Edit',
+            done: 'Done',
+            monthlyIncome: 'Monthly Income',
+            monthlySurplus: 'Monthly Surplus',
+            loanOutstanding: 'Loan Outstanding',
+            scssDeposited: 'SCSS Deposited',
+            incomeSnapshot: 'Income Snapshot',
+            expenseSnapshot: 'Expense Snapshot',
+            husbandSalary: 'Husband Salary / Income',
+            wifeSalary: 'Wife Salary / Income',
+            scssPayout: 'SCSS Payout (combined/mo)',
+            rentalWanaparthy: 'Rental — Wanaparthy',
+            sweepFd: 'Sweep FD',
+            sbiLoanEmi: 'SBI Loan EMI',
+            iciciLoanEmi: 'ICICI Loan EMI',
+            sipInvestment: 'SIP Investment',
+            term3cr: '3Cr Term Insurance (amortized)',
+            term2cr: '2Cr Term Insurance (amortized)',
+            healthInsurance: 'Health Insurance (amortized)',
+            otherExpenses: 'Other Monthly Expenses',
+            monthlyPlan: 'Monthly Plan',
+            income: 'Income',
+            expenses: 'Expenses',
+            earned: 'earned',
+            budget: 'budget',
+            spent: 'spent',
+            gettingStarted: 'Getting Started',
+            addTransaction: 'Add Transaction',
+            planSetup: 'Plan setup coming',
+            accountsPlaceholder: 'Connect your bank accounts to see balances. Coming soon with Plaid integration.',
+            insightsPlaceholder: 'Spending trends and AI analysis coming soon.',
+            debtPlaceholder: 'Track your debt payoff progress here.',
+            goalsPlaceholder: 'Set and track savings goals.',
+            helpPlaceholder: 'FAQs and support.',
+            profile: 'Profile',
+            // ... add more as needed
+        },
+        hi: {
+            overview: 'अवलोकन',
+            accounts: 'खाते',
+            insights: 'अंतर्दृष्टि',
+            transactions: 'लेनदेन',
+            plan: 'योजना',
+            debt: 'ऋण भुगतान योजना',
+            goals: 'लक्ष्य',
+            help: 'सहायता और समर्थन',
+            settings: 'सेटिंग्स',
+            logout: 'लॉग आउट',
+            darkMode: 'डार्क मोड',
+            choosePeriod: 'अवधि चुनें',
+            snapTrack: 'स्नैप और ट्रैक',
+            edit: 'संपादित करें',
+            done: 'पूर्ण',
+            monthlyIncome: 'मासिक आय',
+            monthlySurplus: 'मासिक अधिशेष',
+            loanOutstanding: 'बकाया ऋण',
+            scssDeposited: 'एससीएसएस जमा',
+            incomeSnapshot: 'आय स्नैपशॉट',
+            expenseSnapshot: 'व्यय स्नैपशॉट',
+            husbandSalary: 'पति का वेतन / आय',
+            wifeSalary: 'पत्नी का वेतन / आय',
+            scssPayout: 'एससीएसएस भुगतान (संयुक्त/माह)',
+            rentalWanaparthy: 'किराया — वनपर्ति',
+            sweepFd: 'स्वीप एफडी',
+            sbiLoanEmi: 'एसबीआई लोन ईएमआई',
+            iciciLoanEmi: 'आईसीआईसीआई लोन ईएमआई',
+            sipInvestment: 'एसआईपी निवेश',
+            term3cr: '3 करोड़ टर्म इंश्योरेंस (मासिक)',
+            term2cr: '2 करोड़ टर्म इंश्योरेंस (मासिक)',
+            healthInsurance: 'स्वास्थ्य बीमा (मासिक)',
+            otherExpenses: 'अन्य मासिक व्यय',
+            monthlyPlan: 'मासिक योजना',
+            income: 'आय',
+            expenses: 'व्यय',
+            earned: 'अर्जित',
+            budget: 'बजट',
+            spent: 'खर्च किया',
+            gettingStarted: 'शुरू करना',
+            addTransaction: 'लेनदेन जोड़ें',
+            planSetup: 'योजना सेटअप आ रहा है',
+            accountsPlaceholder: 'बैलेंस देखने के लिए अपने बैंक खाते कनेक्ट करें। प्लेड एकीकरण के साथ जल्द ही आ रहा है।',
+            insightsPlaceholder: 'खर्च के रुझान और एआई विश्लेषण जल्द ही आ रहा है।',
+            debtPlaceholder: 'अपनी ऋण चुकौती प्रगति यहां ट्रैक करें।',
+            goalsPlaceholder: 'बचत लक्ष्य सेट करें और ट्रैक करें।',
+            helpPlaceholder: 'अक्सर पूछे जाने वाले प्रश्न और सहायता।',
+            profile: 'प्रोफ़ाइल',
+        },
+        te: {
+            overview: 'అవలోకనం',
+            accounts: 'ఖాతాలు',
+            insights: 'అంతర్దృష్టులు',
+            transactions: 'లావాదేవీలు',
+            plan: 'ప్రణాళిక',
+            debt: 'రుణ చెల్లింపు ప్రణాళిక',
+            goals: 'లక్ష్యాలు',
+            help: 'సహాయం మరియు మద్దతు',
+            settings: 'సెట్టింగులు',
+            logout: 'లాగ్ అవుట్',
+            darkMode: 'డార్క్ మోడ్',
+            choosePeriod: 'కాలాన్ని ఎంచుకోండి',
+            snapTrack: 'స్నాప్ & ట్రాక్',
+            edit: 'మార్చు',
+            done: 'పూర్తయింది',
+            monthlyIncome: 'నెలసరి ఆదాయం',
+            monthlySurplus: 'నెలసరి మిగులు',
+            loanOutstanding: 'మిగిలిన రుణం',
+            scssDeposited: 'SCSS డిపాజిట్',
+            incomeSnapshot: 'ఆదాయం స్నాప్షాట్',
+            expenseSnapshot: 'ఖర్చు స్నాప్షాట్',
+            husbandSalary: 'భర్త జీతం / ఆదాయం',
+            wifeSalary: 'భార్య జీతం / ఆదాయం',
+            scssPayout: 'SCSS చెల్లింపు (కలిపి/నెల)',
+            rentalWanaparthy: 'అద్దె — వనపర్తి',
+            sweepFd: 'స్వీప్ ఎఫ్డీ',
+            sbiLoanEmi: 'SBI లోన్ ఈఎంఐ',
+            iciciLoanEmi: 'ICICI లోన్ ఈఎంఐ',
+            sipInvestment: 'SIP పెట్టుబడి',
+            term3cr: '3 కోట్ల టర్మ్ ఇన్సూరెన్స్ (నెలసరి)',
+            term2cr: '2 కోట్ల టర్మ్ ఇన్సూరెన్స్ (నెలసరి)',
+            healthInsurance: 'ఆరోగ్య బీమా (నెలసరి)',
+            otherExpenses: 'ఇతర నెలసరి ఖర్చులు',
+            monthlyPlan: 'నెలసరి ప్రణాళిక',
+            income: 'ఆదాయం',
+            expenses: 'ఖర్చులు',
+            earned: 'సంపాదించిన',
+            budget: 'బడ్జెట్',
+            spent: 'ఖర్చు చేసిన',
+            gettingStarted: 'ప్రారంభించడం',
+            addTransaction: 'లావాదేవీని జోడించు',
+            planSetup: 'ప్రణాళిక సెటప్ త్వరలో',
+            accountsPlaceholder: 'మీ బ్యాంకు ఖాతాలను కనెక్ట్ చేయండి. ప్లెయిడ్ ఇంటిగ్రేషన్ త్వరలో.',
+            insightsPlaceholder: 'ఖర్చు ధోరణులు మరియు AI విశ్లేషణ త్వరలో.',
+            debtPlaceholder: 'మీ రుణ చెల్లింపు పురోగతిని ఇక్కడ ట్రాక్ చేయండి.',
+            goalsPlaceholder: 'పొదుపు లక్ష్యాలను సెట్ చేయండి మరియు ట్రాక్ చేయండి.',
+            helpPlaceholder: 'తరచుగా అడిగే ప్రశ్నలు మరియు సహాయం.',
+            profile: 'ప్రొఫైల్',
+        }
+    };
 
-// ── DEFAULT DATA (with multi‑year support) ──
-var DEF={
-  income:{husband:0,wife:0,husbandLabel:"Husband Salary / Income",wifeLabel:"Wife Salary / Income",rental:115000,rentalActive:false},
-  scss:{dad:{deposited:1000000,target:3000000,rate:8.2,qtrPayout:20500,targetQtrPayout:61500},
-        mom:{deposited:1000000,target:3000000,rate:8.2,qtrPayout:20500,targetQtrPayout:61500}},
-  fd:{planned:1500000,deposited:false,rate:9.0,actualMonthly:0},
-  expenses:{
-    monthly:[
-      {id:"sbi",  label:"SBI Loan EMI",     v:73377, icon:"🏦"},
-      {id:"icici",label:"ICICI Loan EMI",   v:42556, icon:"🏦"},
-      {id:"maint",label:"Apt Maintenance",  v:2500,  icon:"🏠"},
-      {id:"maid", label:"Maid",             v:10000, icon:"🧹"},
-      {id:"groc", label:"Groceries",        v:10000, icon:"🛒"},
-      {id:"rest", label:"Restaurant",       v:10000, icon:"🍽️"},
-      {id:"elec", label:"Electricity",      v:1000,  icon:"⚡"},
-      {id:"gas",  label:"Gas Cylinder",     v:2500,  icon:"🔥"},
-      {id:"petro",label:"Petrol",           v:20000, icon:"🚗"},
-      {id:"sip",  label:"SIP Investment",   v:55000, icon:"📈"},
-      {id:"misc", label:"Miscellaneous",    v:15000, icon:"💼"}
-    ],
-    periodic:[
-      {id:"ins3",  label:"3Cr Term Insurance",  v:252057, icon:"🛡", due:"15-May each year", years:1},
-      {id:"ins2",  label:"2Cr Term Insurance",  v:180110, icon:"🛡", due:"17-Feb each year", years:1},
-      {id:"car",   label:"Car Insurance",       v:11500,  icon:"🚘", due:"Annual (renew in Mar)", years:1},
-      {id:"health",label:"Health Insurance (Me & Wife)", v:69354, icon:"❤️", due:"Feb 2029 (every 3yr)", years:3},
-      {id:"parents",label:"Parents Health Insurance",   v:368487, icon:"👴👵", due:"Feb 2029 (every 3yr)", years:3}
-    ]
-  },
-  loans:{
-    sbi:{name:"SBI Home Loan · Hyderabad",principal:9270000,rate:7.45,emi:73377,tenure:360,paid:22,outstanding:7993315,account:"42920946856",sanctioned:"29-04-2024",emiDate:"15th of month"},
-    icici:{name:"ICICI Home Loan · Wanaparthy",principal:4728780,rate:8.25,emi:42556,tenure:212,paid:10,outstanding:4638966,account:"TBMBN00007400524",sanctioned:"26-03-2025",emiDate:"10th of month"}
-  },
-  sip:{monthly:55000,stepUp:15,rate:12,startYear:2026},
-  ins:{
-    p1:{coverage:30000000,
-      schedule:[{yr:2025,date:"15-May-2025",amt:207569,paid:true},{yr:2026,date:"15-May-2026",amt:252057,paid:false},{yr:2027,date:"15-May-2027",amt:252057,paid:false},{yr:2028,date:"15-May-2028",amt:252057,paid:false},{yr:2029,date:"15-May-2029",amt:252057,paid:false}]},
-    p2:{coverage:20000000,
-      schedule:[{yr:2026,date:"17-Feb-2026",amt:141213,paid:true},{yr:2027,date:"17-Feb-2027",amt:180110,paid:false},{yr:2028,date:"17-Feb-2028",amt:180110,paid:false},{yr:2029,date:"17-Feb-2029",amt:180110,paid:false},{yr:2030,date:"17-Feb-2030",amt:180110,paid:false}]}
-  },
-  health:{coverage:2500000,premium:69354,nextDue:"Feb 2029"},
-  children:{expenses:[
-    {id:"edu",  label:"Education Fees",        v:0,icon:"📚"},
-    {id:"sport",label:"Sports / Activities",   v:0,icon:"⚽"},
-    {id:"other",label:"Other Children Expense",v:0,icon:"🎒"}
-  ]}
-};
+    // Category translations (for dynamic categories)
+    const categoryTranslations = {
+        en: {
+            Groceries: 'Groceries',
+            Transport: 'Transport',
+            Dining: 'Dining',
+            Utilities: 'Utilities',
+            Entertainment: 'Entertainment',
+            Other: 'Other'
+        },
+        hi: {
+            Groceries: 'किराना',
+            Transport: 'परिवहन',
+            Dining: 'भोजन',
+            Utilities: 'उपयोगिताएँ',
+            Entertainment: 'मनोरंजन',
+            Other: 'अन्य'
+        },
+        te: {
+            Groceries: 'కిరాణా',
+            Transport: 'రవాణా',
+            Dining: 'భోజనం',
+            Utilities: 'వినియోగాలు',
+            Entertainment: 'వినోదం',
+            Other: 'ఇతర'
+        }
+    };
+    function t(key) { return translations[currentLang]?.[key] || translations['en'][key] || key; }
+    function tc(cat) { return categoryTranslations[currentLang]?.[cat] || cat; }
 
-var D=JSON.parse(JSON.stringify(DEF));
+    // ========== GLOBAL STATE ==========
+    let D = JSON.parse(JSON.stringify({
+        income:{husband:0,wife:0,husbandLabel:"Husband Salary / Income",wifeLabel:"Wife Salary / Income",rental:115000,rentalActive:false},
+        scss:{dad:{deposited:1000000,target:3000000,rate:8.2}, mom:{deposited:1000000,target:3000000,rate:8.2}},
+        fd:{planned:1500000,deposited:false,rate:9.0,actualMonthly:0},
+        expenses:{
+            monthly:[
+                {id:"sbi", label:"SBI Loan EMI", v:73377, icon:"🏦"},
+                {id:"icici", label:"ICICI Loan EMI", v:42556, icon:"🏦"},
+                {id:"maint", label:"Apt Maintenance", v:2500, icon:"🏠"},
+                {id:"maid", label:"Maid", v:10000, icon:"🧹"},
+                {id:"groc", label:"Groceries", v:10000, icon:"🛒"},
+                {id:"rest", label:"Restaurant", v:10000, icon:"🍽️"},
+                {id:"elec", label:"Electricity", v:1000, icon:"⚡"},
+                {id:"gas", label:"Gas Cylinder", v:2500, icon:"🔥"},
+                {id:"petro", label:"Petrol", v:20000, icon:"🚗"},
+                {id:"sip", label:"SIP Investment", v:55000, icon:"📈"},
+                {id:"misc", label:"Miscellaneous", v:15000, icon:"💼"}
+            ],
+            periodic:[
+                {id:"ins3", label:"3Cr Term Insurance", v:252057, icon:"🛡", due:"15-May each year", years:1},
+                {id:"ins2", label:"2Cr Term Insurance", v:180110, icon:"🛡", due:"17-Feb each year", years:1},
+                {id:"car", label:"Car Insurance", v:11500, icon:"🚘", due:"Annual (renew in Mar)", years:1},
+                {id:"health", label:"Health Insurance (Me & Wife)", v:69354, icon:"❤️", due:"Feb 2029 (every 3yr)", years:3},
+                {id:"parents", label:"Parents Health Insurance", v:368487, icon:"👴👵", due:"Feb 2029 (every 3yr)", years:3}
+            ]
+        },
+        loans:{
+            sbi:{name:"SBI Home Loan · Hyderabad", principal:9270000, rate:7.45, emi:73377, tenure:360, paid:22, outstanding:7993315, account:"42920946856", sanctioned:"29-04-2024", emiDate:"15th of month"},
+            icici:{name:"ICICI Home Loan · Wanaparthy", principal:4728780, rate:8.25, emi:42556, tenure:212, paid:10, outstanding:4638966, account:"TBMBN00007400524", sanctioned:"26-03-2025", emiDate:"10th of month"}
+        },
+        sip:{monthly:55000, stepUp:15, rate:12, startYear:2026},
+        ins:{
+            p1:{coverage:30000000,
+                schedule:[{yr:2025, date:"15-May-2025", amt:207569, paid:true},
+                          {yr:2026, date:"15-May-2026", amt:252057, paid:false},
+                          {yr:2027, date:"15-May-2027", amt:252057, paid:false},
+                          {yr:2028, date:"15-May-2028", amt:252057, paid:false},
+                          {yr:2029, date:"15-May-2029", amt:252057, paid:false}]},
+            p2:{coverage:20000000,
+                schedule:[{yr:2026, date:"17-Feb-2026", amt:141213, paid:true},
+                          {yr:2027, date:"17-Feb-2027", amt:180110, paid:false},
+                          {yr:2028, date:"17-Feb-2028", amt:180110, paid:false},
+                          {yr:2029, date:"17-Feb-2029", amt:180110, paid:false},
+                          {yr:2030, date:"17-Feb-2030", amt:180110, paid:false}]}
+        },
+        health:{coverage:2500000, premium:69354, nextDue:"Feb 2029"},
+        children:{expenses:[
+            {id:"edu", label:"Education Fees", v:0, icon:"📚"},
+            {id:"sport", label:"Sports / Activities", v:0, icon:"⚽"},
+            {id:"other", label:"Other Children Expense", v:0, icon:"🎒"}
+        ]}
+    }));
 
-// ── PASSWORD TOGGLE ──
-function togglePassword(fieldId, btn) {
-  var field = document.getElementById(fieldId);
-  if (field.type === "password") {
-    field.type = "text";
-    btn.textContent = "🙈";
-  } else {
-    field.type = "password";
-    btn.textContent = "👁️";
-  }
-}
+    let editMode = false;
+    let currentProfile = 'Me';
+    let currentMonth = '2026-02';
+    let currentLang = 'en';
 
-// ── HELPERS ──
-function ff(n){return "₹"+(Number(n)||0).toLocaleString("en-IN");}
-function fl(n){n=Number(n)||0;if(n>=10000000)return "₹"+(n/10000000).toFixed(2)+"Cr";if(n>=100000)return "₹"+(n/100000).toFixed(1)+"L";return "₹"+n.toLocaleString("en-IN");}
-function num(v){var c=String(v).replace(/[₹,\s%]/g,"");return (c!==""&&!isNaN(c))?parseFloat(c):0;}
-function get(id){return document.getElementById(id);}
-function html(id,h){var el=get(id);if(el)el.innerHTML=h;}
+    // ========== HELPER FUNCTIONS ==========
+    function ff(n) { return "₹" + (Number(n)||0).toLocaleString("en-IN"); }
+    function fl(n) { n = Number(n)||0; if(n>=10000000) return "₹"+(n/10000000).toFixed(2)+"Cr"; if(n>=100000) return "₹"+(n/100000).toFixed(1)+"L"; return "₹"+n.toLocaleString("en-IN"); }
+    function num(v) { let c=String(v).replace(/[₹,\s%]/g,""); return (c!==""&&!isNaN(c)) ? parseFloat(c) : 0; }
+    function get(id) { return document.getElementById(id); }
+    function html(id, h) { let el = get(id); if (el) el.innerHTML = h; }
 
-function showErr(m){var e=get("aerr");if(e){e.textContent=m;e.style.display="block";setTimeout(function(){e.style.display="none";},5000);}}
-function switchAuth(t){
-  get("aform-login").style.display=t==="login"?"block":"none";
-  get("aform-reg").style.display=t==="reg"?"block":"none";
-  document.querySelectorAll(".atab").forEach(function(b,i){b.classList.toggle("on",t==="login"?i===0:i===1);});
-}
-function showTab(n){
-  document.querySelectorAll(".tc").forEach(function(t){t.classList.remove("on");});
-  document.querySelectorAll(".ttab").forEach(function(t){t.classList.remove("on");});
-  var el=get("tab-"+n);if(el)el.classList.add("on");
-  var names=["ov","inc","scss","fd","exp","loans","mf","ins","hlth","kids","rem"];
-  var idx=names.indexOf(n);
-  if(idx>=0){var tabs=document.querySelectorAll(".ttab");if(tabs[idx])tabs[idx].classList.add("on");}
-}
-function toggleEdit(){
-  editMode=!editMode;
-  get("ebtn").textContent=editMode?"✅ Done":"✏️ Edit";
-  get("ebanner").style.display=editMode?"flex":"none";
-  renderAll();
-}
-function autoSave(){clearTimeout(saveTimer);saveTimer=setTimeout(function(){if(sbToken)sbSave(sbToken,sbUid,D);},1500);}
-function upd(path,val){
-  var keys=path.split(".");var obj=D;
-  for(var i=0;i<keys.length-1;i++){if(obj[keys[i]]===undefined)return;obj=obj[keys[i]];}
-  var v=num(val); obj[keys[keys.length-1]]=v;
-  if(path.startsWith("fd.") && (path==="fd.planned" || path==="fd.rate") && D.fd.deposited) {
-    D.fd.actualMonthly = Math.round(D.fd.planned * D.fd.rate / 100 / 12);
-  }
-  autoSave();renderAll();
-}
-function updStr(path,val){
-  var keys=path.split(".");var obj=D;
-  for(var i=0;i<keys.length-1;i++){if(obj[keys[i]]===undefined)return;obj=obj[keys[i]];}
-  obj[keys[keys.length-1]]=val;
-  autoSave();renderAll();
-}
-
-// ── ROW ──
-function row(label,val,color,path){
-  color=color||"#e2e8f0";
-  if(editMode&&path){
-    var raw=String(val).replace(/₹|,/g,"");
-    return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px;border:1px solid rgba(245,158,11,0.3)">'
-      +'<span style="color:#64748b;font-size:12px">'+label+'</span>'
-      +'<input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:120px;text-align:right;font-family:inherit" value="'+raw+'" onchange="upd(\''+path+'\',this.value)" onblur="upd(\''+path+'\',this.value)"/>'
-      +'</div>';
-  }
-  return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px">'
-    +'<span style="color:#64748b;font-size:12px">'+label+'</span>'
-    +'<span style="color:'+color+';font-size:12px;font-weight:700">'+val+'</span>'
-    +'</div>';
-}
-
-// ── SUPABASE (with timeout) ──
-async function sbFetch(path,opts){
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-  try {
-    const response = await fetch(SB+path, { ...opts, signal: controller.signal });
-    clearTimeout(timeoutId);
-    return await response.json();
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
-}
-function sbSignup(email,pass,name){
-  return sbFetch("/auth/v1/signup",{method:"POST",headers:{"Content-Type":"application/json","apikey":SK},body:JSON.stringify({email:email,password:pass,data:{display_name:name}})});
-}
-function sbSignin(email,pass){
-  return sbFetch("/auth/v1/token?grant_type=password",{method:"POST",headers:{"Content-Type":"application/json","apikey":SK},body:JSON.stringify({email:email,password:pass})});
-}
-function sbLoad(token){
-  return sbFetch("/rest/v1/finance_data?select=data",{headers:{"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+token}});
-}
-function sbSave(token,uid,data){
-  try{localStorage.setItem("mf_data", JSON.stringify(data));}catch(e){}
-  return sbFetch("/rest/v1/finance_data",{method:"POST",headers:{"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+token,"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:uid,data:JSON.stringify(data),updated_at:new Date().toISOString()})}).catch(()=>{});
-}
-
-// ── AUTH (with fallback) ──
-async function doLogin(){
-  var email=get("l-em").value.trim(),pass=get("l-pw").value;
-  if(!email||!pass){showErr("Please fill all fields");return;}
-
-  var btn = get("loginBtn");
-  btn.classList.add("loading");
-  btn.textContent = "Signing in...";
-
-  try {
-    var d = await sbSignin(email,pass);
-    btn.classList.remove("loading");
-    btn.textContent = "Sign In →";
-
-    if(!d.access_token){
-      // If cloud fails, fall back to local data
-      showErr("Cloud login failed, using local data.");
-      fallbackLogin(email);
-      return;
+    // ========== LANGUAGE CHANGE ==========
+    function changeLanguage(lang) {
+        currentLang = lang;
+        // Update static elements with data-i18n
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (el.tagName === 'SPAN' || el.tagName === 'DIV') {
+                el.innerText = t(key);
+            } else if (el.tagName === 'LABEL') {
+                el.innerText = t(key);
+            } else {
+                // For nav items, update the inner span
+                const span = el.querySelector('span');
+                if (span) span.innerText = t(key);
+            }
+        });
+        // Re-render current page to update dynamic content
+        renderCurrentPage();
     }
 
-    sbToken = d.access_token;
-    sbUid = (d.user&&d.user.id) || "user";
-    var name = (d.user&&d.user.user_metadata&&d.user.user_metadata.display_name) || email.split("@")[0];
-    get("uname").textContent = name+"'s Finance Dashboard";
-    get("uemail").textContent = email;
-
-    localStorage.setItem("mf_token", sbToken);
-    localStorage.setItem("mf_uid", sbUid);
-    localStorage.setItem("mf_name", get("uname").textContent);
-    localStorage.setItem("mf_email", email);
-
-    try {
-      var rows = await sbLoad(sbToken);
-      if(rows && rows[0] && rows[0].data){
-        try{ D = JSON.parse(rows[0].data); } catch(e){}
-      }
-    } catch(e) {
-      console.warn("Failed to load cloud data, using local.");
-    }
-    showApp();
-  } catch(e) {
-    btn.classList.remove("loading");
-    btn.textContent = "Sign In →";
-    console.warn("Login error, falling back to local.", e);
-    showErr("Network error – using local data.");
-    fallbackLogin(email);
-  }
-}
-
-function fallbackLogin(email) {
-  var name = email.split("@")[0];
-  get("uname").textContent = name+"'s Finance Dashboard (local)";
-  get("uemail").textContent = email;
-  // Try to load from localStorage
-  var saved = localStorage.getItem("mf_data");
-  if(saved) { try { D = JSON.parse(saved); } catch(e){} }
-  showApp();
-}
-
-function doReg(){
-  var name=get("r-nm").value.trim(),email=get("r-em").value.trim(),pass=get("r-pw").value,pass2=get("r-pw2").value;
-  if(!name||!email||!pass){showErr("Please fill all fields");return;}
-  if(pass!==pass2){showErr("Passwords do not match");return;}
-  if(pass.length<6){showErr("Password must be 6+ chars");return;}
-
-  var btn = document.querySelector("#aform-reg .abtn");
-  btn.classList.add("loading");
-  btn.textContent = "Creating...";
-
-  sbSignup(email,pass,name).then(function(d){
-    btn.classList.remove("loading");
-    btn.textContent = "Create Account →";
-    sbToken=(d.session&&d.session.access_token)||d.access_token||null;
-    sbUid=(d.user&&d.user.id)||"user";
-    get("uname").textContent=name+"'s Finance Dashboard";
-    get("uemail").textContent=email;
-    if(sbToken){
-      localStorage.setItem("mf_token", sbToken);
-      localStorage.setItem("mf_uid", sbUid);
-      localStorage.setItem("mf_name", name+"'s Finance Dashboard");
-      localStorage.setItem("mf_email", email);
-    }
-    showApp();
-  }).catch(function(e){
-    btn.classList.remove("loading");
-    btn.textContent = "Create Account →";
-    showErr("Registration failed: "+e.message);
-  });
-}
-
-function doLogout(){
-  sbToken=null;sbUid=null;
-  localStorage.removeItem("mf_token");
-  localStorage.removeItem("mf_uid");
-  localStorage.removeItem("mf_name");
-  localStorage.removeItem("mf_email");
-  localStorage.removeItem("mf_data");
-  get("app").style.display="none";
-  get("auth").style.display="flex";
-}
-function showApp(){get("auth").style.display="none";get("app").style.display="block";renderAll();}
-
-// ── ENSURE DATA STRUCTURE (with periodic items) ──
-function ensureData(){
-  if(!D)D={};
-  if(!D.income)D.income={};
-  if(D.income.husband===undefined)D.income.husband=0;
-  if(D.income.wife===undefined)D.income.wife=0;
-  if(!D.income.husbandLabel)D.income.husbandLabel="Husband Salary / Income";
-  if(!D.income.wifeLabel)D.income.wifeLabel="Wife Salary / Income";
-  if(D.income.rental===undefined)D.income.rental=115000;
-  if(D.income.rentalActive===undefined)D.income.rentalActive=false;
-  if(!D.scss)D.scss=JSON.parse(JSON.stringify(DEF.scss));
-  if(!D.scss.dad)D.scss.dad=JSON.parse(JSON.stringify(DEF.scss.dad));
-  if(!D.scss.mom)D.scss.mom=JSON.parse(JSON.stringify(DEF.scss.mom));
-  if(D.scss.dad.rate===undefined) D.scss.dad.rate=DEF.scss.dad.rate;
-  if(D.scss.mom.rate===undefined) D.scss.mom.rate=DEF.scss.mom.rate;
-  if(!D.fd)D.fd=JSON.parse(JSON.stringify(DEF.fd));
-  if(!D.expenses)D.expenses={monthly:[],periodic:[]};
-  if(!D.expenses.monthly||!D.expenses.monthly.length)D.expenses.monthly=JSON.parse(JSON.stringify(DEF.expenses.monthly));
-  if(!D.expenses.periodic||!D.expenses.periodic.length)D.expenses.periodic=JSON.parse(JSON.stringify(DEF.expenses.periodic));
-  if(!D.loans)D.loans=JSON.parse(JSON.stringify(DEF.loans));
-  if(!D.loans.sbi)D.loans.sbi=JSON.parse(JSON.stringify(DEF.loans.sbi));
-  if(!D.loans.icici)D.loans.icici=JSON.parse(JSON.stringify(DEF.loans.icici));
-  if(!D.sip)D.sip=JSON.parse(JSON.stringify(DEF.sip));
-  if(!D.ins)D.ins=JSON.parse(JSON.stringify(DEF.ins));
-  if(!D.ins.p1)D.ins.p1=JSON.parse(JSON.stringify(DEF.ins.p1));
-  if(!D.ins.p2)D.ins.p2=JSON.parse(JSON.stringify(DEF.ins.p2));
-  if(D.ins.p1 && !D.ins.p1.schedule) D.ins.p1.schedule = JSON.parse(JSON.stringify(DEF.ins.p1.schedule));
-  if(D.ins.p2 && !D.ins.p2.schedule) D.ins.p2.schedule = JSON.parse(JSON.stringify(DEF.ins.p2.schedule));
-  if(!D.health)D.health=JSON.parse(JSON.stringify(DEF.health));
-  if(!D.children)D.children={expenses:[]};
-  if(!D.children.expenses)D.children.expenses=[];
-}
-
-// ── DYNAMIC SCSS ──
-function getScssDadQtr() { return D.scss.dad.deposited * D.scss.dad.rate / 400; }
-function getScssMomQtr() { return D.scss.mom.deposited * D.scss.mom.rate / 400; }
-function getScssDadTargetQtr() { return D.scss.dad.target * D.scss.dad.rate / 400; }
-function getScssMomTargetQtr() { return D.scss.mom.target * D.scss.mom.rate / 400; }
-function getScssMonthly() { return Math.round((getScssDadQtr() + getScssMomQtr()) / 3); }
-function getFirstPayoutPerAcc(deposited, rate) { return deposited * rate / 100 * 36 / 365; }
-
-// ── RENDER ALL ──
-function renderAll(){
-  try{ensureData();}catch(e){console.error("ensureData error:",e);}
-
-  var scssMonthly = getScssMonthly();
-  var fdMonthly = D.fd.deposited ? D.fd.actualMonthly : 0;
-  var rentalMonthly = D.income.rentalActive ? D.income.rental : 0;
-  var totalIncome = D.income.husband + D.income.wife + scssMonthly + fdMonthly + rentalMonthly;
-
-  var monthlyExpTotal = 0;
-  for(var i=0;i<D.expenses.monthly.length;i++) monthlyExpTotal += D.expenses.monthly[i].v;
-
-  // Periodic expenses amortized monthly
-  var periodicMo = 0;
-  for(var j=0;j<D.expenses.periodic.length;j++){
-    var pe = D.expenses.periodic[j];
-    periodicMo += Math.round(pe.v / (pe.years * 12));
-  }
-
-  var childMo = 0;
-  if(D.children && D.children.expenses){
-    for(var k=0;k<D.children.expenses.length;k++) childMo += D.children.expenses[k].v;
-  }
-  var totalExp = monthlyExpTotal + periodicMo + childMo;
-  var surplus = totalIncome - totalExp;
-
-  get("t-inc").textContent = fl(totalIncome)+"/mo";
-  get("t-exp").textContent = fl(totalExp)+"/mo";
-  get("t-sur").textContent = fl(surplus)+"/mo";
-  get("t-sur").style.color = surplus>=0 ? "#6366f1" : "#ef4444";
-
-  try{renderOv(totalIncome,totalExp,surplus,scssMonthly,periodicMo);}catch(e){console.error("renderOv:",e);}
-  try{renderInc(scssMonthly);}catch(e){console.error("renderInc:",e);}
-  try{renderScss();}catch(e){console.error("renderScss:",e);}
-  try{renderFD();}catch(e){console.error("renderFD:",e);}
-  try{renderExp(periodicMo);}catch(e){console.error("renderExp:",e);}
-  try{renderLoans();}catch(e){console.error("renderLoans:",e);}
-  try{renderMF();}catch(e){console.error("renderMF:",e);}
-  try{renderIns();}catch(e){console.error("renderIns:",e);}
-  try{renderHlth();}catch(e){console.error("renderHlth:",e);}
-  try{renderKids();}catch(e){console.error("renderKids:",e);}
-  try{renderRem();}catch(e){console.error("renderRem:",e);}
-}
-
-// ── OVERVIEW ──
-function renderOv(totalIncome,totalExp,surplus,scssMonthly,periodicMo){
-  var totalLoan = D.loans.sbi.outstanding + D.loans.icici.outstanding;
-  var totalScss = D.scss.dad.deposited + D.scss.mom.deposited;
-  var sbiEmi = D.loans.sbi.emi, iciciEmi = D.loans.icici.emi;
-  var sipVal = 0;
-  for(var i=0;i<D.expenses.monthly.length;i++){if(D.expenses.monthly[i].id==="sip") sipVal = D.expenses.monthly[i].v;}
-  var otherExp = monthlyExpTotal() - sbiEmi - iciciEmi - sipVal;
-
-  var h='<div class="g4" style="margin-bottom:12px">'
-    +'<div class="kc"><div class="kl">Monthly Income</div><div class="kv" style="color:#10b981">'+fl(totalIncome)+'</div><div class="ks">Husband + Wife + SCSS + Rental</div></div>'
-    +'<div class="kc"><div class="kl">Monthly Surplus</div><div class="kv" style="color:'+(surplus>=0?"#6366f1":"#ef4444")+'">'+fl(surplus)+'</div><div class="ks">Income minus all expenses</div></div>'
-    +'<div class="kc"><div class="kl">Total Loan Outstanding</div><div class="kv" style="color:#ef4444">'+fl(totalLoan)+'</div><div class="ks">SBI '+fl(D.loans.sbi.outstanding)+' + ICICI '+fl(D.loans.icici.outstanding)+'</div></div>'
-    +'<div class="kc"><div class="kl">SCSS Deposited</div><div class="kv" style="color:#f59e0b">'+fl(totalScss)+'</div><div class="ks">Dad + Mom · Target '+fl(D.scss.dad.target + D.scss.mom.target)+'</div></div>'
-    +'</div>'
-    +'<div class="g2">'
-    +'<div class="card">'
-    +'<div class="ctitle" style="color:#10b981">💰 INCOME SNAPSHOT</div>'
-    +row(D.income.husbandLabel, ff(D.income.husband), D.income.husband>0?"#10b981":"#475569", "income.husband")
-    +row(D.income.wifeLabel, ff(D.income.wife), D.income.wife>0?"#10b981":"#475569", "income.wife")
-    +row("SCSS Payout (combined/mo)", ff(scssMonthly), "#f59e0b")
-    +row("Rental — Wanaparthy", D.income.rentalActive ? ff(D.income.rental) : "⏳ Pending Apr 2026", "#6366f1")
-    +row("Sweep FD", D.fd.deposited ? ff(D.fd.actualMonthly) : "⏳ Not deposited", "#06b6d4")
-    +'</div>'
-    +'<div class="card">'
-    +'<div class="ctitle" style="color:#ef4444">💸 EXPENSE SNAPSHOT</div>'
-    +row("SBI Loan EMI", ff(sbiEmi), "#3b82f6")
-    +row("ICICI Loan EMI", ff(iciciEmi), "#8b5cf6")
-    +row("SIP Investment", ff(sipVal), "#6366f1")
-    +row("3Cr Term Insurance (amortized)", ff(Math.round(252057/12))+"/mo", "#f59e0b")
-    +row("2Cr Term Insurance (amortized)", ff(Math.round(180110/12))+"/mo", "#a78bfa")
-    +row("Health Insurance (amortized)", ff(Math.round(69354/36))+"/mo", "#06b6d4")
-    +row("Parents Health Ins (amortized)", ff(Math.round(368487/36))+"/mo", "#22d3a5")
-    +row("Car Insurance (amortized)", ff(Math.round(11500/12))+"/mo", "#f97316")
-    +row("Other Monthly Expenses", ff(otherExp>0?otherExp:0), "#94a3b8")
-    +'</div></div>';
-
-  html("tab-ov", h);
-}
-function monthlyExpTotal(){var t=0;for(var i=0;i<D.expenses.monthly.length;i++)t+=D.expenses.monthly[i].v;return t;}
-
-// ── INCOME ──
-function renderInc(scssMonthly){
-  var h='<div style="background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:#64748b">'
-    +'🎯 <strong style="color:#6366f1">India Relocation Planner</strong> — You are currently in USA. Set target income for when you move back to India.</div>';
-  h += row(D.income.husbandLabel, ff(D.income.husband), "#10b981", "income.husband");
-  h += row(D.income.wifeLabel, ff(D.income.wife), "#10b981", "income.wife");
-  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px">'
-    +'<span style="color:#64748b;font-size:12px">Rental Status</span>'
-    +'<select onchange="D.income.rentalActive=this.value===\'true\';autoSave();renderAll();">'
-    +'<option value="false"'+(D.income.rentalActive?"":" selected")+'>⏳ Pending — Apr 2026</option>'
-    +'<option value="true"'+(D.income.rentalActive?" selected":"")+'>✅ Active</option>'
-    +'</select></div>';
-  h += row("Rental — Wanaparthy", ff(D.income.rental), "#6366f1", "income.rental");
-  h += row("SCSS (Dad+Mom combined/mo)", ff(scssMonthly), "#f59e0b");
-  h += row("Sweep FD (monthly payout)", D.fd.deposited ? ff(D.fd.actualMonthly) : "⏳ Not deposited", "#06b6d4");
-  html("tab-inc", '<div class="card"><div class="ctitle" style="color:#10b981">💰 INCOME SOURCES</div>'+h+'</div>');
-}
-
-// ── SCSS (unchanged) ──
-function renderScss(){
-  var yr=2026;
-  var sel=get("scss-yr"); if(sel) yr = parseInt(sel.value) || 2026;
-
-  var dadQtr = getScssDadQtr();
-  var momQtr = getScssMomQtr();
-  var dadTargetQtr = getScssDadTargetQtr();
-  var momTargetQtr = getScssMomTargetQtr();
-  var qtrCombined = dadQtr + momQtr;
-
-  var dadFirst = getFirstPayoutPerAcc(D.scss.dad.deposited, D.scss.dad.rate);
-  var momFirst = getFirstPayoutPerAcc(D.scss.mom.deposited, D.scss.mom.rate);
-  var firstCombined = dadFirst + momFirst;
-
-  var quarters = [
-    {label:"31 Mar", m:3},
-    {label:"30 Jun", m:6},
-    {label:"30 Sep", m:9},
-    {label:"31 Dec", m:12}
-  ];
-
-  var accH = function(lbl, d, path, c){
-    var qtr = (lbl==="Dad" ? dadQtr : momQtr);
-    var targetQtr = (lbl==="Dad" ? dadTargetQtr : momTargetQtr);
-    return '<div style="background:#1e293b;border-radius:10px;padding:14px;border:1px solid '+c+'25">'
-      +'<div style="color:'+c+';font-size:11px;font-weight:700;margin-bottom:8px">👤 '+lbl+'\'s SCSS Account</div>'
-      +'<div style="font-size:22px;font-weight:900;margin-bottom:2px">'+fl(d.deposited)+'</div>'
-      +'<div style="font-size:11px;color:#64748b;margin-bottom:6px">of '+fl(d.target)+' target</div>'
-      +'<div class="prog"><div class="bar" style="width:'+Math.min(100, Math.round(d.deposited/d.target*100))+'%;background:'+c+'"></div></div>'
-      +'<div style="color:#f87171;font-size:10px;margin-bottom:8px">Still need: '+fl(d.target - d.deposited)+'</div>'
-      +row("Deposited", ff(d.deposited), c, path+".deposited")
-      +row("Target", ff(d.target), "white", path+".target")
-      +row("Rate", d.rate+"%", "white", path+".rate")
-      +row("Qtr Payout (current)", ff(qtr), c)
-      +row("Qtr Payout (at target)", ff(targetQtr), "#10b981")
-      +'<div style="background:#0f172a;border-radius:7px;padding:10px;margin-top:8px">'
-      +'<div style="color:#64748b;font-size:9px;text-transform:uppercase;font-weight:700;margin-bottom:6px">📅 Timeline</div>'
-      +row("Deposit Date", "23 Feb 2026", "#10b981")
-      +row("1st Payout (prorated 36 days)", "₹"+Math.round(dadFirst).toLocaleString("en-IN")+" on 31 Mar 2026", "#22d3a5")
-      +row("Rate used", "₹" + Math.round(d.rate*100000/365/100) + "/day × 36 days", "#64748b")
-      +row("Full Quarters from", "30 Jun 2026 onwards", "#fbbf24")
-      +row("Lock-in", "5 Years", "#f59e0b")
-      +row("Maturity", "Feb 2031", "#fbbf24")
-      +row("Max Tenure (with ext.)", "Feb 2034", "#a78bfa")
-      +'</div></div>';
-  };
-
-  var payH = '<div style="margin-top:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">'
-    +'<span style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase">📅 Quarterly Payout — Select Year:</span>'
-    +'<select id="scss-yr" onchange="renderScss()">';
-  for(var y=2026; y<=2034; y++) payH += '<option value="'+y+'"'+(yr===y?' selected':'')+'>'+y+'</option>';
-  payH += '</select></div><div class="g4">';
-
-  for(var qi=0; qi<quarters.length; qi++){
-    var q = quarters[qi];
-    var isFirst = (yr===2026 && q.m===3);
-    var payout = isFirst ? firstCombined : qtrCombined;
-    var note = isFirst
-      ? 'Feb 23–28 (5d) + March (31d) = 36 days<br>₹'+Math.round(dadFirst).toLocaleString("en-IN")+' Dad + ₹'+Math.round(momFirst).toLocaleString("en-IN")+' Mom'
-      : 'Full quarter · Dad ₹'+Math.round(dadQtr).toLocaleString("en-IN")+' + Mom ₹'+Math.round(momQtr).toLocaleString("en-IN");
-    payH += '<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:12px">'
-      +'<div style="color:#fbbf24;font-size:11px;font-weight:700;margin-bottom:4px">'+q.label+' '+yr+'</div>'
-      +'<div style="font-size:19px;font-weight:900;margin-bottom:5px">'+ff(payout)+'</div>'
-      +'<div style="color:#64748b;font-size:10px;line-height:1.6">'+note+'</div>'
-      +'</div>';
-  }
-  payH += '</div></div>';
-
-  html("tab-scss", '<div class="card" style="border-color:rgba(245,158,11,0.25)">'
-    +'<div class="ctitle" style="color:#f59e0b">🏦 SCSS — PARENTS · Deposit: 23 Feb 2026</div>'
-    +'<div class="g2">'+accH("Dad", D.scss.dad, "scss.dad", "#f59e0b") + accH("Mom", D.scss.mom, "scss.mom", "#fb923c")+'</div>'
-    + payH + '</div>');
-}
-
-// ── FD (simplified) ──
-function renderFD(){
-  var calc = D.fd.planned * D.fd.rate / 100 / 12;
-  calc = Math.round(calc);
-
-  var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
-    +'<span style="color:#64748b;font-size:12px">Status:</span>'
-    +'<select onchange="var newVal=this.value===\'true\'; if(newVal && !D.fd.deposited) { D.fd.actualMonthly = Math.round(D.fd.planned * D.fd.rate / 100 / 12); } D.fd.deposited=newVal; autoSave();renderAll();">'
-    +'<option value="false"'+(D.fd.deposited?"":" selected")+'>⚠️ Not yet deposited</option>'
-    +'<option value="true"'+(D.fd.deposited?" selected":"")+'>✅ Deposited</option>'
-    +'</select></div>';
-  h += row("Planned Amount", ff(D.fd.planned), "white", "fd.planned");
-  h += row("Rate", D.fd.rate + "%", "white", "fd.rate");
-  if(D.fd.deposited){
-    h += row("Monthly Payout", ff(D.fd.actualMonthly), "#22d3a5", "fd.actualMonthly");
-  } else {
-    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px">'
-      +'<span style="color:#64748b;font-size:12px">Expected Monthly Payout</span>'
-      +'<span style="color:#64748b;font-size:12px">'+ff(calc)+'</span></div>';
-  }
-  html("tab-fd", '<div class="card"><div class="ctitle" style="color:#06b6d4">🏦 SWEEP FD</div>'+h+'</div>');
-}
-
-// ── EXPENSES (with corrected totals – sum of original amounts) ──
-function renderExp(periodicMo){
-  // Monthly expenses
-  var moH="";
-  for(var i=0;i<D.expenses.monthly.length;i++){
-    var ex=D.expenses.monthly[i];
-    var idx=i;
-    moH+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px'+(editMode?';border:1px solid rgba(245,158,11,0.2)':'')+'">';
-    if(editMode){
-      moH+='<span style="color:#64748b;font-size:12px">'+ex.icon+' <input style="background:transparent;border:none;border-bottom:1px solid #334155;color:#94a3b8;font-size:12px;outline:none;font-family:inherit;width:140px" value="'+ex.label+'" onblur="D.expenses.monthly['+idx+'].label=this.value;autoSave();renderAll();"/></span>';
-      moH+='<div style="display:flex;align-items:center;gap:6px"><input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:80px;text-align:right;font-family:inherit" value="'+ex.v+'" onblur="D.expenses.monthly['+idx+'].v=num(this.value);autoSave();renderAll();"/>';
-      moH+='<button onclick="D.expenses.monthly.splice('+idx+',1);autoSave();renderAll();" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:13px">🗑</button></div>';
-    } else {
-      moH+='<span style="color:#64748b;font-size:12px">'+ex.icon+' '+ex.label+'</span>';
-      moH+='<span style="color:white;font-size:12px;font-weight:700">'+ff(ex.v)+'</span>';
-    }
-    moH+='</div>';
-  }
-  var totalMonthly = monthlyExpTotal();
-  moH+='<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba(239,68,68,0.08);border-radius:6px;margin-top:6px"><strong style="font-size:12px">Total Monthly</strong><strong style="color:#ef4444">'+ff(totalMonthly)+'</strong></div>';
-
-  // Separate periodic expenses by years
-  var yearlyItems = [];
-  var threeYearItems = [];
-  var otherPeriodic = [];
-  for(var j=0;j<D.expenses.periodic.length;j++){
-    var pe = D.expenses.periodic[j];
-    if(pe.years === 1) yearlyItems.push(pe);
-    else if(pe.years === 3) threeYearItems.push(pe);
-    else otherPeriodic.push(pe);
-  }
-
-  function renderPeriodicList(arr, color, years, categoryName, totalLabel) {
-    var html = "";
-    var totalPeriodSum = 0;
-    for(var idx=0; idx<arr.length; idx++){
-      var pe = arr[idx];
-      var monthlyAmt = Math.round(pe.v / (pe.years * 12));
-      totalPeriodSum += pe.v;  // sum of original amounts
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:8px 10px;background:#1e293b;border-radius:6px">'
-        +'<div><div style="color:#94a3b8;font-size:12px">'+pe.icon+' '+pe.label+'</div><div style="color:#475569;font-size:10px">'+pe.due+'</div></div>'
-        +'<div style="text-align:right"><div style="color:'+color+';font-size:12px;font-weight:700">'+ff(pe.v)+'/'+years+(years===1?'yr':'yrs')+'</div>'
-        +'<div style="color:#475569;font-size:10px">≈ '+ff(monthlyAmt)+'/mo</div></div>'
-        +'</div>';
-    }
-    if(arr.length>0){
-      html += '<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba('+(color==="#fbbf24"?"245,158,11,0.08":(color==="#22d3a5"?"34,211,165,0.08":"99,102,241,0.08"))+');border-radius:6px;margin-top:6px"><strong style="font-size:12px">'+totalLabel+'</strong><strong style="color:'+color+'">'+ff(totalPeriodSum)+'</strong></div>';
-    }
-    return html;
-  }
-
-  var yearlyHtml = renderPeriodicList(yearlyItems, "#fbbf24", 1, "Yearly Payments", "Yearly Total Payments");
-  var threeYearHtml = renderPeriodicList(threeYearItems, "#22d3a5", 3, "3‑Year Payments", "Total 3 Year Payments");
-  var otherHtml = renderPeriodicList(otherPeriodic, "#94a3b8", '?', "Other Periodic", "Other Total");
-
-  // Add buttons to add new periodic items
-  var addYearlyBtn = '<button class="addbtn" onclick="addPeriodic(1)">+ Add Yearly Payment</button>';
-  var addThreeYearBtn = '<button class="addbtn" onclick="addPeriodic(3)">+ Add 3‑Year Payment</button>';
-
-  var finalHtml = '<div class="card"><div class="ctitle" style="color:#ef4444">💸 MONTHLY EXPENSES</div>'+moH
-    +'<button class="addbtn" onclick="addExp()">+ Add Monthly Expense</button></div>'
-    + '<div class="card"><div class="ctitle" style="color:#fbbf24">📅 YEARLY PAYMENTS (1 year)</div>'+yearlyHtml+addYearlyBtn+'</div>'
-    + '<div class="card"><div class="ctitle" style="color:#22d3a5">🔄 3‑YEAR PAYMENTS</div>'+threeYearHtml+addThreeYearBtn+'</div>';
-  if(otherHtml) {
-    finalHtml += '<div class="card"><div class="ctitle" style="color:#94a3b8">⏳ OTHER PERIODIC</div>'+otherHtml+'</div>';
-  }
-  html("tab-exp", finalHtml);
-}
-
-function addExp(){
-  var label=prompt("Expense name:","");
-  if(!label) return;
-  var val=prompt("Monthly amount (₹):","0");
-  D.expenses.monthly.push({id:"c"+Date.now(), label:label, v:num(val)||0, icon:"💰"});
-  autoSave(); renderAll();
-}
-function addPeriodic(years){
-  var label=prompt("Expense name:","");
-  if(!label) return;
-  var val=prompt("Amount (₹) for "+(years===1?"year":years+" years")+":","0");
-  var due = prompt("Due date / description (e.g. '15-May each year'):","");
-  var icon = prompt("Icon (emoji, e.g. 🛡):","📅");
-  D.expenses.periodic.push({
-    id:"p"+Date.now(),
-    label:label,
-    v:num(val)||0,
-    icon:icon,
-    due:due,
-    years:years
-  });
-  autoSave(); renderAll();
-}
-
-// ── LOANS ──
-function renderLoans(){
-  var lH=function(key,d,c){
-    return '<div class="card" style="border-color:'+c+'30">'
-      +'<div class="ctitle" style="color:'+c+'">🏦 '+d.name+'</div>'
-      +row("Account No", d.account, "#64748b")
-      +row("Sanctioned Date", d.sanctioned, "#64748b")
-      +row("EMI Date", d.emiDate, "#64748b")
-      +row("Sanctioned Amount", ff(d.principal), "white", "loans."+key+".principal")
-      +row("Interest Rate", d.rate+"%", "white", "loans."+key+".rate")
-      +row("Monthly EMI", ff(d.emi), c, "loans."+key+".emi")
-      +row("Total Tenure", d.tenure+" months", "white", "loans."+key+".tenure")
-      +row("EMIs Paid", d.paid, "#10b981", "loans."+key+".paid")
-      +row("EMIs Remaining", d.tenure - d.paid, "#f59e0b")
-      +row("Outstanding", ff(d.outstanding), "#ef4444", "loans."+key+".outstanding")
-      +'<div class="prog" style="margin-top:8px"><div class="bar" style="width:'+Math.min(100, Math.round(d.paid/d.tenure*100))+'%;background:'+c+'"></div></div>'
-      +'<div style="color:#475569;font-size:9px;text-align:right;margin-top:3px">'+d.paid+' paid · '+(d.tenure-d.paid)+' remaining</div>'
-      +'</div>';
-  };
-  html("tab-loans", '<div class="g2">'+lH("sbi", D.loans.sbi, "#3b82f6") + lH("icici", D.loans.icici, "#8b5cf6")+'</div>');
-}
-
-// ── MUTUAL FUNDS ──
-function renderMF(){
-  var mo = D.sip.monthly, rate = D.sip.rate, stepUp = D.sip.stepUp, startYr = D.sip.startYear || 2026;
-  var corpus = 0, cumInv = 0, curMo = mo;
-  var tH = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
-    +'<tr style="color:#64748b;font-size:10px;text-transform:uppercase">'
-    +'<th style="text-align:left;padding:7px 8px">Year</th>'
-    +'<th style="text-align:right;padding:7px 8px">Monthly SIP</th>'
-    +'<th style="text-align:right;padding:7px 8px">Yearly</th>'
-    +'<th style="text-align:right;padding:7px 8px">Total Invested</th>'
-    +'<th style="text-align:right;padding:7px 8px">Est. Corpus</th>'
-    +'</tr>';
-  var curYr = new Date().getFullYear();
-  for(var y=startYr; y<=startYr+24; y++){
-    for(var m=0; m<12; m++){ corpus = corpus*(1+rate/1200) + curMo; cumInv += curMo; }
-    tH += '<tr style="border-top:1px solid #1e293b;'+(y===curYr?"background:rgba(99,102,241,0.05)":"")+'">'
-      +'<td style="padding:6px 8px;color:'+(y===curYr?"#6366f1":"#94a3b8")+';font-weight:'+(y===curYr?"700":"400")+'">'+y+'</td>'
-      +'<td style="padding:6px 8px;text-align:right;color:white">'+ff(curMo)+'</td>'
-      +'<td style="padding:6px 8px;text-align:right;color:#64748b">'+ff(curMo*12)+'</td>'
-      +'<td style="padding:6px 8px;text-align:right;color:#475569">'+fl(cumInv)+'</td>'
-      +'<td style="padding:6px 8px;text-align:right;color:#fbbf24;font-weight:700">'+fl(Math.round(corpus))+'</td>'
-      +'</tr>';
-    if(y < startYr+24) curMo = Math.round(curMo * (1+stepUp/100));
-  }
-  tH += '</table></div>';
-
-  var sumH = '<div class="g3" style="margin-bottom:12px">'
-    + row("Monthly SIP (2026)", ff(D.sip.monthly), "#6366f1", "sip.monthly")
-    + row("Annual Step-up", D.sip.stepUp + "%", "#a78bfa", "sip.stepUp")
-    + row("Expected Return", D.sip.rate + "%", "#10b981", "sip.rate")
-    + '</div>'
-    + '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:14px;text-align:center;margin-bottom:12px">'
-    + '<div style="color:#64748b;font-size:10px;margin-bottom:4px">Projected Corpus in 25 Years</div>'
-    + '<div style="font-size:30px;font-weight:900;color:#fbbf24">'+fl(Math.round(corpus))+'</div>'
-    + '<div style="color:#475569;font-size:11px;margin-top:3px">Total invested: '+fl(Math.round(cumInv))+'</div>'
-    + '</div>';
-
-  html("tab-mf", '<div class="card"><div class="ctitle" style="color:#6366f1">📈 SIP SUMMARY</div>'+sumH+'</div>'
-    + '<div class="card"><div class="ctitle" style="color:#a78bfa">📊 YEAR-BY-YEAR GROWTH (15% Step-up)</div>'+tH+'</div>');
-}
-
-// ── TERM INSURANCE ──
-function renderIns(){
-  var insCard = function(ins,c,title){
-    var h='<div class="ctitle" style="color:'+c+'">🛡 '+title+'</div>'
-      +'<div style="color:#64748b;font-size:11px;margin-bottom:12px">Coverage: <strong style="color:#10b981">'+fl(ins.coverage)+'</strong></div>'
-      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
-      +'<tr style="color:#64748b;font-size:10px;text-transform:uppercase">'
-      +'<th style="text-align:left;padding:6px 8px">Year</th><th style="text-align:left;padding:6px 8px">Due Date</th>'
-      +'<th style="text-align:right;padding:6px 8px">Premium</th><th style="text-align:center;padding:6px 8px">Status</th></tr>';
-    for(var i=0;i<ins.schedule.length;i++){
-      var s=ins.schedule[i];
-      h+='<tr style="border-top:1px solid #1e293b">'
-        +'<td style="padding:7px 8px;color:#94a3b8">'+s.yr+'</td>'
-        +'<td style="padding:7px 8px;color:#94a3b8">'+s.date+'</td>'
-        +'<td style="padding:7px 8px;text-align:right;color:'+c+';font-weight:700">'+ff(s.amt)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center"><span style="background:'+(s.paid?"rgba(16,185,129,0.1)":"rgba(245,158,11,0.1)")+';color:'+(s.paid?"#10b981":"#f59e0b")+';border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">'+(s.paid?"✅ Paid":"⏳ Due")+'</span></td>'
-        +'</tr>';
-    }
-    h+='</table></div>';
-    return '<div class="card">'+h+'</div>';
-  };
-  html("tab-ins", '<div class="g2">'+insCard(D.ins.p1,"#f59e0b","3 CRORE TERM INSURANCE")+insCard(D.ins.p2,"#a78bfa","2 CRORE TERM INSURANCE")+'</div>');
-}
-
-// ── HEALTH INSURANCE (standalone) ──
-function renderHlth(){
-  var h = row("Coverage", fl(D.health.coverage), "#10b981")
-    + row("Premium Paid (Feb 2026)", ff(D.health.premium), "#06b6d4", "health.premium")
-    + row("Next Due", D.health.nextDue, "#fbbf24")
-    + row("Type", "Family Floater", "#94a3b8")
-    + '<div style="background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.2);border-radius:7px;padding:10px;margin-top:8px;font-size:11px;color:#64748b">'
-    + 'ℹ️ Paid every 3 years. Monthly equivalent: <strong style="color:#06b6d4">'+ff(Math.round(D.health.premium/36))+'/mo</strong>. Next due: <strong style="color:#fbbf24">Feb 2029</strong></div>';
-  html("tab-hlth", '<div class="card"><div class="ctitle" style="color:#06b6d4">❤️ HEALTH INSURANCE — HDFC ERGO</div>'+h+'</div>');
-}
-
-// ── CHILDREN ──
-function renderKids(){
-  var h = "";
-  if(!D.children.expenses || D.children.expenses.length===0){
-    h = '<div style="color:#475569;font-size:12px;text-align:center;padding:20px 0">No children expenses yet. Add below.</div>';
-  } else {
-    for(var i=0;i<D.children.expenses.length;i++){
-      var ex = D.children.expenses[i];
-      h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding:7px 10px;background:#1e293b;border-radius:6px'+(editMode?';border:1px solid rgba(245,158,11,0.2)':'')+'">';
-      if(editMode){
-        h += '<input style="background:transparent;border:none;border-bottom:1px solid #334155;color:#94a3b8;font-size:12px;outline:none;font-family:inherit;flex:1;margin-right:10px" value="'+ex.label+'" onblur="D.children.expenses['+i+'].label=this.value;autoSave();renderAll();"/>';
-        h += '<input style="background:transparent;border:none;border-bottom:1px solid #f59e0b;color:#f59e0b;font-size:12px;font-weight:700;outline:none;width:80px;text-align:right;font-family:inherit" value="'+ex.v+'" onblur="D.children.expenses['+i+'].v=num(this.value);autoSave();renderAll();"/>';
-        h += '<button onclick="D.children.expenses.splice('+i+',1);autoSave();renderAll();" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:13px;margin-left:6px">🗑</button>';
-      } else {
-        h += '<span style="color:#64748b;font-size:12px">'+ex.icon+' '+ex.label+'</span>';
-        h += '<span style="color:#22d3a5;font-size:12px;font-weight:700">'+ff(ex.v)+'/mo</span>';
-      }
-      h += '</div>';
-    }
-    var childTotal = 0; for(var j=0;j<D.children.expenses.length;j++) childTotal += D.children.expenses[j].v;
-    h += '<div style="display:flex;justify-content:space-between;padding:9px 10px;background:rgba(34,211,165,0.08);border-radius:6px;margin-top:6px"><strong style="font-size:12px">Total Children Expenses</strong><strong style="color:#22d3a5">'+ff(childTotal)+'/mo</strong></div>';
-  }
-  html("tab-kids", '<div class="card"><div class="ctitle" style="color:#22d3a5">👶 CHILDREN\'S EXPENSES</div>'+h
-    +'<button class="addbtn" onclick="addKid()">+ Add Children\'s Expense</button></div>');
-}
-function addKid(){
-  var label = prompt("Expense name (e.g. School Fees, Sports, Tuition):","");
-  if(!label) return;
-  var val = prompt("Monthly amount (₹):","0");
-  D.children.expenses.push({id:"k"+Date.now(), label:label, v:num(val)||0, icon:"📚"});
-  autoSave(); renderAll();
-}
-
-// ── REMINDERS ──
-function renderRem(){
-  var sipV = 0; for(var i=0;i<D.expenses.monthly.length;i++){ if(D.expenses.monthly[i].id==="sip") sipV = D.expenses.monthly[i].v; }
-  var items = [
-    {l:"SBI Loan EMI",          d:"15th every month",             a:ff(D.loans.sbi.emi),   c:"#3b82f6"},
-    {l:"ICICI Loan EMI",        d:"10th every month",             a:ff(D.loans.icici.emi), c:"#8b5cf6"},
-    {l:"SIP Investment",        d:"4th every month (auto-debit)", a:ff(sipV),              c:"#6366f1"},
-    {l:"3Cr Term Insurance",    d:"15-May each year",             a:ff(252057)+"/yr",      c:"#f59e0b"},
-    {l:"2Cr Term Insurance",    d:"17-Feb each year",             a:ff(180110)+"/yr",      c:"#a78bfa"},
-    {l:"Health Insurance (Me & Wife)", d:"Feb 2029 (every 3yr)",  a:ff(69354)+"/3yr",      c:"#06b6d4"},
-    {l:"Parents Health Insurance", d:"Feb 2029 (every 3yr)",      a:ff(368487)+"/3yr",     c:"#22d3a5"},
-    {l:"Car Insurance",         d:"Annual (renew in Mar)",        a:ff(11500)+"/yr",       c:"#f97316"}
-  ];
-  var h = "";
-  for(var j=0;j<items.length;j++){
-    var it = items[j];
-    h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:#1e293b;border-radius:8px;margin-bottom:8px;border-left:3px solid '+it.c+'">'
-      +'<div><div style="font-size:13px;font-weight:600">'+it.l+'</div><div style="font-size:11px;color:#475569;margin-top:2px">'+it.d+'</div></div>'
-      +'<div style="color:'+it.c+';font-size:13px;font-weight:800">'+it.a+'</div></div>';
-  }
-  html("tab-rem", '<div class="card"><div class="ctitle" style="color:#fbbf24">🔔 PAYMENT REMINDERS</div>'+h+'</div>');
-}
-
-// ── AUTO LOGIN ──
-window.onload = function(){
-  var token = localStorage.getItem("mf_token");
-  var uid   = localStorage.getItem("mf_uid");
-  var name  = localStorage.getItem("mf_name");
-  var email = localStorage.getItem("mf_email");
-  var savedData = localStorage.getItem("mf_data");
-
-  if(token && uid){
-    sbToken = token;
-    sbUid   = uid;
-    get("uname").textContent  = name  || "Dashboard";
-    get("uemail").textContent = email || "";
-
-    if(savedData){ try{ D = JSON.parse(savedData); } catch(e){} }
-
-    sbLoad(sbToken).then(function(rows){
-      if(rows && rows[0] && rows[0].data){
-        try{ D = JSON.parse(rows[0].data); } catch(e){}
-      }
-      showApp();
-    }).catch(function(){
-      showApp();
+    // ========== NAVIGATION ==========
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            this.classList.add('active');
+            let page = this.dataset.page;
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            get('page-'+page).classList.add('active-page');
+            get('pageTitle').innerText = this.querySelector('span').innerText; // translated already
+            renderCurrentPage();
+        });
     });
-  }
-};
+
+    get('profileSelect').addEventListener('change', (e) => { currentProfile = e.target.value; renderCurrentPage(); });
+    get('monthPicker').addEventListener('change', (e) => { currentMonth = e.target.value; renderCurrentPage(); });
+
+    // ========== RENDER CURRENT PAGE ==========
+    function renderCurrentPage() {
+        let activePage = document.querySelector('.page.active-page')?.id;
+        if (!activePage) return;
+        let pageName = activePage.replace('page-', '');
+        switch (pageName) {
+            case 'overview': renderOverview(); break;
+            case 'accounts': renderAccounts(); break;
+            case 'insights': renderInsights(); break;
+            case 'transactions': renderTransactions(); break;
+            case 'plan': renderPlan(); break;
+            case 'debt': renderDebt(); break;
+            case 'goals': renderGoals(); break;
+            case 'help': renderHelp(); break;
+            case 'settings': renderSettings(); break;
+        }
+    }
+
+    // ========== COMPUTED VALUES ==========
+    function getScssMonthly() {
+        let dadQtr = D.scss.dad.deposited * D.scss.dad.rate / 400;
+        let momQtr = D.scss.mom.deposited * D.scss.mom.rate / 400;
+        return Math.round((dadQtr + momQtr) / 3);
+    }
+    function getTotalIncome() {
+        let scssMonthly = getScssMonthly();
+        let fdMonthly = D.fd.deposited ? D.fd.actualMonthly : 0;
+        let rentalMonthly = D.income.rentalActive ? D.income.rental : 0;
+        return D.income.husband + D.income.wife + scssMonthly + fdMonthly + rentalMonthly;
+    }
+    function getTotalExpenses() {
+        let monthlySum = D.expenses.monthly.reduce((s, e) => s + e.v, 0);
+        let periodicMo = D.expenses.periodic.reduce((s, e) => s + Math.round(e.v / (e.years * 12)), 0);
+        let childMo = D.children.expenses.reduce((s, e) => s + e.v, 0);
+        return monthlySum + periodicMo + childMo;
+    }
+    function getSurplus() { return getTotalIncome() - getTotalExpenses(); }
+
+    // ========== PAGE RENDERERS (with translations) ==========
+    function renderOverview() {
+        let income = getTotalIncome();
+        let expenses = getTotalExpenses();
+        let surplus = getSurplus();
+        let scssMonthly = getScssMonthly();
+        let totalLoan = D.loans.sbi.outstanding + D.loans.icici.outstanding;
+        let totalScss = D.scss.dad.deposited + D.scss.mom.deposited;
+        let sipVal = D.expenses.monthly.find(e => e.id === 'sip')?.v || 0;
+        let otherExp = D.expenses.monthly.reduce((s, e) => s + e.v, 0) - D.loans.sbi.emi - D.loans.icici.emi - sipVal;
+
+        let html = `
+            <div class="grid-4">
+                <div class="kpi-card"><div class="kpi-label">${t('monthlyIncome')}</div><div class="kpi-value" style="color:#10b981">${fl(income)}</div><div class="kpi-sub">Husband + Wife + SCSS + Rental</div></div>
+                <div class="kpi-card"><div class="kpi-label">${t('monthlySurplus')}</div><div class="kpi-value" style="color:${surplus>=0?'#6366f1':'#ef4444'}">${fl(surplus)}</div><div class="kpi-sub">Income minus expenses</div></div>
+                <div class="kpi-card"><div class="kpi-label">${t('loanOutstanding')}</div><div class="kpi-value" style="color:#ef4444">${fl(totalLoan)}</div><div class="kpi-sub">SBI + ICICI</div></div>
+                <div class="kpi-card"><div class="kpi-label">${t('scssDeposited')}</div><div class="kpi-value" style="color:#f59e0b">${fl(totalScss)}</div><div class="kpi-sub">Dad + Mom · Target ${fl(D.scss.dad.target+D.scss.mom.target)}</div></div>
+            </div>
+            <div class="grid-2">
+                <div class="card"><div class="card-title"><i class="fas fa-arrow-up" style="color:#10b981"></i> ${t('incomeSnapshot')}</div>
+                    ${row(t('husbandSalary'), ff(D.income.husband), D.income.husband>0?'#10b981':'#475569', 'income.husband')}
+                    ${row(t('wifeSalary'), ff(D.income.wife), D.income.wife>0?'#10b981':'#475569', 'income.wife')}
+                    ${row(t('scssPayout'), ff(scssMonthly), '#f59e0b')}
+                    ${row(t('rentalWanaparthy'), D.income.rentalActive ? ff(D.income.rental) : '⏳ Pending Apr 2026', '#6366f1', 'income.rental')}
+                    ${row(t('sweepFd'), D.fd.deposited ? ff(D.fd.actualMonthly) : '⏳ Not deposited', '#06b6d4')}
+                </div>
+                <div class="card"><div class="card-title"><i class="fas fa-arrow-down" style="color:#ef4444"></i> ${t('expenseSnapshot')}</div>
+                    ${row(t('sbiLoanEmi'), ff(D.loans.sbi.emi), '#3b82f6')}
+                    ${row(t('iciciLoanEmi'), ff(D.loans.icici.emi), '#8b5cf6')}
+                    ${row(t('sipInvestment'), ff(sipVal), '#6366f1')}
+                    ${row(t('term3cr'), ff(Math.round(252057/12))+'/mo', '#f59e0b')}
+                    ${row(t('term2cr'), ff(Math.round(180110/12))+'/mo', '#a78bfa')}
+                    ${row(t('healthInsurance'), ff(Math.round(69354/36))+'/mo', '#06b6d4')}
+                    ${row(t('otherExpenses'), ff(otherExp), '#94a3b8')}
+                </div>
+            </div>
+        `;
+        html('page-overview', html);
+    }
+
+    function row(label, val, color, path) {
+        if (editMode && path) {
+            let raw = String(val).replace(/₹|,/g, '');
+            return `<div class="row-flex" style="border:1px solid rgba(245,158,11,0.3); background:#1e293b; border-radius:6px; margin-bottom:5px; padding:8px 10px;">
+                <span style="color:#94a3b8">${label}</span>
+                <input class="yellow-input" value="${raw}" onchange="upd('${path}', this.value)" onblur="upd('${path}', this.value)">
+            </div>`;
+        }
+        return `<div class="row-flex"><span style="color:#94a3b8">${label}</span><span style="color:${color}">${val}</span></div>`;
+    }
+
+    function upd(path, val) {
+        let keys = path.split('.');
+        let obj = D;
+        for (let i = 0; i < keys.length-1; i++) { if (obj[keys[i]] === undefined) return; obj = obj[keys[i]]; }
+        obj[keys[keys.length-1]] = num(val);
+        if (path.startsWith("fd.") && (path==="fd.planned" || path==="fd.rate") && D.fd.deposited) {
+            D.fd.actualMonthly = Math.round(D.fd.planned * D.fd.rate / 100 / 12);
+        }
+        renderCurrentPage();
+    }
+
+    function toggleEdit() { editMode = !editMode; renderCurrentPage(); }
+
+    function renderAccounts() {
+        html('page-accounts', `<div class="card"><div class="card-title"><i class="fas fa-university"></i> ${t('accounts')}</div><p style="color:#94a3b8">${t('accountsPlaceholder')}</p></div>`);
+    }
+    function renderInsights() {
+        html('page-insights', `<div class="card"><div class="card-title"><i class="fas fa-lightbulb"></i> ${t('insights')}</div><p style="color:#94a3b8">${t('insightsPlaceholder')}</p></div>`);
+    }
+    function renderTransactions() {
+        let mo = '';
+        D.expenses.monthly.forEach((ex, idx) => {
+            mo += `<div class="row-flex"><span>${ex.icon} ${ex.label}</span><span style="color:white">${ff(ex.v)}</span></div>`;
+        });
+        html('page-transactions', `
+            <div class="card">
+                <div class="card-title"><i class="fas fa-exchange-alt"></i> Recent Transactions</div>
+                ${mo}
+                <div class="add-btn" onclick="alert('${t('addTransaction')}')">+ ${t('addTransaction')}</div>
+            </div>
+        `);
+    }
+    function renderPlan() {
+        let income = getTotalIncome();
+        let expenses = getTotalExpenses();
+        let steps = [t('gettingStarted') + ' 1', t('gettingStarted') + ' 2', t('gettingStarted') + ' 3']; // simplified
+        let stepHtml = steps.map((s, i) => `<div class="row-flex"><span><i class="far ${i===0?'fa-circle':'fa-check-circle'}"></i> ${s}</span></div>`).join('');
+        html('page-plan', `
+            <div class="card">
+                <div class="card-title"><i class="fas fa-calendar-check"></i> ${t('monthlyPlan')}</div>
+                <div class="grid-2" style="margin-bottom:20px">
+                    <div><div class="kpi-label">${t('income')}</div><div style="display:flex; justify-content:space-between"><span>${ff(income)} ${t('earned')}</span><span>₹0 ${t('budget')}</span></div></div>
+                    <div><div class="kpi-label">${t('expenses')}</div><div style="display:flex; justify-content:space-between"><span>${ff(expenses)} ${t('spent')}</span><span>₹0 ${t('budget')}</span></div></div>
+                </div>
+                <div class="card-title">${t('gettingStarted')}</div>
+                ${stepHtml}
+                <div class="add-btn" onclick="alert('${t('planSetup')}')">${t('done')}</div>
+            </div>
+        `);
+    }
+    function renderDebt() { html('page-debt', `<div class="card"><div class="card-title"><i class="fas fa-hand-holding-usd"></i> ${t('debt')}</div><p style="color:#94a3b8">${t('debtPlaceholder')}</p></div>`); }
+    function renderGoals() { html('page-goals', `<div class="card"><div class="card-title"><i class="fas fa-bullseye"></i> ${t('goals')}</div><p style="color:#94a3b8">${t('goalsPlaceholder')}</p></div>`); }
+    function renderHelp() { html('page-help', `<div class="card"><div class="card-title"><i class="fas fa-question-circle"></i> ${t('help')}</div><p style="color:#94a3b8">${t('helpPlaceholder')}</p></div>`); }
+    function renderSettings() {
+        html('page-settings', `
+            <div class="card">
+                <div class="card-title"><i class="fas fa-cog"></i> ${t('settings')}</div>
+                <div class="row-flex"><span>${t('profile')}</span><span>${currentProfile}</span></div>
+                <div class="row-flex"><span>${t('darkMode')}</span><span>On</span></div>
+                <div class="add-btn" onclick="alert('${t('planSetup')}')">Manage</div>
+            </div>
+        `);
+    }
+
+    // ========== SNAP & TRACK ==========
+    let extractedItems = [];
+    function captureImage() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'environment';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) processReceiptImage(file);
+        };
+        input.click();
+    }
+    async function processReceiptImage(file) {
+        showLoading();
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        extractedItems = [
+            { description: 'Milk', amount: 50, category: 'Groceries' },
+            { description: 'Vegetables', amount: 200, category: 'Groceries' },
+            { description: 'Auto fare', amount: 100, category: 'Transport' }
+        ];
+        hideLoading();
+        showReviewDialog();
+    }
+    function showLoading() {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.id = 'loadingOverlay';
+        overlay.innerHTML = '<div class="loading"></div>';
+        document.body.appendChild(overlay);
+    }
+    function hideLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.remove();
+    }
+    function showReviewDialog() {
+        const categories = ['Groceries', 'Transport', 'Dining', 'Utilities', 'Entertainment', 'Other'];
+        let html = '<div class="modal-overlay" id="reviewOverlay"><div class="modal-content">';
+        html += '<h3>📝 ' + t('Review Extracted Expenses') + '</h3>';
+        extractedItems.forEach((item, idx) => {
+            html += `<div class="review-item">`;
+            html += `<input type="text" value="${item.description}" data-idx="${idx}" class="review-desc" placeholder="Description">`;
+            html += `<input type="number" value="${item.amount}" data-idx="${idx}" class="review-amount" step="1" min="0">`;
+            html += `<select data-idx="${idx}" class="review-cat">`;
+            categories.forEach(cat => {
+                html += `<option value="${cat}" ${cat === item.category ? 'selected' : ''}>${tc(cat)}</option>`;
+            });
+            html += `</select>`;
+            html += `</div>`;
+        });
+        html += '<div class="modal-buttons">';
+        html += '<button class="confirm-btn" onclick="confirmExpenses()">✅ ' + t('Add to Expenses') + '</button>';
+        html += '<button class="cancel-btn" onclick="closeModal()">❌ ' + t('Cancel') + '</button>';
+        html += '</div></div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+    }
+    function closeModal() {
+        const overlay = document.getElementById('reviewOverlay');
+        if (overlay) overlay.remove();
+    }
+    function confirmExpenses() {
+        const descInputs = document.querySelectorAll('.review-desc');
+        const amountInputs = document.querySelectorAll('.review-amount');
+        const catSelects = document.querySelectorAll('.review-cat');
+        for (let i = 0; i < extractedItems.length; i++) {
+            const desc = descInputs[i]?.value || extractedItems[i].description;
+            const amount = parseFloat(amountInputs[i]?.value) || extractedItems[i].amount;
+            const cat = catSelects[i]?.value || extractedItems[i].category;
+            D.expenses.monthly.push({ id: 'snap-' + Date.now() + '-' + i, label: desc, v: amount, icon: '📸', category: cat });
+        }
+        closeModal();
+        renderCurrentPage();
+        showTab('exp');
+    }
+    function showTab(tabId) {
+        // simulate tab switch
+        const target = document.querySelector(`[data-page="${tabId}"]`);
+        if (target) target.click();
+    }
+
+    function doLogout() { alert('Logout'); location.reload(); }
+
+    // Initial render
+    renderCurrentPage();
 </script>
 </body>
 </html>
