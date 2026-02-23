@@ -449,13 +449,14 @@
 
     // ========== ZERODHA OAUTH CONNECTION ==========
     function connectZerodha() {
-        if (KITE_API_KEY === 'hxibmuy0fm8jdbif') {
-            alert('Please set your Kite Connect API key in the script (replace hxibmuy0fm8jdbif).');
-            return;
-        }
-        const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}`;
-        window.location.href = loginUrl;
+    alert('KITE_API_KEY is: "' + KITE_API_KEY + '"');
+    if (KITE_API_KEY === '') {
+        alert('Please set your Kite Connect API key in the script (replace hxibmuy0fm8jdbif).');
+        return;
     }
+    const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}`;
+    window.location.href = loginUrl;
+}
 
     // ========== SNAP & TRACK MOCK ==========
     function captureImage() {
