@@ -31,13 +31,11 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (data.status === 'success') {
-      const accessToken = data.data.access_token;
-      // Instead of redirect, show the token (temporary)
-      res.status(200).send(`Success! Access token: ${accessToken}`);
-    } else {
-      // Show the full error from Kite
-      res.status(400).send(`Kite API error: ${JSON.stringify(data)}`);
-    }
+  const accessToken = data.data.access_token;
+  res.redirect(`https://famledgerai.com/zerodha-success?access_token=${accessToken}`);
+} else {
+  res.status(400).send(`Kite API error: ${JSON.stringify(data)}`);
+}
   } catch (error) {
     res.status(500).send(`Server error: ${error.message}`);
   }
