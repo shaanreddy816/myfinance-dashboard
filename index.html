@@ -258,6 +258,14 @@
     let currentMonth = '2026-02';
     let currentLang = 'en';
 
+    // ========== KITE CONNECT SETTINGS ==========
+    // Replace with your actual Kite Connect API key
+    const KITE_API_KEY = 'YOUR_API_KEY_HERE';
+    // Set your callback URL – must match what you configured in Kite Connect app
+    const REDIRECT_URI = encodeURIComponent('https://famledgerai.com/api/zerodha/callback');
+    // For local testing, you can use something like:
+    // const REDIRECT_URI = encodeURIComponent('http://localhost:3000/api/zerodha/callback');
+
     // ========== HELPERS ==========
     function ff(n) { return "₹" + (Number(n)||0).toLocaleString("en-IN"); }
     function fl(n) { n = Number(n)||0; if(n>=10000000) return "₹"+(n/10000000).toFixed(2)+"Cr"; if(n>=100000) return "₹"+(n/100000).toFixed(1)+"L"; return "₹"+n.toLocaleString("en-IN"); }
@@ -407,6 +415,8 @@
                     {largeCap:30,midCap:10,smallCap:0,international:10,debt:50};
         let allocationHtml = `<div class="grid-2"><div>Large Cap: ${alloc.largeCap}%</div><div>Mid Cap: ${alloc.midCap}%</div><div>Small Cap: ${alloc.smallCap}%</div><div>International: ${alloc.international}%</div><div>Debt: ${alloc.debt}%</div></div>`;
         const niftyHtml = `<div class="card"><h3>Nifty Index Performance</h3><p>Nifty 50: 13.5% CAGR (10y) · Nifty Next 50: 16% CAGR (10y)</p></div>`;
+        
+        // Claude card (copy prompt)
         const claudeCard = `
         <div class="card">
             <div class="card-title"><i class="fas fa-robot"></i> AI Portfolio Assistant (Claude)</div>
@@ -419,12 +429,32 @@
                 <button class="add-btn" onclick="window.open('claude://', '_blank')">🚀 Open Claude</button>
             </div>
         </div>`;
-        html('page-advisor', niftyHtml + `<div class="card"><h3>Recommended Allocation (Age ${age})</h3>${allocationHtml}</div>` + claudeCard);
+        
+        // New Zerodha Connect Card
+        const connectZerodhaCard = `
+        <div class="card">
+            <div class="card-title"><i class="fas fa-link"></i> Connect Zerodha (Live Data)</div>
+            <p>Securely connect your Zerodha account to view real mutual fund holdings and portfolio data directly in FamLedgerAI.</p>
+            <button class="add-btn" onclick="connectZerodha()" style="background:linear-gradient(135deg,#f59e0b,#d97706); border:none; color:white;">🔗 Connect Zerodha</button>
+            <p style="font-size:11px; color:#475569; margin-top:12px;">You will be redirected to Zerodha to log in and authorize access. After login, you'll be brought back to see your data.</p>
+        </div>`;
+        
+        html('page-advisor', niftyHtml + `<div class="card"><h3>Recommended Allocation (Age ${age})</h3>${allocationHtml}</div>` + claudeCard + connectZerodhaCard);
     }
 
     function copyPrompt() {
         const prompt = "Show me my Zerodha portfolio with current P&L";
         navigator.clipboard.writeText(prompt).then(() => alert("Prompt copied! Paste it into Claude."));
+    }
+
+    // ========== ZERODHA OAUTH CONNECTION ==========
+    function connectZerodha() {
+        if (KITE_API_KEY === 'YOUR_API_KEY_HERE') {
+            alert('Please set your Kite Connect API key in the script (replace YOUR_API_KEY_HERE).');
+            return;
+        }
+        const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}`;
+        window.location.href = loginUrl;
     }
 
     // ========== SNAP & TRACK MOCK ==========
@@ -460,7 +490,6 @@
     // ========== LANGUAGE CHANGE (dummy) ==========
     function changeLanguage(lang) {
         currentLang = lang;
-        // update static elements if needed (simplified)
         alert('Language changed to ' + lang + ' (demo)');
     }
 
