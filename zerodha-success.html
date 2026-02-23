@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Zerodha Connected</title>
+    <style>
+        body { background:#0f172a; color:#e2e8f0; font-family:Inter, sans-serif; padding:20px; }
+        table { border-collapse: collapse; width:100%; margin-top:20px; }
+        th, td { border:1px solid #334155; padding:8px; text-align:left; }
+        th { background:#1e293b; }
+    </style>
+</head>
+<body>
+    <h2>Your Zerodha Holdings</h2>
+    <div id="holdings">Loading...</div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+
+        if (accessToken) {
+            fetch(`/api/zerodha/holdings?access_token=${accessToken}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('holdings').innerHTML = `<p style="color:#ef4444">Error: ${data.error}</p>`;
+                        return;
+                    }
+                    let html = '<table><tr><th>Fund</th><th>Quantity</th><th>Avg Price</th><th>Current Price</th><th>Value</th></tr>';
+                    data.forEach(item => {
+                        html += `<tr>
+                            <td>${item.tradingsymbol}</td>
+                            <td>${item.quantity}</td>
+                            <td>${item.average_price}</td>
+                            <td>${item.last_price}</td>
+                            <td>${(item.quantity * item.last_price).toFixed(2)}</td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                    document.getElementById('holdings').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('holdings').innerHTML = `<p style="color:#ef4444">Error: ${err.message}</p>`;
+                });
+        } else {
+            document.getElementById('holdings').innerHTML = '<p>No access token found. Please connect Zerodha again.</p>';
+        }
+    </script>
+</body>
+</html>
