@@ -95,17 +95,17 @@
         <div class="alogo"><div class="aicon">💰</div><h2>FamLedgerAI</h2></div>
         <div class="atabs"><button class="atab on" onclick="switchAuth('login')">Sign In</button><button class="atab" onclick="switchAuth('reg')">Register</button></div>
         <div id="aform-login">
-            <input id="l-em" class="ainp" placeholder="Email" value="test@example.com">
-            <input id="l-pw" class="ainp" type="password" placeholder="Password" value="test123">
+            <input id="l-em" class="ainp" type="email" placeholder="Email">
+            <input id="l-pw" class="ainp" type="password" placeholder="Password">
             <button class="abtn" onclick="doLogin()">Sign In</button>
         </div>
         <div id="aform-reg" style="display:none">
-            <input id="r-nm" class="ainp" placeholder="Name" value="Test">
-            <input id="r-em" class="ainp" placeholder="Email" value="test@example.com">
-            <input id="r-age" class="ainp" type="number" placeholder="Age" value="40">
-            <input id="r-pw" class="ainp" type="password" placeholder="Password" value="test123">
-            <input id="r-pw2" class="ainp" type="password" placeholder="Confirm" value="test123">
-            <button class="abtn" onclick="doReg()">Create</button>
+            <input id="r-nm" class="ainp" placeholder="Name">
+            <input id="r-em" class="ainp" type="email" placeholder="Email">
+            <input id="r-age" class="ainp" type="number" placeholder="Age">
+            <input id="r-pw" class="ainp" type="password" placeholder="Password">
+            <input id="r-pw2" class="ainp" type="password" placeholder="Confirm password">
+            <button class="abtn" onclick="doReg()">Create Account</button>
         </div>
     </div>
 </div>
@@ -259,12 +259,8 @@
     let currentLang = 'en';
 
     // ========== KITE CONNECT SETTINGS ==========
-    // Replace with your actual Kite Connect API key
-    const KITE_API_KEY = 'hxibmuy0fm8jdbif';
-    // Set your callback URL – must match what you configured in Kite Connect app
+    const KITE_API_KEY = 'hxibmuy0fm8jdbif'; // your actual key
     const REDIRECT_URI = encodeURIComponent('https://famledgerai.com/api/zerodha/callback');
-    // For local testing, you can use something like:
-    // const REDIRECT_URI = encodeURIComponent('http://localhost:3000/api/zerodha/callback');
 
     // ========== HELPERS ==========
     function ff(n) { return "₹" + (Number(n)||0).toLocaleString("en-IN"); }
@@ -416,7 +412,6 @@
         let allocationHtml = `<div class="grid-2"><div>Large Cap: ${alloc.largeCap}%</div><div>Mid Cap: ${alloc.midCap}%</div><div>Small Cap: ${alloc.smallCap}%</div><div>International: ${alloc.international}%</div><div>Debt: ${alloc.debt}%</div></div>`;
         const niftyHtml = `<div class="card"><h3>Nifty Index Performance</h3><p>Nifty 50: 13.5% CAGR (10y) · Nifty Next 50: 16% CAGR (10y)</p></div>`;
         
-        // Claude card (copy prompt)
         const claudeCard = `
         <div class="card">
             <div class="card-title"><i class="fas fa-robot"></i> AI Portfolio Assistant (Claude)</div>
@@ -430,7 +425,6 @@
             </div>
         </div>`;
         
-        // New Zerodha Connect Card
         const connectZerodhaCard = `
         <div class="card">
             <div class="card-title"><i class="fas fa-link"></i> Connect Zerodha (Live Data)</div>
@@ -449,14 +443,9 @@
 
     // ========== ZERODHA OAUTH CONNECTION ==========
     function connectZerodha() {
-    alert('KITE_API_KEY is: "' + KITE_API_KEY + '"');
-    if (KITE_API_KEY === '') {
-        alert('Please set your Kite Connect API key in the script (replace hxibmuy0fm8jdbif).');
-        return;
+        const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}`;
+        window.location.href = loginUrl;
     }
-    const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}`;
-    window.location.href = loginUrl;
-}
 
     // ========== SNAP & TRACK MOCK ==========
     function captureImage() {
@@ -472,10 +461,11 @@
         document.querySelectorAll('.atab').forEach((b,i) => b.classList.toggle('on', (mode==='login' && i===0) || (mode==='reg' && i===1)));
     }
     function doLogin() {
+        // Simple mock login – any email/password works
         document.getElementById('auth').style.display = 'none';
         document.getElementById('app').style.display = 'block';
-        // set default age
-        localStorage.setItem('user_age', 40);
+        // set default age if not set
+        if (!localStorage.getItem('user_age')) localStorage.setItem('user_age', 40);
         renderCurrentPage();
     }
     function doReg() {
@@ -499,9 +489,7 @@
         // Show auth by default
         document.getElementById('auth').style.display = 'flex';
         document.getElementById('app').style.display = 'none';
-        // Pre-fill for demo
-        document.getElementById('l-em').value = 'demo@example.com';
-        document.getElementById('l-pw').value = 'demo123';
+        // No pre-filled values – user must type
     };
 </script>
 </body>
