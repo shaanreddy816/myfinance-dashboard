@@ -1,48 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Zerodha Connected</title>
+    <title>Zerodha Holdings</title>
     <style>
         body { background:#0f172a; color:#e2e8f0; font-family:Inter, sans-serif; padding:20px; }
-        table { border-collapse: collapse; width:100%; margin-top:20px; }
+        h2, h3 { color:#f59e0b; }
+        table { border-collapse: collapse; width:100%; margin-top:10px; margin-bottom:30px; }
         th, td { border:1px solid #334155; padding:8px; text-align:left; }
         th { background:#1e293b; }
+        .error { color:#ef4444; }
     </style>
 </head>
 <body>
-    <h2>Your Zerodha Holdings</h2>
-    <div id="holdings">Loading...</div>
+    <h2>Your Zerodha Portfolio</h2>
+    <div id="stocks">Loading stocks...</div>
+    <div id="mutualfunds">Loading mutual funds...</div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const accessToken = urlParams.get('access_token');
 
-        if (accessToken) {
+        if (!accessToken) {
+            document.getElementById('stocks').innerHTML = '<p class="error">No access token found. Please connect Zerodha again.</p>';
+            document.getElementById('mutualfunds').innerHTML = '';
+        } else {
+            // Fetch stock holdings
             fetch(`/api/zerodha/holdings?access_token=${accessToken}`)
                 .then(res => res.json())
                 .then(data => {
+                    let html = '<h3>Stocks (Kite)</h3>';
                     if (data.error) {
-                        document.getElementById('holdings').innerHTML = `<p style="color:#ef4444">Error: ${data.error}</p>`;
-                        return;
+                        html += `<p class="error">Error: ${data.error}</p>`;
+                    } else if (data.length === 0) {
+                        html += '<p>No stock holdings found.</p>';
+                    } else {
+                        html += '<table><tr><th>Symbol</th><th>Quantity</th><th>Avg Price</th><th>Current Price</th><th>Value</th></tr>';
+                        data.forEach(item => {
+                            html += `<tr>
+                                <td>${item.tradingsymbol}</td>
+                                <td>${item.quantity}</td>
+                                <td>${item.average_price}</td>
+                                <td>${item.last_price}</td>
+                                <td>${(item.quantity * item.last_price).toFixed(2)}</td>
+                            </tr>`;
+                        });
+                        html += '</table>';
                     }
-                    let html = '<table><tr><th>Fund</th><th>Quantity</th><th>Avg Price</th><th>Current Price</th><th>Value</th></tr>';
-                    data.forEach(item => {
-                        html += `<tr>
-                            <td>${item.tradingsymbol}</td>
-                            <td>${item.quantity}</td>
-                            <td>${item.average_price}</td>
-                            <td>${item.last_price}</td>
-                            <td>${(item.quantity * item.last_price).toFixed(2)}</td>
-                        </tr>`;
-                    });
-                    html += '</table>';
-                    document.getElementById('holdings').innerHTML = html;
+                    document.getElementById('stocks').innerHTML = html;
                 })
                 .catch(err => {
-                    document.getElementById('holdings').innerHTML = `<p style="color:#ef4444">Error: ${err.message}</p>`;
+                    document.getElementById('stocks').innerHTML = `<p class="error">Error fetching stocks: ${err.message}</p>`;
                 });
-        } else {
-            document.getElementById('holdings').innerHTML = '<p>No access token found. Please connect Zerodha again.</p>';
+
+            // Fetch mutual fund holdings
+            fetch(`/api/zerodha/mf-holdings?access_token=${accessToken}`)
+                .then(res => res.json())
+                .then(data => {
+                    let html = '<h3>Mutual Funds (Coin)</h3>';
+                    if (data.error) {
+                        html += `<p class="error">Error: ${data.error}</p>`;
+                    } else if (data.length === 0) {
+                        html += '<p>No mutual fund holdings found.</p>';
+                    } else {
+                        html += '<table><tr><th>Fund</th><th>Quantity</th><th>Avg Price</th><th>Current Price</th><th>Value</th></tr>';
+                        data.forEach(item => {
+                            html += `<tr>
+                                <td>${item.tradingsymbol}</td>
+                                <td>${item.quantity}</td>
+                                <td>${item.average_price}</td>
+                                <td>${item.last_price}</td>
+                                <td>${(item.quantity * item.last_price).toFixed(2)}</td>
+                            </tr>`;
+                        });
+                        html += '</table>';
+                    }
+                    document.getElementById('mutualfunds').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('mutualfunds').innerHTML = `<p class="error">Error fetching mutual funds: ${err.message}</p>`;
+                });
         }
     </script>
 </body>
