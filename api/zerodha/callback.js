@@ -32,7 +32,7 @@ export default async function handler(req, res) {
 
     if (data.status === 'success') {
   const accessToken = data.data.access_token;
-  res.redirect(`https://famledgerai.com/zerodha-success?access_token=${accessToken}`);
+  res.redirect(https://famledgerai.com/zerodha-success.html?access_token=${accessToken}`);
 } else {
   res.status(400).send(`Kite API error: ${JSON.stringify(data)}`);
 }
