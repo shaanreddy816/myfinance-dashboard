@@ -32,10 +32,11 @@ export default async function handler(req, res) {
 
     if (data.status === 'success') {
       const accessToken = data.data.access_token;
-      // Redirect to your frontend success page (you'll create this next)
-      res.redirect(`https://myfinance-dashboard-delta.vercel.app/zerodha-success?access_token=${accessToken}`);
+      // Instead of redirect, show the token (temporary)
+      res.status(200).send(`Success! Access token: ${accessToken}`);
     } else {
-      res.status(400).send(`Error: ${data.message}`);
+      // Show the full error from Kite
+      res.status(400).send(`Kite API error: ${JSON.stringify(data)}`);
     }
   } catch (error) {
     res.status(500).send(`Server error: ${error.message}`);
