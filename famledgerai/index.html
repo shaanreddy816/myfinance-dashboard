@@ -219,11 +219,11 @@
 <!-- Changed script to type="module" and added global function exports -->
 <script type="module">
     // ========== SUPABASE INIT ==========
-    // Use import.meta.env to read environment variables (injected by Vite)
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+    
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    // Create Supabase client with a unique name
-    const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
     // ========== TRANSLATIONS ==========
     const translations = {
@@ -270,7 +270,7 @@
     function get(id) { return document.getElementById(id); }
     function html(id, h) { let el = get(id); if (el) el.innerHTML = h; }
 
-    // ========== SUPABASE FUNCTIONS ==========
+    // ========== SUPABASE DATA FUNCTIONS ==========
     async function loadUserData(email) {
         const { data, error } = await supabaseClient
             .from('user_data')
@@ -306,7 +306,7 @@
         }
     }
 
-    async function saveUserData(email = localStorage.getItem('current_user_email')) {
+    async function saveUserData(email) {
         if (!email) return;
         const { error } = await supabaseClient
             .from('user_data')
@@ -321,6 +321,121 @@
             }, { onConflict: 'email' });
         if (error) console.error('Error saving user data:', error);
     }
+
+    // ========== AUTH STATE ==========
+    async function checkSession() {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+            // User is logged in
+            const email = session.user.email;
+            await loadUserData(email);
+            showApp();
+        } else {
+            showAuth();
+        }
+    }
+
+    function showApp() {
+        document.getElementById('auth').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        renderCurrentPage();
+    }
+
+    function showAuth() {
+        document.getElementById('auth').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+    }
+
+    // ========== AUTH FUNCTIONS ==========
+    window.switchAuth = function(mode) {
+        document.getElementById('aform-login').style.display = mode==='login' ? 'block' : 'none';
+        document.getElementById('aform-reg').style.display = mode==='reg' ? 'block' : 'none';
+        document.querySelectorAll('.atab').forEach((b,i) => b.classList.toggle('on', (mode==='login' && i===0) || (mode==='reg' && i===1)));
+    };
+
+    window.doLogin = async function() {
+        let email = document.getElementById('l-em').value.trim();
+        let pass = document.getElementById('l-pw').value;
+        if (!email || !pass) { alert('Enter email and password'); return; }
+
+        let btn = document.getElementById('loginBtn');
+        btn.textContent = 'Loading...';
+        btn.disabled = true;
+
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email,
+            password: pass
+        });
+
+        if (error) {
+            alert('Login error: ' + error.message);
+            btn.textContent = 'Sign In';
+            btn.disabled = false;
+            return;
+        }
+
+        // Success – session is stored automatically
+        await loadUserData(data.user.email);
+        showApp();
+    };
+
+    window.doReg = async function() {
+        let name = document.getElementById('r-nm').value;
+        let email = document.getElementById('r-em').value;
+        let age = parseInt(document.getElementById('r-age').value);
+        let occupation = document.getElementById('r-occupation').value;
+        let incomeRange = document.getElementById('r-income-range').value;
+        let goals = [];
+        document.querySelectorAll('#aform-reg .goal-option.selected').forEach(el => goals.push(el.dataset.goal));
+        let risk = document.querySelector('#aform-reg .risk-option.selected')?.dataset?.risk || 'moderate';
+        let pass = document.getElementById('r-pw').value, pass2 = document.getElementById('r-pw2').value;
+
+        if (!name || !email || !age || !occupation || !incomeRange || !pass || !pass2) {
+            alert('Please fill all fields');
+            return;
+        }
+        if (pass !== pass2) { alert('Passwords do not match'); return; }
+
+        let btn = document.getElementById('regBtn');
+        btn.textContent = 'Creating...';
+        btn.disabled = true;
+
+        // Sign up with Supabase Auth
+        const { data, error } = await supabaseClient.auth.signUp({
+            email,
+            password: pass,
+            options: {
+                data: { name, age, occupation, incomeRange, goals, risk } // store in user metadata
+            }
+        });
+
+        if (error) {
+            alert('Registration error: ' + error.message);
+            btn.textContent = 'Create Account';
+            btn.disabled = false;
+            return;
+        }
+
+        // Prepare userData from registration form
+        userData = {
+            profile: { age, occupation, incomeRange, goals, risk },
+            income: { husband:0, wife:0, rental:0, rentalActive:false },
+            expenses: { monthly:[], periodic:[] },
+            loans: [],
+            insurance: {},
+            schemes: []
+        };
+
+        // Save initial data row (will use the email from the new user)
+        await saveUserData(email);
+
+        showApp();
+    };
+
+    window.doLogout = async function() {
+        await supabaseClient.auth.signOut();
+        showAuth();
+    };
 
     // ========== NAVIGATION ==========
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -448,9 +563,9 @@
         `;
     }
 
-    function showRecommendations() {
+    window.showRecommendations = function() {
         document.querySelector('[data-page="recommendations"]').click();
-    }
+    };
 
     // ========== GOVERNMENT SCHEMES ==========
     function getGovernmentSchemes(age, income) {
@@ -521,15 +636,18 @@
         }
     }
 
-    function trackFund(name) {
+    window.trackFund = function(name) {
         if (!userData.investments) userData.investments = { mutualFunds: [] };
         userData.investments.mutualFunds.push({
             name,
             addedAt: new Date().toISOString()
         });
-        saveUserData();
+        // Need email to save – get from session
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            if (session) saveUserData(session.user.email);
+        });
         alert(`Added ${name} to your investments.`);
-    }
+    };
 
     // ========== RECOMMENDATIONS PAGE ==========
     async function renderRecommendations() {
@@ -576,12 +694,14 @@
         html('page-recommendations', govtHtml + mfHtml);
     }
 
-    function addScheme(name) {
+    window.addScheme = function(name) {
         if (!userData.schemes) userData.schemes = [];
         userData.schemes.push({ name, addedAt: new Date().toISOString() });
-        saveUserData();
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            if (session) saveUserData(session.user.email);
+        });
         alert(`Added ${name} to your schemes.`);
-    }
+    };
 
     // ========== ADVISOR PAGE ==========
     async function renderAdvisor() {
@@ -691,7 +811,7 @@ Please suggest:
         });
     }
 
-    async function saveProfile() {
+    window.saveProfile = async function() {
         userData.profile.age = parseInt(document.getElementById('settings-age').value);
         userData.profile.occupation = document.getElementById('settings-occupation').value;
         userData.profile.incomeRange = document.getElementById('settings-income').value;
@@ -700,92 +820,21 @@ Please suggest:
         userData.profile.goals = goals;
         let risk = document.querySelector('#page-settings .risk-option.selected')?.dataset?.risk || 'moderate';
         userData.profile.risk = risk;
-        await saveUserData();
-        alert('Profile saved!');
-        renderCurrentPage();
-    }
 
-    // ========== AUTH ==========
-    function switchAuth(mode) {
-        document.getElementById('aform-login').style.display = mode==='login' ? 'block' : 'none';
-        document.getElementById('aform-reg').style.display = mode==='reg' ? 'block' : 'none';
-        document.querySelectorAll('.atab').forEach((b,i) => b.classList.toggle('on', (mode==='login' && i===0) || (mode==='reg' && i===1)));
-    }
-
-    async function doLogin() {
-        let email = document.getElementById('l-em').value.trim();
-        let pass = document.getElementById('l-pw').value;
-        if (!email || !pass) { alert('Enter email and password'); return; }
-
-        let btn = document.getElementById('loginBtn');
-        btn.textContent = 'Loading...';
-        btn.disabled = true;
-
-        localStorage.setItem('current_user_email', email);
-        localStorage.setItem('current_user_name', email.split('@')[0]);
-
-        await loadUserData(email);
-
-        btn.textContent = 'Sign In →';
-        btn.disabled = false;
-
-        document.getElementById('auth').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        renderCurrentPage();
-    }
-
-    async function doReg() {
-        let name = document.getElementById('r-nm').value;
-        let email = document.getElementById('r-em').value;
-        let age = parseInt(document.getElementById('r-age').value);
-        let occupation = document.getElementById('r-occupation').value;
-        let incomeRange = document.getElementById('r-income-range').value;
-        let goals = [];
-        document.querySelectorAll('#aform-reg .goal-option.selected').forEach(el => goals.push(el.dataset.goal));
-        let risk = document.querySelector('#aform-reg .risk-option.selected')?.dataset?.risk || 'moderate';
-        let pass = document.getElementById('r-pw').value, pass2 = document.getElementById('r-pw2').value;
-
-        if (!name || !email || !age || !occupation || !incomeRange || !pass || !pass2) {
-            alert('Please fill all fields');
-            return;
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+            await saveUserData(session.user.email);
+            alert('Profile saved!');
+            renderCurrentPage();
         }
-        if (pass !== pass2) { alert('Passwords do not match'); return; }
+    };
 
-        let btn = document.getElementById('regBtn');
-        btn.textContent = 'Creating...';
-        btn.disabled = true;
-
-        userData = {
-            profile: { age, occupation, incomeRange, goals, risk },
-            income: { husband:0, wife:0, rental:0, rentalActive:false },
-            expenses: { monthly:[], periodic:[] },
-            loans: [],
-            insurance: {},
-            schemes: []
-        };
-
-        localStorage.setItem('current_user_email', email);
-        localStorage.setItem('current_user_name', name);
-
-        await saveUserData(email);
-
-        btn.textContent = 'Create Account →';
-        btn.disabled = false;
-
-        document.getElementById('auth').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        renderCurrentPage();
-    }
-
-    function doLogout() {
-        localStorage.removeItem('current_user_email');
-        localStorage.removeItem('current_user_name');
-        document.getElementById('auth').style.display = 'flex';
-        document.getElementById('app').style.display = 'none';
-    }
+    // ========== EDIT MODE ==========
+    window.toggleEdit = function() { editMode = !editMode; renderCurrentPage(); };
+    window.captureImage = function() { alert("Snap & Track coming soon."); };
 
     // ========== LANGUAGE CHANGE ==========
-    function changeLanguage(lang) {
+    window.changeLanguage = function(lang) {
         currentLang = lang;
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
@@ -797,11 +846,7 @@ Please suggest:
             }
         });
         renderCurrentPage();
-    }
-
-    // ========== EDIT MODE ==========
-    function toggleEdit() { editMode = !editMode; renderCurrentPage(); }
-    function captureImage() { alert("Snap & Track coming soon."); }
+    };
 
     // ========== GOAL SELECTOR IN REGISTRATION ==========
     document.querySelectorAll('.goal-option, .risk-option').forEach(el => {
@@ -817,23 +862,19 @@ Please suggest:
 
     // ========== INIT ==========
     window.onload = function() {
-        document.getElementById('auth').style.display = 'flex';
-        document.getElementById('app').style.display = 'none';
+        checkSession();
+        // Listen for auth changes (e.g., when user logs out in another tab)
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN') {
+                loadUserData(session.user.email).then(() => showApp());
+            } else if (event === 'SIGNED_OUT') {
+                showAuth();
+            }
+        });
     };
 
-    // ========== MAKE FUNCTIONS GLOBALLY ACCESSIBLE FOR ONCLICK ATTRIBUTES ==========
-    window.switchAuth = switchAuth;
-    window.doLogin = doLogin;
-    window.doReg = doReg;
-    window.doLogout = doLogout;
-    window.toggleEdit = toggleEdit;
-    window.captureImage = captureImage;
-    window.changeLanguage = changeLanguage;
-    window.showRecommendations = showRecommendations;
-    window.addScheme = addScheme;
-    window.trackFund = trackFund;
-    window.saveProfile = saveProfile;
-    window.renderAdvisor = renderAdvisor; // used in "Ask Again" button
+    // ========== EXPOSE FUNCTIONS ==========
+    // Already attached to window via `window.xxx = ...`
 </script>
 </body>
 </html>
