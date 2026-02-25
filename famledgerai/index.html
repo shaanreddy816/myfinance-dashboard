@@ -930,16 +930,24 @@ function debounceSave() {
 // ══════════════════════════════════════════
 async function checkSession() {
     const ls = document.getElementById('loading-screen');
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-        currentUserEmail = session.user.email;
-        await loadUserData(currentUserEmail);
-        showApp();
-        resetInactivity();
-    } else {
-        showAuth();
+    try {
+        console.log('Checking session...');
+        const { data: { session } } = await sb.auth.getSession();
+        console.log('Session result:', session);
+        if (session) {
+            currentUserEmail = session.user.email;
+            await loadUserData(currentUserEmail);
+            showApp();
+            resetInactivity();
+        } else {
+            showAuth();
+        }
+    } catch (e) {
+        console.error('checkSession error:', e);
+        showAuth(); // fallback to auth screen
+    } finally {
+        if (ls) ls.style.display = 'none';
     }
-    if (ls) ls.style.display = 'none';
 }
 
 function showApp()  { $('auth').style.display='none'; $('app').style.display='block'; renderCurrentPage(); }
