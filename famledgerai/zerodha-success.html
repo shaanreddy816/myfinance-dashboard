@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Zerodha Portfolio</title>
+    <style>
+        body { background:#0f172a; color:#e2e8f0; font-family:Inter, sans-serif; padding:20px; }
+        h2, h3 { color:#f59e0b; }
+        table { border-collapse: collapse; width:100%; margin-top:10px; margin-bottom:30px; }
+        th, td { border:1px solid #334155; padding:8px; text-align:left; }
+        th { background:#1e293b; }
+        .error { color:#ef4444; }
+        .empty { color:#94a3b8; font-style:italic; }
+    </style>
+</head>
+<body>
+    <h2>Your Zerodha Portfolio</h2>
+    <div id="stocks">Loading stocks...</div>
+    <div id="mutualfunds">Loading mutual funds...</div>
+    <div id="sips">Loading SIPs...</div>
+
+    <script>
+        // Helper to check if a symbol is likely a mutual fund (ISIN pattern)
+        function isMutualFund(symbol) {
+            return symbol.startsWith('INF') || /^[A-Z0-9]{12}$/.test(symbol);
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+
+        if (!accessToken) {
+            document.getElementById('stocks').innerHTML = '<p class="error">No access token found. Please connect Zerodha again.</p>';
+            document.getElementById('mutualfunds').innerHTML = '';
+            document.getElementById('sips').innerHTML = '';
+        } else {
+            // ----- Fetch stock holdings (from /portfolio/holdings) -----
+            fetch(`/api/zerodha/holdings?access_token=${accessToken}`)
+                .then(res => res.json())
+                .then(data => {
+                    let html = '<h3>Stocks (Kite)</h3>';
+                    if (data.error) {
+                        html += `<p class="error">Error: ${data.error}</p>`;
+                    } else {
+                        const stocks = data.filter(item => !isMutualFund(item.tradingsymbol));
+                        if (stocks.length === 0) {
+                            html += '<p class="empty">No stock holdings found.</p>';
+                        } else {
+                            html += '<table><tr><th>Symbol</th><th>Quantity</th><th>Avg Price</th><th>Current Price</th><th>Value</th></tr>';
+                            stocks.forEach(item => {
+                                html += `<tr>
+                                    <td>${item.tradingsymbol}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>${item.average_price}</td>
+                                    <td>${item.last_price}</td>
+                                    <td>${(item.quantity * item.last_price).toFixed(2)}</td>
+                                </tr>`;
+                            });
+                            html += '</table>';
+                        }
+                    }
+                    document.getElementById('stocks').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('stocks').innerHTML = `<p class="error">Error fetching stocks: ${err.message}</p>`;
+                });
+
+            // ----- Fetch mutual fund holdings (from /mf/holdings) -----
+            fetch(`/api/zerodha/mf-holdings?access_token=${accessToken}`)
+                .then(res => res.json())
+                .then(data => {
+                    let html = '<h3>Mutual Funds (Coin) – Holdings</h3>';
+                    if (data.error) {
+                        html += `<p class="error">Error: ${data.error}</p>`;
+                    } else if (data.length === 0) {
+                        html += '<p class="empty">No mutual fund holdings found.</p>';
+                    } else {
+                        html += '<table><tr><th>Fund Name</th><th>Quantity</th><th>Avg Price</th><th>Current Price</th><th>Value</th></tr>';
+                        data.forEach(item => {
+                            const fundName = item.fund || item.tradingsymbol;
+                            html += `<tr>
+                                <td>${fundName}</td>
+                                <td>${item.quantity}</td>
+                                <td>${item.average_price}</td>
+                                <td>${item.last_price}</td>
+                                <td>${(item.quantity * item.last_price).toFixed(2)}</td>
+                            </tr>`;
+                        });
+                        html += '</table>';
+                    }
+                    document.getElementById('mutualfunds').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('mutualfunds').innerHTML = `<p class="error">Error fetching mutual funds: ${err.message}</p>`;
+                });
+
+            // ----- Fetch SIPs (from /mf/sips) -----
+            fetch(`/api/zerodha/mf-sips?access_token=${accessToken}`)
+                .then(res => res.json())
+                .then(data => {
+                    let html = '<h3>Active SIPs</h3>';
+                    if (data.error) {
+                        html += `<p class="error">Error: ${data.error}</p>`;
+                    } else if (data.length === 0) {
+                        html += '<p class="empty">No active SIPs found.</p>';
+                    } else {
+                        html += '<table><tr><th>Fund Name</th><th>Status</th><th>Next Instalment</th><th>Frequency</th><th>Amount</th></tr>';
+                        data.forEach(sip => {
+                            const fundName = sip.fund || sip.tradingsymbol;
+                            html += `<tr>
+                                <td>${fundName}</td>
+                                <td>${sip.status}</td>
+                                <td>${sip.next_instalment || '-'}</td>
+                                <td>${sip.frequency}</td>
+                                <td>₹${sip.amount}</td>
+                            </tr>`;
+                        });
+                        html += '</table>';
+                    }
+                    document.getElementById('sips').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('sips').innerHTML = `<p class="error">Error fetching SIPs: ${err.message}</p>`;
+                });
+        }
+    </script>
+</body>
+</html>
