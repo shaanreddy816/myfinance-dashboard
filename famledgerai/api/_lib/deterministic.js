@@ -1,4 +1,3 @@
-// api/_lib/deterministic.js
 export function deterministicProjection({ loans, investments, profiles, goals, scenario }) {
   // This is a simplified example – expand based on your needs
   const totalLoanEmi = loans.reduce((sum, l) => sum + (l.emi || 0), 0);
