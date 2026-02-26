@@ -1,4 +1,4 @@
-import { callAIWithFallback } from './_lib/aiRouter';
+import { callAIWithFallback } from '../_lib/aiRouter.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
