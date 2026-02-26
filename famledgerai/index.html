@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* (Keep all existing CSS – unchanged) */
         :root {
             --bg: #0b0f1a;
             --bg2: #111827;
@@ -36,6 +37,7 @@
         * { margin:0; padding:0; box-sizing:border-box; font-family:var(--font); }
         body { background:var(--bg); color:var(--text); min-height:100vh; display:flex; overflow-x:hidden; }
 
+        /* Scrollbar */
         ::-webkit-scrollbar { width:5px; }
         ::-webkit-scrollbar-track { background:var(--bg2); }
         ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
@@ -320,7 +322,6 @@
         }
         .insight-box strong { color:var(--accent2); }
 
-        /* ── Loan analysis scenario box ── */
         .loan-scenario-box {
             background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm);
             padding:14px; margin-top:14px;
@@ -487,6 +488,10 @@
             <div class="nav-item" data-page="schemes"><i class="fas fa-piggy-bank"></i> <span>Schemes</span></div>
             <div class="nav-item" data-page="recommendations"><i class="fas fa-star"></i> <span>Recommendations</span></div>
             <div class="nav-item" data-page="advisor"><i class="fas fa-robot"></i> <span>AI Advisor</span></div>
+            <div class="nav-section-label">Advanced</div>
+            <div class="nav-item" data-page="nri"><i class="fas fa-globe"></i> <span>NRI Planner</span></div>
+            <div class="nav-item" data-page="plan"><i class="fas fa-robot"></i> <span>Autopilot</span></div>
+            <div class="nav-item" data-page="family"><i class="fas fa-users"></i> <span>Family</span></div>
             <div class="nav-section-label">Account</div>
             <div class="nav-item" data-page="settings"><i class="fas fa-cog"></i> <span>Settings</span></div>
         </div>
@@ -527,6 +532,9 @@
         <div id="page-recommendations" class="page"></div>
         <div id="page-advisor"         class="page"></div>
         <div id="page-settings"        class="page"></div>
+        <div id="page-nri"             class="page"></div>
+        <div id="page-plan"            class="page"></div>
+        <div id="page-family"          class="page"></div>
     </div>
 </div>
 
@@ -545,9 +553,175 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const credsNotice = document.getElementById('creds-notice-login');
 if(credsNotice) credsNotice.style.display = 'none';
 
-// ══════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════
+// ========== TRANSLATIONS ==========
+const translations = {
+    en: {
+        overview: 'Overview',
+        income: 'Income',
+        expenses: 'Expenses',
+        investments: 'Investments',
+        loans: 'Loans',
+        insurance: 'Insurance',
+        schemes: 'Schemes',
+        recommendations: 'Recommendations',
+        advisor: 'AI Advisor',
+        settings: 'Settings',
+        finances: 'Finances',
+        planning: 'Planning',
+        account: 'Account',
+        logout: 'Log out',
+        edit: 'Edit',
+        done: 'Done',
+        snapTrack: 'Snap & Track',
+        choosePeriod: 'Choose period',
+        monthlyIncome: 'Monthly Income',
+        monthlySurplus: 'Monthly Surplus',
+        loanOutstanding: 'Loan Outstanding',
+        scssDeposited: 'SCSS Deposited',
+        incomeSnapshot: 'Income Snapshot',
+        expenseSnapshot: 'Expense Snapshot',
+        husbandSalary: 'Husband Salary / Income',
+        wifeSalary: 'Wife Salary / Income',
+        scssPayout: 'SCSS Payout (combined/mo)',
+        rentalWanaparthy: 'Rental — Wanaparthy',
+        sweepFd: 'Sweep FD',
+        sbiLoanEmi: 'SBI Loan EMI',
+        iciciLoanEmi: 'ICICI Loan EMI',
+        sipInvestment: 'SIP Investment',
+        term3cr: '3Cr Term Insurance (amortized)',
+        term2cr: '2Cr Term Insurance (amortized)',
+        healthInsurance: 'Health Insurance (amortized)',
+        parentsHealth: 'Parents Health Ins (amortized)',
+        carInsurance: 'Car Insurance (amortized)',
+        otherExpenses: 'Other Monthly Expenses',
+        profile: 'Profile',
+        age: 'Age',
+        risk: 'Risk',
+        goals: 'Goals',
+        connectZerodha: 'Connect Zerodha',
+        disconnectZerodha: 'Disconnect',
+        loadingHoldings: 'Loading your mutual funds...',
+        nriPlanner: 'NRI Planner',
+        autopilot: 'Autopilot',
+        family: 'Family',
+        budgetCoach: 'Budget Coach',
+    },
+    hi: {
+        overview: 'अवलोकन',
+        income: 'आय',
+        expenses: 'खर्च',
+        investments: 'निवेश',
+        loans: 'ऋण',
+        insurance: 'बीमा',
+        schemes: 'योजनाएँ',
+        recommendations: 'सिफारिशें',
+        advisor: 'एआई सलाहकार',
+        settings: 'सेटिंग्स',
+        finances: 'वित्त',
+        planning: 'योजना',
+        account: 'खाता',
+        logout: 'लॉग आउट',
+        edit: 'संपादित करें',
+        done: 'पूर्ण',
+        snapTrack: 'स्नैप और ट्रैक',
+        choosePeriod: 'अवधि चुनें',
+        monthlyIncome: 'मासिक आय',
+        monthlySurplus: 'मासिक अधिशेष',
+        loanOutstanding: 'बकाया ऋण',
+        scssDeposited: 'एससीएसएस जमा',
+        incomeSnapshot: 'आय स्नैपशॉट',
+        expenseSnapshot: 'व्यय स्नैपशॉट',
+        husbandSalary: 'पति का वेतन / आय',
+        wifeSalary: 'पत्नी का वेतन / आय',
+        scssPayout: 'एससीएसएस भुगतान (संयुक्त/माह)',
+        rentalWanaparthy: 'किराया — वनपर्ति',
+        sweepFd: 'स्वीप एफडी',
+        sbiLoanEmi: 'एसबीआई लोन ईएमआई',
+        iciciLoanEmi: 'आईसीआईसीआई लोन ईएमआई',
+        sipInvestment: 'एसआईपी निवेश',
+        term3cr: '3 करोड़ टर्म इंश्योरेंस (मासिक)',
+        term2cr: '2 करोड़ टर्म इंश्योरेंस (मासिक)',
+        healthInsurance: 'स्वास्थ्य बीमा (मासिक)',
+        parentsHealth: 'माता-पिता स्वास्थ्य बीमा (मासिक)',
+        carInsurance: 'कार बीमा (मासिक)',
+        otherExpenses: 'अन्य मासिक व्यय',
+        profile: 'प्रोफ़ाइल',
+        age: 'आयु',
+        risk: 'जोखिम',
+        goals: 'लक्ष्य',
+        connectZerodha: 'ज़ेरोधा कनेक्ट करें',
+        disconnectZerodha: 'डिस्कनेक्ट करें',
+        loadingHoldings: 'आपके म्यूचुअल फंड लोड हो रहे हैं...',
+        nriPlanner: 'एनआरआई योजनाकार',
+        autopilot: 'ऑटोपायलट',
+        family: 'परिवार',
+        budgetCoach: 'बजट कोच',
+    },
+    te: {
+        overview: 'అవలోకనం',
+        income: 'ఆదాయం',
+        expenses: 'ఖర్చులు',
+        investments: 'పెట్టుబడులు',
+        loans: 'రుణాలు',
+        insurance: 'బీమా',
+        schemes: 'పథకాలు',
+        recommendations: 'సిఫార్సులు',
+        advisor: 'AI సలహాదారు',
+        settings: 'సెట్టింగులు',
+        finances: 'ఫైనాన్స్',
+        planning: 'ప్రణాళిక',
+        account: 'ఖాతా',
+        logout: 'లాగ్ అవుట్',
+        edit: 'మార్చు',
+        done: 'పూర్తయింది',
+        snapTrack: 'స్నాప్ & ట్రాక్',
+        choosePeriod: 'కాలాన్ని ఎంచుకోండి',
+        monthlyIncome: 'నెలసరి ఆదాయం',
+        monthlySurplus: 'నెలసరి మిగులు',
+        loanOutstanding: 'మిగిలిన రుణం',
+        scssDeposited: 'SCSS డిపాజిట్',
+        incomeSnapshot: 'ఆదాయం స్నాప్షాట్',
+        expenseSnapshot: 'ఖర్చు స్నాప్షాట్',
+        husbandSalary: 'భర్త జీతం / ఆదాయం',
+        wifeSalary: 'భార్య జీతం / ఆదాయం',
+        scssPayout: 'SCSS చెల్లింపు (కలిపి/నెల)',
+        rentalWanaparthy: 'అద్దె — వనపర్తి',
+        sweepFd: 'స్వీప్ ఎఫ్డీ',
+        sbiLoanEmi: 'SBI లోన్ ఈఎంఐ',
+        iciciLoanEmi: 'ICICI లోన్ ఈఎంఐ',
+        sipInvestment: 'SIP పెట్టుబడి',
+        term3cr: '3 కోట్ల టర్మ్ ఇన్సూరెన్స్ (నెలసరి)',
+        term2cr: '2 కోట్ల టర్మ్ ఇన్సూరెన్స్ (నెలసరి)',
+        healthInsurance: 'ఆరోగ్య బీమా (నెలసరి)',
+        parentsHealth: 'తల్లిదండ్రుల హెల్త్ ఇన్సూరెన్స్ (నెలసరి)',
+        carInsurance: 'కార్ ఇన్సూరెన్స్ (నెలసరి)',
+        otherExpenses: 'ఇతర నెలసరి ఖర్చులు',
+        profile: 'ప్రొఫైల్',
+        age: 'వయస్సు',
+        risk: 'రిస్క్',
+        goals: 'లక్ష్యాలు',
+        connectZerodha: 'జెరోధాను కనెక్ట్ చేయండి',
+        disconnectZerodha: 'డిస్‌కనెక్ట్ చేయండి',
+        loadingHoldings: 'మీ మ్యూచువల్ ఫండ్‌లు లోడ్ అవుతున్నాయి...',
+        nriPlanner: 'NRI ప్లానర్',
+        autopilot: 'ఆటోపైలట్',
+        family: 'కుటుంబం',
+        budgetCoach: 'బడ్జెట్ కోచ్',
+    }
+};
+
+function t(key) { return translations[currentLang]?.[key] || translations['en'][key] || key; }
+
+// ========== ZERODHA INTEGRATION ==========
+const KITE_API_KEY = 'hxibmuy0fm8jdbif'; // Replace with your actual key
+const REDIRECT_URI = encodeURIComponent('https://famledgerai.com/api/integrations/zerodha/callback');
+
+window.connectZerodha = () => {
+    const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}`;
+    window.location.href = loginUrl;
+};
+
+// ========== STATE ==========
 let userData = {
     profile: {},
     income: { husband:0, wife:0, rental:0, rentalActive:false },
@@ -567,9 +741,7 @@ let currentLang = 'en';
 let saveTimer = null;
 let currentUserEmail = '';
 
-// ══════════════════════════════════════════
-// AUTO-LOGOUT
-// ══════════════════════════════════════════
+// ========== AUTO-LOGOUT ==========
 let inactivityTimer;
 function resetInactivity() {
     clearTimeout(inactivityTimer);
@@ -580,9 +752,7 @@ function resetInactivity() {
 }
 ['mousemove','keypress','click','scroll','touchstart'].forEach(e => window.addEventListener(e, resetInactivity, { passive:true }));
 
-// ══════════════════════════════════════════
-// MOBILE SIDEBAR
-// ══════════════════════════════════════════
+// ========== MOBILE SIDEBAR ==========
 window.toggleSidebar = () => {
     const s = document.getElementById('sidebar');
     const o = document.getElementById('sidebarOverlay');
@@ -595,9 +765,7 @@ window.closeSidebar = () => {
     document.getElementById('sidebarOverlay').style.display = 'none';
 };
 
-// ══════════════════════════════════════════
-// HELPERS
-// ══════════════════════════════════════════
+// ========== HELPERS ==========
 const ff  = n => "₹" + (Number(n)||0).toLocaleString("en-IN");
 const fl  = n => { n=Number(n)||0; if(n>=10000000) return "₹"+(n/10000000).toFixed(2)+"Cr"; if(n>=100000) return "₹"+(n/100000).toFixed(1)+"L"; return "₹"+n.toLocaleString("en-IN"); };
 const num = v => { let c=String(v).replace(/[₹,\s%]/g,""); return (c!==""&&!isNaN(c)) ? parseFloat(c) : 0; };
@@ -633,9 +801,7 @@ function scoreLabel(s) {
     return 'Needs Work';
 }
 
-// ══════════════════════════════════════════
-// FINANCIAL ENGINE
-// ══════════════════════════════════════════
+// ========== FINANCIAL ENGINE ==========
 function computeMonthlyIncome() {
     const i = userData.income;
     return (i.husband||0) + (i.wife||0) + (i.rentalActive ? (i.rental||0) : 0);
@@ -750,11 +916,8 @@ function getTopActions(limit=5) {
     return actions.sort((a,b)=>b.priority-a.priority).slice(0,limit);
 }
 
-// ══════════════════════════════════════════
-// LOAN AMORTIZATION & PAYOFF CALCULATOR (NEW)
-// ══════════════════════════════════════════
+// ========== LOAN AMORTIZATION & PAYOFF CALCULATOR ==========
 function computeLoanAmortization(loan) {
-    // Uses real amortization if principal/rate/tenure/paidMonths are available
     const principal = loan.principal || loan.outstanding || 0;
     const rate      = loan.rate || 0;
     const emi       = loan.emi || 0;
@@ -772,7 +935,6 @@ function computeLoanAmortization(loan) {
 
     const r = rate / 100 / 12;
 
-    // Compute outstanding after `paid` months
     let outstanding = principal;
     for (let i = 0; i < paid; i++) {
         const interest = outstanding * r;
@@ -864,9 +1026,148 @@ function loanScenarioHtml(loan) {
     `;
 }
 
-// ══════════════════════════════════════════
-// SUPABASE DATA
-// ══════════════════════════════════════════
+// ========== NEW AI MODULE RENDER FUNCTIONS ==========
+async function renderBudgetCoach() {
+    // This could be displayed on Overview or a dedicated page. For now, we'll put it on a new page 'budget' if needed.
+    // But we don't have a page for it yet; we can call it from Overview later.
+    sh('page-budget', `<div class="card">Budget Coach – coming soon (API endpoint needed).</div>`);
+}
+
+async function renderNriPlanner() {
+    const html = `
+        <div class="card">
+            <div class="card-title"><span class="icon">✈️</span> ${t('nriPlanner')}</div>
+            <p>Plan your return to India.</p>
+            <label>Current Country</label>
+            <input id="nri-country" class="ainp" value="US">
+            <label>Return Year</label>
+            <input id="nri-year" class="ainp" type="number" value="2028">
+            <label>Expected Annual Income in India (₹)</label>
+            <input id="nri-income" class="ainp" type="number" value="2500000">
+            <button class="primary-btn" onclick="calculateNriPlan()">Get Plan</button>
+        </div>
+        <div id="nri-results"></div>
+    `;
+    sh('page-nri', html);
+}
+
+window.calculateNriPlan = async function() {
+    // 1. Check login
+    if (!currentUserEmail) { 
+        showToast('Please log in first'); 
+        return; 
+    }
+
+    // 2. Get input values and validate
+    const countryInput = $('#nri-country');
+    const yearInput = $('#nri-year');
+    const incomeInput = $('#nri-income');
+    
+    if (!countryInput || !yearInput || !incomeInput) {
+        showToast('Form inputs not found');
+        return;
+    }
+
+    const country = countryInput.value.trim();
+    const year = parseInt(yearInput.value);
+    const income = parseInt(incomeInput.value);
+
+    if (!country) {
+        showToast('Please enter a country');
+        return;
+    }
+    if (isNaN(year) || year < 2025) {
+        showToast('Please enter a valid return year (2025 or later)');
+        return;
+    }
+    if (isNaN(income) || income <= 0) {
+        showToast('Please enter a valid annual income');
+        return;
+    }
+
+    // 3. Show loading state (optional)
+    $('#nri-results').innerHTML = '<p>Loading...</p>';
+
+    // 4. Prepare request body – ideally you'd convert email to user ID here
+    const payload = {
+        userId: currentUserEmail,   // replace with actual user ID mapping if needed
+        currentCountry: country,
+        returnYear: year,
+        incomeInIndia: income,
+        assets: {}
+    };
+
+    try {
+        const res = await fetch('/api/nri/plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        // 5. Handle HTTP errors
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`API error (${res.status}): ${errorText}`);
+        }
+
+        const data = await res.json();
+
+        // 6. Check that expected fields exist (defensive)
+        if (!data || typeof data !== 'object') {
+            throw new Error('Invalid API response');
+        }
+
+        let html = `<div class="card"><div class="card-title">Your NRI Plan</div>`;
+        html += `<p>${data.taxNotes || 'No tax notes available.'}</p>`;
+        if (Array.isArray(data.investmentSuggestions)) {
+            html += `<ul>${data.investmentSuggestions.map(s => `<li>${s}</li>`).join('')}</ul>`;
+        }
+        html += `<p><em>${data.why || ''}</em></p></div>`;
+        $('#nri-results').innerHTML = html;
+    } catch (error) {
+        console.error('NRI plan error:', error);
+        $('#nri-results').innerHTML = `<div class="card"><p style="color:var(--red);">⚠️ ${error.message}</p></div>`;
+    }
+};
+
+async function renderAutopilot() {
+    const userId = currentUserEmail;
+    const res = await fetch('/api/autopilot/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, scenario: 'retirement' })
+    });
+    const data = await res.json();
+    let html = `
+        <div class="card">
+            <div class="card-title"><span class="icon">🤖</span> ${t('autopilot')}</div>
+            <p>${data.summary}</p>
+            <ul>${data.actions.map(a => `<li><strong>${a.step}</strong> – ${a.reason}</li>`).join('')}</ul>
+        </div>
+    `;
+    sh('page-plan', html);
+}
+
+async function renderFamily() {
+    const userId = currentUserEmail;
+    const res = await fetch('/api/family/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, profileIds: [] }) // fetch all
+    });
+    const data = await res.json();
+    let html = `
+        <div class="card">
+            <div class="card-title"><span class="icon">👪</span> ${t('family')}</div>
+            <p>Aggregate Income: ${fl(data.aggregateIncome)} | Expenses: ${fl(data.aggregateExpenses)} | Savings: ${fl(data.savings)}</p>
+            <p>${data.summary}</p>
+            <ul>${data.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
+        </div>
+    `;
+    sh('page-family', html);
+}
+
+// ========== SUPABASE DATA ==========
 async function loadUserData(email) {
     const { data, error } = await sb.from('user_data').select('*').eq('email', email).maybeSingle();
     if(error) { console.error('Load error:', error); return; }
@@ -925,9 +1226,7 @@ function debounceSave() {
     saveTimer = setTimeout(() => { if(currentUserEmail) saveUserData(currentUserEmail); }, 600);
 }
 
-// ══════════════════════════════════════════
-// AUTH
-// ══════════════════════════════════════════
+// ========== AUTH ==========
 async function checkSession() {
     const ls = document.getElementById('loading-screen');
     try {
@@ -944,7 +1243,7 @@ async function checkSession() {
         }
     } catch (e) {
         console.error('checkSession error:', e);
-        showAuth(); // fallback to auth screen
+        showAuth();
     } finally {
         if (ls) ls.style.display = 'none';
     }
@@ -998,11 +1297,9 @@ window.doReg = async () => {
 
 window.doLogout = async () => { await sb.auth.signOut(); showAuth(); };
 
-// ══════════════════════════════════════════
-// NAVIGATION
-// ══════════════════════════════════════════
-const pageTitles    = { overview:'Overview', income:'Income', expenses:'Expenses', investments:'Investments', loans:'Loans', insurance:'Insurance', schemes:'Gov. Schemes', recommendations:'Recommendations', advisor:'AI Advisor', settings:'Settings' };
-const pageSubtitles = { overview:'Financial health at a glance', income:'Your income sources', expenses:'Track your spending', investments:'Your investment portfolio', loans:'Active loans & EMIs', insurance:'Coverage & protection', schemes:'Government benefit schemes', recommendations:'Personalised for you', advisor:'AI-powered coaching', settings:'Your profile & preferences' };
+// ========== NAVIGATION ==========
+const pageTitles    = { overview:'Overview', income:'Income', expenses:'Expenses', investments:'Investments', loans:'Loans', insurance:'Insurance', schemes:'Gov. Schemes', recommendations:'Recommendations', advisor:'AI Advisor', settings:'Settings', nri:'NRI Planner', plan:'Autopilot', family:'Family' };
+const pageSubtitles = { overview:'Financial health at a glance', income:'Your income sources', expenses:'Track your spending', investments:'Your investment portfolio', loans:'Active loans & EMIs', insurance:'Coverage & protection', schemes:'Government benefit schemes', recommendations:'Personalised for you', advisor:'AI-powered coaching', settings:'Your profile & preferences', nri:'Plan your return to India', plan:'Full financial autopilot', family:'Family finance insights' };
 
 document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', function() {
@@ -1028,9 +1325,7 @@ function updateEditBtn() {
     else         { btn.textContent='✏️ Edit'; btn.classList.remove('active-edit'); }
 }
 
-// ══════════════════════════════════════════
-// RENDER DISPATCH
-// ══════════════════════════════════════════
+// ========== RENDER DISPATCH ==========
 async function renderCurrentPage() {
     const activePage = document.querySelector('.page.active-page')?.id;
     if(!activePage) return;
@@ -1045,12 +1340,14 @@ async function renderCurrentPage() {
         case 'recommendations': await renderRecommendations(); break;
         case 'advisor':         await renderAdvisor();       break;
         case 'settings':        renderSettings();            break;
+        case 'nri':             await renderNriPlanner();    break;
+        case 'plan':            await renderAutopilot();     break;
+        case 'family':          await renderFamily();        break;
+        default:                renderOverview(); // fallback
     }
 }
 
-// ══════════════════════════════════════════
-// OVERVIEW PAGE
-// ══════════════════════════════════════════
+// ========== OVERVIEW PAGE ==========
 function renderOverview() {
     if(!userData.profile.age) { sh('page-overview', emptyState('Welcome! Set up your profile first.','⚙️ Complete Profile','goSettings')); return; }
     const score   = computeHealthScore();
@@ -1189,9 +1486,7 @@ function renderOverview() {
     });
 }
 
-// ══════════════════════════════════════════
-// INCOME PAGE
-// ══════════════════════════════════════════
+// ========== INCOME PAGE ==========
 function renderIncome() {
     const inc = userData.income;
     const total = computeMonthlyIncome();
@@ -1258,9 +1553,7 @@ window.updateIncome = (field, value) => {
     debounceSave(); renderIncome();
 };
 
-// ══════════════════════════════════════════
-// EXPENSES PAGE
-// ══════════════════════════════════════════
+// ========== EXPENSES PAGE ==========
 function renderExpenses() {
     const monthly = userData.expenses.monthly || [];
     const total   = computeMonthlyExpenses();
@@ -1318,10 +1611,8 @@ window.updateExpense = (i, field, val) => {
 window.deleteExpense = i => { userData.expenses.monthly.splice(i,1); debounceSave(); renderExpenses(); };
 window.addExpense = () => { userData.expenses.monthly.push({ id:'exp-'+Date.now(), label:'New Expense', v:0 }); debounceSave(); renderExpenses(); };
 
-// ══════════════════════════════════════════
-// INVESTMENTS PAGE
-// ══════════════════════════════════════════
-function renderInvestments() {
+// ========== INVESTMENTS PAGE (with Zerodha integration) ==========
+async function renderInvestments() {
     const inv   = userData.investments || { mutualFunds:[], stocks:[], fd:[], ppf:[] };
     const total = computeTotalInvestments();
     const mfTot = (inv.mutualFunds||[]).reduce((s,f)=>s+(f.value||0),0);
@@ -1383,6 +1674,46 @@ function renderInvestments() {
                          diversified>=3  ? '✅ Well-diversified across multiple asset classes.' :
                          '💡 Good start — adding more asset classes improves risk balance.';
 
+    // Zerodha integration
+    let zerodhaSection = '';
+    const zerodhaToken = localStorage.getItem('zerodha_access_token');
+    if (zerodhaToken) {
+        try {
+            const holdingsRes = await fetch('/api/integrations/zerodha/holdings', {
+                headers: { 'X-User-Id': currentUserEmail }
+            });
+            const holdings = await holdingsRes.json();
+            if (holdings.length) {
+                let holdingsHtml = holdings.map(h => `
+                    <div class="reco-card">
+                        <h4>${h.fund_name}</h4>
+                        <p>Quantity: ${h.quantity} | NAV: ₹${h.current_price}</p>
+                        <div class="row-value">Value: ₹${(h.quantity * h.current_price).toLocaleString('en-IN')}</div>
+                    </div>
+                `).join('');
+                zerodhaSection = `
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-link"></i> Zerodha Mutual Funds</div>
+                        ${holdingsHtml}
+                    </div>
+                `;
+            } else {
+                zerodhaSection = `<div class="card"><p>No mutual funds found in your Zerodha account.</p></div>`;
+            }
+        } catch (e) {
+            console.error('Failed to fetch Zerodha holdings', e);
+            zerodhaSection = `<div class="card"><p>Error loading Zerodha holdings.</p></div>`;
+        }
+    } else {
+        zerodhaSection = `
+            <div class="card" style="text-align:center;">
+                <div class="card-title"><i class="fas fa-link"></i> Zerodha</div>
+                <p style="color:#94a3b8; margin-bottom:12px;">Connect your Zerodha account to see your mutual funds.</p>
+                <button class="primary-btn" onclick="connectZerodha()">${t('connectZerodha')} →</button>
+            </div>
+        `;
+    }
+
     sh('page-investments', `
         <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card green">
@@ -1413,6 +1744,7 @@ function renderInvestments() {
             <div class="insight-box" style="margin-top:12px;">${diversityMsg}</div>
         </div>
         <div class="grid-2">${cardsHtml}</div>
+        ${zerodhaSection}
     `);
 }
 
@@ -1428,9 +1760,7 @@ window.addInvestment = cat => {
     debounceSave(); renderInvestments();
 };
 
-// ══════════════════════════════════════════
-// LOANS PAGE — with amortization analysis
-// ══════════════════════════════════════════
+// ========== LOANS PAGE ==========
 function renderLoans() {
     const loans    = userData.loans || [];
     const totalOut = computeTotalLoanOutstanding();
@@ -1539,9 +1869,7 @@ window.addLoan = () => {
     debounceSave(); renderLoans();
 };
 
-// ══════════════════════════════════════════
-// INSURANCE PAGE
-// ══════════════════════════════════════════
+// ========== INSURANCE PAGE ==========
 function renderInsurance() {
     const ins = userData.insurance || { term:[], health:[], vehicle:[] };
     const categories = [
@@ -1636,9 +1964,7 @@ window.addInsurance = cat => {
     debounceSave(); renderInsurance();
 };
 
-// ══════════════════════════════════════════
-// SCHEMES PAGE
-// ══════════════════════════════════════════
+// ========== SCHEMES PAGE ==========
 function renderSchemes() {
     if(!userData.profile.age) { sh('page-schemes', emptyState('Complete your profile to see schemes','⚙️ Settings','goSettings')); return; }
     const schemes = userData.schemes || [];
@@ -1667,9 +1993,7 @@ function renderSchemes() {
 }
 window.removeScheme = i => { userData.schemes.splice(i,1); debounceSave(); renderSchemes(); };
 
-// ══════════════════════════════════════════
-// RECOMMENDATIONS PAGE
-// ══════════════════════════════════════════
+// ========== RECOMMENDATIONS PAGE ==========
 async function renderRecommendations() {
     if(!userData.profile.age) { sh('page-recommendations', emptyState('Complete your profile first','⚙️ Settings','goSettings')); return; }
     sh('page-recommendations', `<div class="loading-state"><div class="spinner"></div><p>Finding best products for you…</p></div>`);
@@ -1769,9 +2093,7 @@ window.enrollScheme = name => {
     }
 };
 
-// ══════════════════════════════════════════
-// ADVISOR PAGE
-// ══════════════════════════════════════════
+// ========== ADVISOR PAGE ==========
 async function renderAdvisor() {
     if(!userData.profile.age) { sh('page-advisor', emptyState('Complete your profile to get AI advice','⚙️ Settings','goSettings')); return; }
 
@@ -1835,9 +2157,7 @@ async function renderAdvisor() {
     }
 }
 
-// ══════════════════════════════════════════
-// SETTINGS PAGE
-// ══════════════════════════════════════════
+// ========== SETTINGS PAGE ==========
 function renderSettings() {
     sb.auth.getSession().then(({ data: { session } }) => {
         const email = session?.user?.email || '';
@@ -1909,9 +2229,7 @@ window.saveProfile = async () => {
     }
 };
 
-// ══════════════════════════════════════════
-// UTILITIES
-// ══════════════════════════════════════════
+// ========== UTILITIES ==========
 function emptyState(msg, cta='Get started', ctaFn='goReco') {
     return `<div class="empty-state"><div class="empty-icon">📊</div><h3>${msg}</h3><p>Start adding your data to get personalised insights.</p><button class="primary-btn" onclick="${ctaFn}()">${cta}</button></div>`;
 }
@@ -1950,14 +2268,23 @@ window.goSettings = () => document.querySelector('[data-page="settings"]').click
 window.toggleEdit = () => { editMode = !editMode; updateEditBtn(); renderCurrentPage(); };
 window.captureImage = () => showToast('📸 Snap & Track — coming soon! Scan receipts to auto-log expenses.', 'yellow');
 
-// ══════════════════════════════════════════
-// LANGUAGE
-// ══════════════════════════════════════════
-window.changeLanguage = lang => { currentLang = lang; renderCurrentPage(); };
+// ========== LANGUAGE ==========
+window.changeLanguage = lang => {
+    currentLang = lang;
+    // Update elements with data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (el.tagName === 'SPAN' || el.tagName === 'DIV' || el.tagName === 'LABEL' || el.tagName === 'BUTTON') {
+            el.innerText = t(key);
+        } else {
+            const span = el.querySelector('span');
+            if (span) span.innerText = t(key);
+        }
+    });
+    renderCurrentPage();
+};
 
-// ══════════════════════════════════════════
-// REGISTRATION SELECTORS
-// ══════════════════════════════════════════
+// ========== REGISTRATION SELECTORS ==========
 document.querySelectorAll('#aform-reg .goal-option, #aform-reg .risk-option').forEach(el=>{
     el.addEventListener('click', function(){
         if(this.classList.contains('risk-option')) {
@@ -1969,9 +2296,7 @@ document.querySelectorAll('#aform-reg .goal-option, #aform-reg .risk-option').fo
     });
 });
 
-// ══════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════
+// ========== INIT ==========
 window.onload = () => {
     checkSession();
     sb.auth.onAuthStateChange((event, session) => {
