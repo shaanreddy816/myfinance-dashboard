@@ -118,6 +118,15 @@ function getMockAdvice(module) {
       why: 'Based on provided profiles.',
       confidence: 0.5,
       missingData: []
+    },
+    advisor: {
+      summary: 'Here is your personalized advice.',
+      top_actions: [],
+      plan_7_days: [],
+      plan_30_days: [],
+      disclaimer: 'Mock advice.',
+      confidence: 0.5,
+      missingData: []
     }
   };
   return mockMap[module] || {
