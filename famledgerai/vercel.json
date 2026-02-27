@@ -5,15 +5,12 @@
   ],
   "builds": [
     { "src": "api/**/*.js", "use": "@vercel/node" },
-    { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
+    { "src": "index.html", "use": "@vercel/static" }
   ],
   "crons": [
     {
-      "path": "/api/plaid/refresh",
-      "schedule": "0 6 * * *",
-      "headers": {
-        "x-cron-secret": "your-secret-here"
-      }
+      "path": "/api/aa/refresh",
+      "schedule": "30 0 * * *"
     }
   ]
 }
