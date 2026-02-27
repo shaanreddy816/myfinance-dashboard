@@ -718,10 +718,9 @@ const REDIRECT_URI = encodeURIComponent('https://famledgerai.com/api/integration
 
 window.connectZerodha = () => {
   if (!currentUserEmail) {
-    alert('You must be logged in to connect Zerodha.');
+    alert('You must be logged in first.');
     return;
   }
-  console.log('Connecting Zerodha for user:', currentUserEmail);
   const state = encodeURIComponent(currentUserEmail);
   const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}&state=${state}`;
   window.location.href = loginUrl;
