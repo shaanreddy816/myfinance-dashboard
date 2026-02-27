@@ -493,6 +493,7 @@
             <div class="nav-item" data-page="plan"><i class="fas fa-robot"></i> <span>Autopilot</span></div>
             <div class="nav-item" data-page="family"><i class="fas fa-users"></i> <span>Family</span></div>
             <div class="nav-section-label">Account</div>
+            <div class="nav-item" data-page="accounts"><i class="fas fa-university"></i> <span>Bank Accounts</span></div>
             <div class="nav-item" data-page="settings"><i class="fas fa-cog"></i> <span>Settings</span></div>
         </div>
         <div class="sidebar-footer">
@@ -535,23 +536,26 @@
         <div id="page-nri"             class="page"></div>
         <div id="page-plan"            class="page"></div>
         <div id="page-family"          class="page"></div>
+        <div id="page-accounts"        class="page"></div>
     </div>
 </div>
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Safe env var access — works with Vite (import.meta.env) and falls back to localStorage for non-Vite serving
+const _env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
+const SUPABASE_URL      = _env.VITE_SUPABASE_URL      || localStorage.getItem('sb_url') || '';
+const SUPABASE_ANON_KEY = _env.VITE_SUPABASE_ANON_KEY || localStorage.getItem('sb_key') || '';
 
 if(!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.error('Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.');
+    console.error('Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env.local or use the config modal.');
 }
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const credsNotice = document.getElementById('creds-notice-login');
-if(credsNotice) credsNotice.style.display = 'none';
+if(credsNotice) credsNotice.style.display = (!SUPABASE_URL || !SUPABASE_ANON_KEY) ? 'block' : 'none';
 
 // ========== TRANSLATIONS ==========
 const translations = {
@@ -1092,7 +1096,7 @@ window.calculateNriPlan = async function() {
 
     // Clear any previously stored plan
     window.lastNriPlanHtml = null;
-    sh('nri-results', fullHtml);
+    sh('nri-results', '<div class="loading-state"><div class="spinner"></div><p>Generating your personalised NRI plan…</p></div>');
 
     try {
         // Grab all inputs
@@ -1610,8 +1614,8 @@ window.doReg = async () => {
 window.doLogout = async () => { await sb.auth.signOut(); showAuth(); };
 
 // ========== NAVIGATION ==========
-const pageTitles    = { overview:'Overview', income:'Income', expenses:'Expenses', investments:'Investments', loans:'Loans', insurance:'Insurance', schemes:'Gov. Schemes', recommendations:'Recommendations', advisor:'AI Advisor', settings:'Settings', nri:'NRI Planner', plan:'Autopilot', family:'Family' };
-const pageSubtitles = { overview:'Financial health at a glance', income:'Your income sources', expenses:'Track your spending', investments:'Your investment portfolio', loans:'Active loans & EMIs', insurance:'Coverage & protection', schemes:'Government benefit schemes', recommendations:'Personalised for you', advisor:'AI-powered coaching', settings:'Your profile & preferences', nri:'Plan your return to India', plan:'Full financial autopilot', family:'Family finance insights' };
+const pageTitles    = { overview:'Overview', income:'Income', expenses:'Expenses', investments:'Investments', loans:'Loans', insurance:'Insurance', schemes:'Gov. Schemes', recommendations:'Recommendations', advisor:'AI Advisor', settings:'Settings', nri:'NRI Planner', plan:'Autopilot', family:'Family', accounts: 'Bank Accounts'  };
+const pageSubtitles = { overview:'Financial health at a glance', income:'Your income sources', expenses:'Track your spending', investments:'Your investment portfolio', loans:'Active loans & EMIs', insurance:'Coverage & protection', schemes:'Government benefit schemes', recommendations:'Personalised for you', advisor:'AI-powered coaching', settings:'Your profile & preferences', nri:'Plan your return to India', plan:'Full financial autopilot', family:'Family finance insights', accounts: 'Manage your linked accounts' };
 
 document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', function() {
@@ -1655,6 +1659,7 @@ async function renderCurrentPage() {
         case 'nri':             await renderNriPlanner();    break;
         case 'plan':            await renderAutopilot();     break;
         case 'family':          await renderFamily();        break;
+        case 'accounts':        await renderAccounts();      break;
         default:                renderOverview(); // fallback
     }
 }
@@ -2542,6 +2547,79 @@ window.saveProfile = async () => {
         showToast('Profile saved successfully!');
         renderCurrentPage();
     }
+};
+
+// ========== ACCOUNTS PAGE ==========
+async function renderAccounts() {
+  sh('page-accounts', `<div class="loading-state"><div class="spinner"></div><p>Loading your accounts...</p></div>`);
+
+  if (!currentUserEmail) {
+    sh('page-accounts', `<div class="card"><p style="color:var(--red);">Please log in first.</p></div>`);
+    return;
+  }
+
+  try {
+    // Fetch linked accounts — falls back gracefully if endpoint not yet deployed
+    let accounts = [];
+    try {
+      const res = await fetch('/api/accounts', {
+        headers: { 'X-User-Id': currentUserEmail }
+      });
+      if (res.ok) accounts = await res.json();
+    } catch(_) { /* endpoint not deployed yet, show empty state */ }
+
+    let html = `
+      <div class="card" style="text-align:center;">
+        <div class="card-title"><span class="icon">🏦</span> Your Bank Accounts</div>
+        <p style="color:#94a3b8; margin-bottom:12px;">Connect your bank to automatically track balances and transactions.</p>
+        <button class="primary-btn" onclick="connectBank()">➕ Connect New Bank</button>
+      </div>
+    `;
+
+    if (accounts.length > 0) {
+      const accountsList = accounts.map(acc => `
+        <div class="kpi-card" style="margin-bottom:12px;">
+          <div class="kpi-label">${acc.name}</div>
+          <div class="kpi-value">${fl(acc.last_balance || 0)}</div>
+          <div class="kpi-sub">Last updated: ${acc.last_refreshed_at ? new Date(acc.last_refreshed_at).toLocaleDateString() : 'Never'}</div>
+        </div>
+      `).join('');
+      html += `<div class="card"><div class="card-title">Linked Accounts</div>${accountsList}</div>`;
+    } else {
+      html += `<div class="card"><p style="color:var(--text3);">No accounts connected yet. Click the button above to get started.</p></div>`;
+    }
+
+    sh('page-accounts', html);
+  } catch (e) {
+    console.error('Failed to load accounts', e);
+    sh('page-accounts', `<div class="card"><p style="color:var(--red);">Error loading accounts. Please try again.</p></div>`);
+  }
+}
+
+// ========== CONNECT BANK BUTTON ==========
+window.connectBank = async () => {
+  if (!currentUserEmail) {
+    alert('You must be logged in first.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/aa/create-consent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUserEmail })
+    });
+
+    const { consentUrl } = await res.json();
+    if (consentUrl) {
+      window.location.href = consentUrl; // redirect to Setu's consent page
+    } else {
+      alert('Failed to initiate bank connection.');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Error connecting bank.');
+  }
 };
 
 // ========== UTILITIES ==========
