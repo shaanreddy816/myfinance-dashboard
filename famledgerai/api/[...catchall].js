@@ -30,36 +30,31 @@ export default async function handler(req, res) {
   if (path === 'integrations/zerodha/mf-holdings')   return handleZerodhaHoldings(req, res);
   if (path === 'integrations/zerodha/mf-sips')       return handleZerodhaMfSips(req, res);
 
+  // Optional test endpoint – remove in production if desired
   if (path === 'test-env') {
-  return res.status(200).json({
-    message: 'Environment check',
-    SUPABASE_URL: process.env.SUPABASE_URL || 'undefined',
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'defined' : 'undefined',
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? 'defined' : 'undefined',
-    NODE_ENV: process.env.NODE_ENV,
-  });
-}
+    return res.status(200).json({
+      message: 'Environment check',
+      SUPABASE_URL: process.env.SUPABASE_URL || 'undefined',
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'defined' : 'undefined',
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? 'defined' : 'undefined',
+      NODE_ENV: process.env.NODE_ENV,
+    });
+  }
 
   return res.status(404).json({ error: 'Not found' });
 }
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
 
-/**
- * Resolve Supabase UUID from either a UUID string or an email address.
- * The frontend sends currentUserEmail (e.g. "user@gmail.com").
- * We look up auth.users to find the UUID, then use that for all DB queries.
- * Falls back gracefully: if already a UUID format, use as-is.
- */
 async function resolveUserId(userIdOrEmail) {
   if (!userIdOrEmail) return null;
 
-  // Already looks like a UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+  // Already looks like a UUID
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userIdOrEmail)) {
     return userIdOrEmail;
   }
 
-  // It's an email — look up the UUID
+  // It's an email – look up the UUID
   const { data, error } = await supabase
     .from('user_data')
     .select('id')
@@ -74,9 +69,6 @@ async function resolveUserId(userIdOrEmail) {
   return data?.id || null;
 }
 
-/**
- * Safe Supabase query — always returns an array, never null.
- */
 async function safeQuery(query) {
   const { data, error } = await query;
   if (error) console.warn('Supabase query warning:', error.message);
@@ -121,7 +113,6 @@ Return a JSON object with keys: summary, top_actions (array of {action, reason, 
 async function handleNriPlan(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Guard against missing or invalid body
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Invalid request body' });
   }
@@ -202,11 +193,7 @@ async function handleAutopilot(req, res) {
   const { userId, scenario = 'retirement' } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId required' });
 
-  // FIX: resolve UUID from email, then query with UUID
-  // But since user_data is keyed by email, we read from user_data directly.
-  // The Autopilot uses loans/investments/profiles from user_data JSON columns.
   try {
-    // Try to get data from user_data table (keyed by email)
     const isEmail = userIdOrEmail => userIdOrEmail.includes('@');
 
     let userData = null;
@@ -219,13 +206,10 @@ async function handleAutopilot(req, res) {
       userData = data;
     }
 
-    // Build projection inputs from user_data JSON columns (frontend-stored data)
-    // OR fall back to dedicated tables if using UUID
     let loans       = userData?.loans       || [];
     let investments = userData?.investments  || {};
     let profileData = userData?.profile      || {};
 
-    // Normalize investments to array for deterministicProjection
     const investArray = [
       ...(investments.mutualFunds || []).map(f => ({ value: f.value || 0 })),
       ...(investments.stocks      || []).map(f => ({ value: f.value || 0 })),
@@ -233,17 +217,15 @@ async function handleAutopilot(req, res) {
       ...(investments.ppf         || []).map(f => ({ value: f.value || 0 })),
     ];
 
-    // Normalize loans — deterministicProjection expects { emi, outstanding }
     const loansNorm = loans.map(l => ({
       emi:         l.emi         || 0,
       outstanding: l.outstanding || 0,
       label:       l.label       || ''
     }));
 
-    // Build a profile array for deterministicProjection
     const profiles = [{
       income_monthly:   (profileData.income?.husband || 0) + (profileData.income?.wife || 0) + (profileData.income?.rental || 0),
-      monthly_expenses: 0, // expenses are nested; sum them if available
+      monthly_expenses: 0,
       age:              profileData.age || 35
     }];
 
@@ -301,7 +283,6 @@ async function handleFamily(req, res) {
   if (!userId) return res.status(400).json({ error: 'userId required' });
 
   try {
-    // Read from user_data (email-keyed) since the frontend stores everything there
     const isEmail = s => typeof s === 'string' && s.includes('@');
 
     let allProfiles = [];
@@ -316,9 +297,6 @@ async function handleFamily(req, res) {
       userRecord = data;
     }
 
-    // The frontend stores a single user's data; build "family members" from profile selector
-    // If profileIds is non-empty, treat each as a named profile (Me, Wife, Kid, etc.)
-    // For now, generate insights from the single user's data + named context
     if (userRecord) {
       const profile  = userRecord.profile     || {};
       const income   = userRecord.income       || {};
@@ -326,7 +304,6 @@ async function handleFamily(req, res) {
       const loans    = userRecord.loans        || [];
       const ins      = userRecord.insurance    || {};
 
-      // Build synthetic per-member profiles for AI
       const members = [];
 
       if (income.husband > 0) {
@@ -348,7 +325,6 @@ async function handleFamily(req, res) {
         });
       }
 
-      // If no members found, create one from the full profile
       if (members.length === 0) {
         members.push({
           name:             profile.name || 'User',
@@ -406,7 +382,6 @@ Return ONLY valid JSON with these keys:
       });
     }
 
-    // Fallback: no user_data found — return mock with helpful error
     return res.status(200).json({
       aggregateIncome:   0,
       aggregateExpenses: 0,
@@ -434,7 +409,6 @@ async function handleInvest(req, res) {
   if (!userId) return res.status(400).json({ error: 'userId required' });
 
   try {
-    // Try user_data first (email-keyed)
     let riskScore  = 5;
     let horizon    = 'medium';
     let holdings   = [];
@@ -464,7 +438,6 @@ async function handleInvest(req, res) {
         goals = data.profile?.goals || [];
       }
     } else {
-      // UUID mode — query dedicated tables
       const riskData = await safeQuery(
         supabase.from('risk_profiles').select('*')
           .eq('user_id', userId).eq('profile_id', profileId || '')
@@ -513,7 +486,6 @@ Return ONLY valid JSON:
 
     const aiResponse = await callAIWithFallback(prompt, 'invest_recommend');
 
-    // Log if table exists (non-critical)
     supabase.from('ai_advice_logs').insert({
       user_id:          userId,
       module:           'invest_recommend',
@@ -544,7 +516,6 @@ async function handleBudget(req, res) {
     let savingsRate    = 0;
 
     if (isEmail(userId)) {
-      // Read from user_data JSON columns (frontend's storage structure)
       const { data } = await supabase
         .from('user_data')
         .select('income, expenses, loans')
@@ -561,16 +532,14 @@ async function handleBudget(req, res) {
         const totalEmi= loans.reduce((s, l) => s + (l.emi || 0), 0);
         savingsRate   = totalIncome ? (totalIncome - totalExpenses - totalEmi) / totalIncome : 0;
 
-        // Build category breakdown from expense items
         categoryBreakdown = (exp.monthly || []).map(e => ({
           category: e.label,
           spent:    e.v || 0,
-          budget:   (e.v || 0) * 1.1, // no budgets set → use 110% as "budget"
+          budget:   (e.v || 0) * 1.1,
           status:   'green'
         }));
       }
     } else {
-      // UUID mode — query transactions and budgets tables
       const transactions = await safeQuery(
         supabase.from('transactions').select('*').eq('user_id', userId)
           .gte('transaction_date', new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0])
@@ -619,7 +588,6 @@ Return ONLY valid JSON:
 
     const aiResponse = await callAIWithFallback(prompt, 'budget_coach');
 
-    // Non-critical log
     supabase.from('ai_advice_logs').insert({
       user_id:          userId,
       module:           'budget_coach',
@@ -643,14 +611,19 @@ Return ONLY valid JSON:
 
 // ─── ZERODHA ───────────────────────────────────────────────────────────────────
 
+/**
+ * Enhanced callback that uses the 'state' parameter to identify the user
+ * and stores the access token in the Supabase 'integrations' table.
+ */
 async function handleZerodhaCallback(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  const { request_token } = req.query;
+  const { request_token, state } = req.query;  // state contains the user's email
   const apiKey    = process.env.KITE_API_KEY;
   const apiSecret = process.env.KITE_API_SECRET;
 
   if (!apiKey || !apiSecret) return res.status(500).send('Missing KITE_API_KEY or KITE_API_SECRET');
   if (!request_token)        return res.status(400).send('Missing request_token');
+  if (!state)                return res.status(400).send('Missing state (user email)');
 
   try {
     const checksum = crypto.createHash('sha256')
@@ -666,11 +639,29 @@ async function handleZerodhaCallback(req, res) {
 
     if (data.status === 'success') {
       const accessToken = data.data.access_token;
-      // Store token in integrations table if user is known
-      return res.redirect(`https://famledgerai.com/zerodha-success.html?access_token=${accessToken}`);
+
+      // Store token in Supabase integrations table
+      const { error } = await supabase
+        .from('integrations')
+        .upsert({
+          user_id: state,            // state contains the user's email
+          provider: 'zerodha',
+          access_token: accessToken,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,provider' });
+
+      if (error) {
+        console.error('Failed to store Zerodha token:', error);
+        return res.status(500).send('Failed to store token.');
+      }
+
+      // Redirect to a simple success page (which will redirect back to the app)
+      // Ensure zerodha-success.html exists in your public folder.
+      return res.redirect(`https://famledgerai.com/zerodha-success.html?status=success`);
     }
     return res.status(400).send(`Kite API error: ${JSON.stringify(data)}`);
   } catch (error) {
+    console.error('Callback error:', error);
     return res.status(500).send(`Server error: ${error.message}`);
   }
 }
@@ -709,7 +700,7 @@ async function handleZerodhaHoldings(req, res) {
       last_synced:    new Date().toISOString()
     }));
 
-    // Upsert to portfolio_holdings (non-critical)
+    // Optionally upsert to portfolio_holdings
     for (const h of holdings) {
       await supabase.from('portfolio_holdings')
         .upsert({ user_id: userId, ...h }, { onConflict: 'fund_name' })

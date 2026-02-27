@@ -717,7 +717,8 @@ const KITE_API_KEY = 'hxibmuy0fm8jdbif'; // Replace with your actual key
 const REDIRECT_URI = encodeURIComponent('https://famledgerai.com/api/integrations/zerodha/callback');
 
 window.connectZerodha = () => {
-    const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}`;
+    const state = encodeURIComponent(currentUserEmail);  // pass the logged‑in user's email
+    const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}&state=${state}`;
     window.location.href = loginUrl;
 };
 
@@ -740,6 +741,9 @@ let currentMonth = '2026-02';
 let currentLang = 'en';
 let saveTimer = null;
 let currentUserEmail = '';
+
+// Stores the last generated NRI plan HTML so it persists across re‑renders
+window.lastNriPlanHtml = null;
 
 // ========== AUTO-LOGOUT ==========
 let inactivityTimer;
@@ -1084,6 +1088,7 @@ window.calculateNriPlan = async function() {
 
     // Clear any previously stored plan
     window.lastNriPlanHtml = null;
+    sh('nri-results', fullHtml);
 
     try {
         // Grab all inputs
@@ -1977,14 +1982,22 @@ async function renderInvestments() {
                          diversified>=3  ? '✅ Well-diversified across multiple asset classes.' :
                          '💡 Good start — adding more asset classes improves risk balance.';
 
-    // Zerodha integration
+    // ===== UPDATED ZERODHA SECTION – no localStorage, always fetch =====
     let zerodhaSection = '';
-    const zerodhaToken = localStorage.getItem('zerodha_access_token');
-    if (zerodhaToken) {
-        try {
-            const holdingsRes = await fetch('/api/integrations/zerodha/holdings', {
-                headers: { 'X-User-Id': currentUserEmail }
-            });
+    try {
+        const holdingsRes = await fetch('/api/integrations/zerodha/holdings', {
+            headers: { 'X-User-Id': currentUserEmail }
+        });
+        if (holdingsRes.status === 404) {
+            // Not connected – show connect button
+            zerodhaSection = `
+                <div class="card" style="text-align:center;">
+                    <div class="card-title"><i class="fas fa-link"></i> Zerodha</div>
+                    <p style="color:#94a3b8; margin-bottom:12px;">Connect your Zerodha account to see your mutual funds.</p>
+                    <button class="primary-btn" onclick="connectZerodha()">${t('connectZerodha')} →</button>
+                </div>
+            `;
+        } else if (holdingsRes.ok) {
             const holdings = await holdingsRes.json();
             if (holdings.length) {
                 let holdingsHtml = holdings.map(h => `
@@ -2003,18 +2016,13 @@ async function renderInvestments() {
             } else {
                 zerodhaSection = `<div class="card"><p>No mutual funds found in your Zerodha account.</p></div>`;
             }
-        } catch (e) {
-            console.error('Failed to fetch Zerodha holdings', e);
+        } else {
+            // Some other error (e.g., 500)
             zerodhaSection = `<div class="card"><p>Error loading Zerodha holdings.</p></div>`;
         }
-    } else {
-        zerodhaSection = `
-            <div class="card" style="text-align:center;">
-                <div class="card-title"><i class="fas fa-link"></i> Zerodha</div>
-                <p style="color:#94a3b8; margin-bottom:12px;">Connect your Zerodha account to see your mutual funds.</p>
-                <button class="primary-btn" onclick="connectZerodha()">${t('connectZerodha')} →</button>
-            </div>
-        `;
+    } catch (e) {
+        console.error('Failed to fetch Zerodha holdings', e);
+        zerodhaSection = `<div class="card"><p>Error loading Zerodha holdings.</p></div>`;
     }
 
     sh('page-investments', `
