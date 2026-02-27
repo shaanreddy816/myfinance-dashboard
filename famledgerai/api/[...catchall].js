@@ -618,6 +618,7 @@ Return ONLY valid JSON:
 async function handleZerodhaCallback(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   const { request_token, state } = req.query;  // state contains the user's email
+  console.log('Zerodha callback query:', req.query); 
   const apiKey    = process.env.KITE_API_KEY;
   const apiSecret = process.env.KITE_API_SECRET;
 
