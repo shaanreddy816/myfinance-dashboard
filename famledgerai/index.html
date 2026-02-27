@@ -1034,137 +1034,440 @@ async function renderBudgetCoach() {
 }
 
 async function renderNriPlanner() {
-    const html = `
+    // If we already have a stored plan, show the form + existing results
+    const storedHtml = window.lastNriPlanHtml ? `<div id="nri-results">${window.lastNriPlanHtml}</div>` : '<div id="nri-results"></div>';
+
+    const formHtml = `
         <div class="card">
-            <div class="card-title"><span class="icon">✈️</span> ${t('nriPlanner')}</div>
-            <p>Plan your return to India.</p>
-            <label>Current Country</label>
-            <input id="nri-country" class="ainp" value="US">
-            <label>Return Year</label>
-            <input id="nri-year" class="ainp" type="number" value="2028">
-            <label>Expected Annual Income in India (₹)</label>
-            <input id="nri-income" class="ainp" type="number" value="2500000">
-            <button class="primary-btn" onclick="calculateNriPlan()">Get Plan</button>
+            <div class="card-title"><span class="icon">✈️</span> NRI Planner</div>
+            <p style="font-size:13px; color:var(--text2); margin-bottom:16px; line-height:1.6;">
+                Plan your financial transition back to India — taxes, investments, accounts & more.
+            </p>
+            <div class="grid-2">
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Current Country of Residence</label>
+                    <input id="nri-country" class="modal-inp" value="US" placeholder="US, UK, UAE...">
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Planned Return Year</label>
+                    <input id="nri-year" class="modal-inp" type="number" value="2028" min="2025" max="2040">
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Foreign Annual Income (₹ equivalent)</label>
+                    <input id="nri-foreign-income" class="modal-inp" type="number" value="5000000" placeholder="e.g. 5000000">
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Expected Indian Annual Income (₹)</label>
+                    <input id="nri-income" class="modal-inp" type="number" value="2500000" placeholder="e.g. 2500000">
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Total Foreign Assets (₹ equivalent)</label>
+                    <input id="nri-assets" class="modal-inp" type="number" value="10000000" placeholder="e.g. 10000000">
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">NRE/NRO Account Balance (₹)</label>
+                    <input id="nri-nre-balance" class="modal-inp" type="number" value="0" placeholder="e.g. 1000000">
+                </div>
+            </div>
+            <button class="primary-btn" id="nri-btn" type="button" onclick="calculateNriPlan()">
+                🧮 Get NRI Plan
+            </button>
         </div>
-        <div id="nri-results"></div>
+        ${storedHtml}
     `;
-    sh('page-nri', html);
+    sh('page-nri', formHtml);
 }
 
 window.calculateNriPlan = async function() {
-    // 1. Check login
-    if (!currentUserEmail) { 
-        showToast('Please log in first'); 
-        return; 
-    }
+    const btn = document.getElementById('nri-btn');
+    if (btn) { btn.textContent = '⏳ Analysing…'; btn.disabled = true; }
 
-    // 2. Get input values and validate
-    const countryInput = $('#nri-country');
-    const yearInput = $('#nri-year');
-    const incomeInput = $('#nri-income');
-    
-    if (!countryInput || !yearInput || !incomeInput) {
-        showToast('Form inputs not found');
-        return;
-    }
-
-    const country = countryInput.value.trim();
-    const year = parseInt(yearInput.value);
-    const income = parseInt(incomeInput.value);
-
-    if (!country) {
-        showToast('Please enter a country');
-        return;
-    }
-    if (isNaN(year) || year < 2025) {
-        showToast('Please enter a valid return year (2025 or later)');
-        return;
-    }
-    if (isNaN(income) || income <= 0) {
-        showToast('Please enter a valid annual income');
-        return;
-    }
-
-    // 3. Show loading state (optional)
-    $('#nri-results').innerHTML = '<p>Loading...</p>';
-
-    // 4. Prepare request body – ideally you'd convert email to user ID here
-    const payload = {
-        userId: currentUserEmail,   // replace with actual user ID mapping if needed
-        currentCountry: country,
-        returnYear: year,
-        incomeInIndia: income,
-        assets: {}
-    };
+    // Clear any previously stored plan
+    window.lastNriPlanHtml = null;
 
     try {
+        // Grab all inputs
+        const country       = (document.getElementById('nri-country')?.value || '').trim();
+        const returnYear    = parseInt(document.getElementById('nri-year')?.value || '2028');
+        const foreignIncome = parseFloat(document.getElementById('nri-foreign-income')?.value || '0');
+        const indianIncome  = parseFloat(document.getElementById('nri-income')?.value || '0');
+        const assets        = parseFloat(document.getElementById('nri-assets')?.value || '0');
+        const nreBalance    = parseFloat(document.getElementById('nri-nre-balance')?.value || '0');
+
+        if (!country) { showToast('Please enter your country of residence', 'yellow'); return; }
+
+        // Show loading in results area
+        sh('nri-results', `<div class="loading-state"><div class="spinner"></div><p>Generating your personalised NRI plan…</p></div>`);
+
+        const payload = {
+            userId:        currentUserEmail,
+            country,
+            returnYear,
+            foreignIncome,
+            indianIncome,
+            assets,
+            nreBalance,
+            userProfile:   userData.profile,
+            loans:         userData.loans,
+            investments:   userData.investments
+        };
+
         const res = await fetch('/api/nri/plan', {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body:    JSON.stringify(payload)
         });
 
-        // 5. Handle HTTP errors
         if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(`API error (${res.status}): ${errorText}`);
+            const errText = await res.text();
+            throw new Error(`API error ${res.status}: ${errText}`);
         }
 
         const data = await res.json();
+        if (data.error) throw new Error(data.error);
 
-        // 6. Check that expected fields exist (defensive)
-        if (!data || typeof data !== 'object') {
-            throw new Error('Invalid API response');
-        }
+        // Build result HTML
+        const taxHtml = data.taxNotes ? `
+            <div class="card">
+                <div class="card-title"><span class="icon">🧾</span> Tax Planning Notes</div>
+                <div class="advisor-msg">
+                    <p style="white-space:pre-wrap; line-height:1.7;">${data.taxNotes}</p>
+                </div>
+            </div>
+        ` : '';
 
-        let html = `<div class="card"><div class="card-title">Your NRI Plan</div>`;
-        html += `<p>${data.taxNotes || 'No tax notes available.'}</p>`;
-        if (Array.isArray(data.investmentSuggestions)) {
-            html += `<ul>${data.investmentSuggestions.map(s => `<li>${s}</li>`).join('')}</ul>`;
-        }
-        html += `<p><em>${data.why || ''}</em></p></div>`;
-        $('#nri-results').innerHTML = html;
-    } catch (error) {
-        console.error('NRI plan error:', error);
-        $('#nri-results').innerHTML = `<div class="card"><p style="color:var(--red);">⚠️ ${error.message}</p></div>`;
+        const investHtml = (data.investmentSuggestions || []).length ? `
+            <div class="card">
+                <div class="card-title"><span class="icon">📊</span> Investment Suggestions</div>
+                ${data.investmentSuggestions.map((s, i) => `
+                    <div class="reco-card">
+                        <p style="font-size:13px; color:var(--text2); line-height:1.6;">${i + 1}. ${s}</p>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
+
+        const repatHtml = (data.repatriationSteps || []).length ? `
+            <div class="card">
+                <div class="card-title"><span class="icon">🏦</span> Repatriation Steps</div>
+                ${data.repatriationSteps.map((s, i) => `
+                    <div class="row-flex">
+                        <span class="row-label" style="font-size:13px;">Step ${i + 1}: ${s}</span>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
+
+        const projHtml = (data.cashflowProjection || []).length ? `
+            <div class="card">
+                <div class="card-title"><span class="icon">📈</span> Cashflow Projection</div>
+                <table class="data-table">
+                    <thead><tr><th>Year</th><th>Inflow</th><th>Outflow</th><th>Net</th></tr></thead>
+                    <tbody>
+                    ${data.cashflowProjection.map(row => `
+                        <tr>
+                            <td>${row.year}</td>
+                            <td class="mono">${fl(row.inflow || 0)}</td>
+                            <td class="mono">${fl(row.outflow || 0)}</td>
+                            <td class="mono" style="color:${(row.net || 0) >= 0 ? 'var(--green)' : 'var(--red)'};">${fl(row.net || 0)}</td>
+                        </tr>
+                    `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        ` : '';
+
+        const confidencePct = Math.round((data.confidence || 0.5) * 100);
+        const confidenceColor = confidencePct >= 70 ? 'var(--green)' : confidencePct >= 40 ? 'var(--yellow)' : 'var(--red)';
+
+        const missingHtml = (data.missingData || []).length ? `
+            <div class="insight-box" style="margin-bottom:18px;">
+                <strong>💡 To improve accuracy, add:</strong> ${data.missingData.join(', ')}
+            </div>
+        ` : '';
+
+        const summaryHtml = `
+            <div class="card" style="background:linear-gradient(135deg, var(--bg2), var(--bg3)); border-color:var(--accent);">
+                <div class="card-title"><span class="icon">🌍</span> Your NRI Transition Plan</div>
+                <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:16px;">
+                    <div><div style="font-size:11px; color:var(--text3);">Return Year</div><div style="font-family:var(--mono); font-size:18px; font-weight:800; color:var(--accent2);">${returnYear}</div></div>
+                    <div><div style="font-size:11px; color:var(--text3);">From</div><div style="font-family:var(--mono); font-size:18px; font-weight:800;">${country.toUpperCase()}</div></div>
+                    <div><div style="font-size:11px; color:var(--text3);">Foreign Assets</div><div style="font-family:var(--mono); font-size:18px; font-weight:800; color:var(--yellow);">${fl(assets)}</div></div>
+                    <div><div style="font-size:11px; color:var(--text3);">Confidence</div><div style="font-family:var(--mono); font-size:18px; font-weight:800; color:${confidenceColor};">${confidencePct}%</div></div>
+                </div>
+                ${data.why ? `<div class="advisor-msg"><p style="font-size:13px; color:var(--text2); line-height:1.6;">${data.why}</p></div>` : ''}
+            </div>
+        `;
+
+        const fullHtml = summaryHtml + missingHtml + taxHtml + investHtml + repatHtml + projHtml;
+        window.lastNriPlanHtml = fullHtml;
+        sh('nri-results', fullHtml);
+
+    } catch (e) {
+        console.error('NRI Plan error:', e);
+        sh('nri-results', `
+            <div class="card">
+                <p style="color:var(--red); margin-bottom:12px;">⚠️ Could not generate plan: ${e.message}</p>
+                <p style="color:var(--text3); font-size:13px; margin-bottom:12px;">
+                    Make sure the <code style="font-family:var(--mono);">/api/nri/plan</code> endpoint is running and returning valid JSON.
+                </p>
+                <button class="secondary-btn" onclick="calculateNriPlan()">🔄 Try Again</button>
+            </div>
+        `);
+    } finally {
+        const btn = document.getElementById('nri-btn');
+        if (btn) { btn.textContent = '🧮 Get NRI Plan'; btn.disabled = false; }
     }
 };
 
 async function renderAutopilot() {
-    const userId = currentUserEmail;
-    const res = await fetch('/api/autopilot/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, scenario: 'retirement' })
-    });
-    const data = await res.json();
-    let html = `
-        <div class="card">
-            <div class="card-title"><span class="icon">🤖</span> ${t('autopilot')}</div>
-            <p>${data.summary}</p>
-            <ul>${data.actions.map(a => `<li><strong>${a.step}</strong> – ${a.reason}</li>`).join('')}</ul>
-        </div>
-    `;
-    sh('page-plan', html);
+    sh('page-plan', `<div class="loading-state"><div class="spinner"></div><p>Running financial autopilot…</p></div>`);
+
+    if (!currentUserEmail) {
+        sh('page-plan', `<div class="card"><p style="color:var(--red);">Please log in first.</p></div>`);
+        return;
+    }
+
+    try {
+        const scenarios = ['retirement', 'optimistic', 'conservative'];
+        let activeScenario = 'retirement';
+
+        const doFetch = async (scenario) => {
+            const res = await fetch('/api/autopilot/plan', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ userId: currentUserEmail, scenario })
+            });
+            if (!res.ok) throw new Error(`API error ${res.status}`);
+            return res.json();
+        };
+
+        const data = await doFetch(activeScenario);
+        if (data.error) throw new Error(data.error);
+
+        const proj = data.projections?.summary || {};
+
+        const actionsHtml = (data.actions || []).map(a => `
+            <div class="reco-card">
+                <h4 style="color:var(--accent2); font-size:13px; margin-bottom:4px;">${a.step || a.action || '—'}</h4>
+                <p>${a.reason || ''}</p>
+                ${a.amount ? `<div class="row-value" style="margin-top:8px; color:var(--green);">${fl(a.amount)}</div>` : ''}
+            </div>
+        `).join('') || `<p style="color:var(--text3); font-size:13px;">No actions generated yet.</p>`;
+
+        const scheduleHtml = (data.schedule || []).map((s, i) => `
+            <div class="row-flex">
+                <span class="row-label">Month ${i + 1}: ${s.action || s}</span>
+                ${s.amount ? `<span class="row-value">${fl(s.amount)}</span>` : ''}
+            </div>
+        `).join('');
+
+        const confidencePct = Math.round((data.confidence || 0.5) * 100);
+        const confidenceColor = confidencePct >= 70 ? 'var(--green)' : confidencePct >= 40 ? 'var(--yellow)' : 'var(--red)';
+
+        sh('page-plan', `
+            <div class="card" style="background:linear-gradient(135deg, var(--bg2), var(--bg3)); border-color:var(--accent); margin-bottom:18px;">
+                <div class="card-title"><span class="icon">🤖</span> Autopilot — ${activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1)} Scenario</div>
+                <div class="advisor-msg">
+                    <p style="font-size:14px; line-height:1.7;">${data.summary || 'No summary available.'}</p>
+                </div>
+                <div class="grid-4" style="margin-top:16px;">
+                    ${proj.retirementCorpus ? `<div class="kpi-card green"><div class="kpi-label">Projected Corpus</div><div class="kpi-value">${fl(proj.retirementCorpus)}</div><div class="kpi-sub">At retirement</div></div>` : ''}
+                    ${proj.yearsToRetire ? `<div class="kpi-card"><div class="kpi-label">Years to Retire</div><div class="kpi-value">${proj.yearsToRetire}</div><div class="kpi-sub">Based on age 60</div></div>` : ''}
+                    ${proj.monthlySavings ? `<div class="kpi-card ${proj.monthlySavings >= 0 ? 'green' : 'red'}"><div class="kpi-label">Monthly Savings</div><div class="kpi-value">${fl(proj.monthlySavings)}</div><div class="kpi-sub">Available to invest</div></div>` : ''}
+                    <div class="kpi-card ${confidencePct >= 70 ? 'green' : 'yellow'}"><div class="kpi-label">AI Confidence</div><div class="kpi-value" style="color:${confidenceColor};">${confidencePct}%</div><div class="kpi-sub">Plan reliability</div></div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+                    ${scenarios.map(s => `
+                        <button class="secondary-btn" style="${s === activeScenario ? 'border-color:var(--accent); color:var(--accent2);' : ''}"
+                            onclick="switchAutopilotScenario('${s}')">
+                            ${s === 'retirement' ? '🏖️' : s === 'optimistic' ? '📈' : '🛡️'} ${s.charAt(0).toUpperCase() + s.slice(1)}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title"><span class="icon">🎯</span> Recommended Actions</div>
+                    ${actionsHtml}
+                </div>
+                ${scheduleHtml ? `
+                    <div class="card">
+                        <div class="card-title"><span class="icon">📅</span> 12-Month Schedule</div>
+                        ${scheduleHtml}
+                    </div>
+                ` : `
+                    <div class="card">
+                        <div class="card-title"><span class="icon">💡</span> Why Autopilot?</div>
+                        <div class="advisor-msg">
+                            <p style="font-size:13px; line-height:1.6;">${data.why || 'This plan is personalised to your loans, income, investments, and goals.'}</p>
+                        </div>
+                        ${(data.missingData || []).length ? `
+                            <div class="insight-box" style="margin-top:12px;">
+                                <strong>📝 Add this data for a better plan:</strong> ${data.missingData.join(', ')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `}
+            </div>
+            <button class="secondary-btn" style="margin-top:8px;" onclick="renderAutopilot()">🔄 Refresh Plan</button>
+        `);
+
+    } catch (e) {
+        console.error('Autopilot error:', e);
+        sh('page-plan', `
+            <div class="card">
+                <p style="color:var(--red); margin-bottom:12px;">⚠️ Autopilot error: ${e.message}</p>
+                <p style="color:var(--text3); font-size:13px; margin-bottom:12px; line-height:1.6;">
+                    Make sure your profile, loans, and investments are set up.
+                    The <code style="font-family:var(--mono);">/api/autopilot/plan</code> endpoint must be running.
+                </p>
+                <button class="secondary-btn" onclick="renderAutopilot()">🔄 Try Again</button>
+            </div>
+        `);
+    }
 }
 
+window.switchAutopilotScenario = async (scenario) => {
+    // Quick re-render with new scenario
+    sh('page-plan', `<div class="loading-state"><div class="spinner"></div><p>Switching to ${scenario} scenario…</p></div>`);
+    try {
+        const res = await fetch('/api/autopilot/plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUserEmail, scenario })
+        });
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        // Re-render with fresh data (reuse the full renderer above approach)
+        await renderAutopilot();
+    } catch (e) {
+        sh('page-plan', `<div class="card"><p style="color:var(--red);">Error: ${e.message}</p><button class="secondary-btn" onclick="renderAutopilot()">Back</button></div>`);
+    }
+};
+
 async function renderFamily() {
-    const userId = currentUserEmail;
-    const res = await fetch('/api/family/insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, profileIds: [] }) // fetch all
-    });
-    const data = await res.json();
-    let html = `
-        <div class="card">
-            <div class="card-title"><span class="icon">👪</span> ${t('family')}</div>
-            <p>Aggregate Income: ${fl(data.aggregateIncome)} | Expenses: ${fl(data.aggregateExpenses)} | Savings: ${fl(data.savings)}</p>
-            <p>${data.summary}</p>
-            <ul>${data.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
-        </div>
-    `;
-    sh('page-family', html);
+    sh('page-family', `<div class="loading-state"><div class="spinner"></div><p>Loading family insights…</p></div>`);
+
+    if (!currentUserEmail) {
+        sh('page-family', `<div class="card"><p style="color:var(--red);">Please log in first.</p></div>`);
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/family/insights', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                userId:     currentUserEmail,
+                profileIds: [] // empty = fetch all
+            })
+        });
+
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const savingsColor = (data.savings || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+
+        const gapsHtml = (data.gaps || []).map(g => `
+            <div class="reco-card">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                    <h4 style="font-size:13px; color:var(--text);">${g.member || 'Family'}</h4>
+                    <span class="badge badge-yellow">⚠️ Gap</span>
+                </div>
+                <p><strong>Issue:</strong> ${g.issue || '—'}</p>
+                <p style="margin-top:6px; color:var(--accent2);"><strong>Action:</strong> ${g.action || '—'}</p>
+            </div>
+        `).join('') || `<div class="insight-box">✅ No critical gaps identified.</div>`;
+
+        const recoHtml = (data.recommendations || []).map((r, i) => `
+            <div class="row-flex">
+                <span class="row-label">${i + 1}. ${r}</span>
+            </div>
+        `).join('') || `<p style="color:var(--text3); font-size:13px; padding:10px 0;">No recommendations yet.</p>`;
+
+        const perMemberHtml = (data.perMember || []).map(m => `
+            <div class="kpi-card">
+                <div class="kpi-label">${m.name || 'Member'}</div>
+                <div class="kpi-value">${fl(m.income_monthly || 0)}</div>
+                <div class="kpi-sub">
+                    Expenses: ${fl(m.monthly_expenses || 0)}<br>
+                    Savings: <span style="color:${(m.income_monthly||0) - (m.monthly_expenses||0) >= 0 ? 'var(--green)' : 'var(--red)'};">${fl((m.income_monthly||0) - (m.monthly_expenses||0))}</span>
+                </div>
+            </div>
+        `).join('');
+
+        const confidencePct = Math.round((data.confidence || 0.5) * 100);
+
+        sh('page-family', `
+            <div class="card" style="background:linear-gradient(135deg, var(--bg2), var(--bg3)); border-color:var(--accent); margin-bottom:18px;">
+                <div class="card-title"><span class="icon">👪</span> Family Finance Overview</div>
+                <div class="grid-4" style="margin-bottom:16px;">
+                    <div class="kpi-card green">
+                        <div class="kpi-label">Aggregate Income</div>
+                        <div class="kpi-value">${fl(data.aggregateIncome || 0)}</div>
+                        <div class="kpi-sub">Combined monthly</div>
+                    </div>
+                    <div class="kpi-card red">
+                        <div class="kpi-label">Aggregate Expenses</div>
+                        <div class="kpi-value">${fl(data.aggregateExpenses || 0)}</div>
+                        <div class="kpi-sub">Combined monthly</div>
+                    </div>
+                    <div class="kpi-card ${(data.savings || 0) >= 0 ? 'green' : 'red'}">
+                        <div class="kpi-label">Family Savings</div>
+                        <div class="kpi-value" style="color:${savingsColor};">${fl(data.savings || 0)}</div>
+                        <div class="kpi-sub">Monthly surplus</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">AI Confidence</div>
+                        <div class="kpi-value" style="color:${confidencePct >= 70 ? 'var(--green)' : 'var(--yellow)'};">${confidencePct}%</div>
+                        <div class="kpi-sub">Plan reliability</div>
+                    </div>
+                </div>
+                ${data.summary ? `<div class="advisor-msg"><p style="font-size:14px; line-height:1.7;">${data.summary}</p></div>` : ''}
+            </div>
+
+            ${perMemberHtml ? `
+                <div class="card">
+                    <div class="card-title"><span class="icon">👤</span> Per Member Breakdown</div>
+                    <div class="grid-3">${perMemberHtml}</div>
+                </div>
+            ` : ''}
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title"><span class="icon">⚠️</span> Identified Gaps</div>
+                    ${gapsHtml}
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">💡</span> Recommendations</div>
+                    ${recoHtml}
+                    ${(data.missingData || []).length ? `
+                        <div class="insight-box" style="margin-top:12px;">
+                            <strong>📝 Add for better insights:</strong> ${data.missingData.join(', ')}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+            <button class="secondary-btn" style="margin-top:8px;" onclick="renderFamily()">🔄 Refresh Insights</button>
+        `);
+
+    } catch (e) {
+        console.error('Family insights error:', e);
+        sh('page-family', `
+            <div class="card">
+                <p style="color:var(--red); margin-bottom:12px;">⚠️ Family insights error: ${e.message}</p>
+                <p style="color:var(--text3); font-size:13px; margin-bottom:12px; line-height:1.6;">
+                    Ensure multiple profiles exist in your Supabase <code style="font-family:var(--mono);">profiles</code> table
+                    and the <code style="font-family:var(--mono);">/api/family/insights</code> endpoint is running.
+                </p>
+                <button class="secondary-btn" onclick="renderFamily()">🔄 Try Again</button>
+            </div>
+        `);
+    }
 }
 
 // ========== SUPABASE DATA ==========

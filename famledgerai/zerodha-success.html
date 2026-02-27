@@ -15,7 +15,6 @@
         const token = urlParams.get('access_token');
         if (token) {
             localStorage.setItem('zerodha_access_token', token);
-            // Redirect back to the Investments page
             window.location.href = '/?page=investments';
         } else {
             document.body.innerHTML = '<h2>Failed to connect Zerodha. Please try again.</h2>';
