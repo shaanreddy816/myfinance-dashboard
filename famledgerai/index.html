@@ -783,7 +783,7 @@ window.connectZerodha = () => {
 let userData = {
     profile: {},
     income: { husband:0, wife:0, rental:0, rentalActive:false },
-    expenses: { monthly:[], periodic:[] },
+    expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
     investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
     loans: [],
     insurance: { term:[], health:[], vehicle:[] },
@@ -1545,7 +1545,7 @@ async function loadUserData(email) {
         userData = {
             profile:     data.profile     || {},
             income:      data.income      || { husband:0, wife:0, rental:0, rentalActive:false },
-            expenses:    data.expenses    || { monthly:[], periodic:[], byMember:{} },
+            expenses:    data.expenses    || { monthly:[], periodic:[], byMember:{}, byMonth:{} },
             investments: data.investments || { mutualFunds:[], stocks:[], fd:[], ppf:[] },
             loans:       data.loans       || [],
             insurance:   data.insurance   || { term:[], health:[], vehicle:[] },
