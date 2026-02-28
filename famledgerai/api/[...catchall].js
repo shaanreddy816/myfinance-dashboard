@@ -773,17 +773,20 @@ const SETU_PRODUCT_ID      = process.env.SETU_PRODUCT_ID;
 const APP_BASE_URL         = process.env.APP_BASE_URL       || 'https://famledgerai.com';
 
 async function getSetuToken() {
-  // Try Setu's v2 auth endpoint
+  // Setu sandbox base: https://fiu-sandbox.setu.co
   const tokenUrl = `${SETU_BASE_URL}/v2/auth/token`;
   console.log('Fetching Setu token from:', tokenUrl);
   const res = await fetch(tokenUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-product-instance-id': SETU_PRODUCT_ID
+    },
     body: JSON.stringify({ clientID: SETU_CLIENT_ID, secret: SETU_CLIENT_SECRET })
   });
   const responseText = await res.text();
-  console.log('Setu token response:', res.status, responseText);
-  if (!res.ok) throw new Error(`Setu token error ${res.status}: ${responseText}`);
+  console.log('Setu token response:', res.status, responseText.substring(0, 300));
+  if (!res.ok) throw new Error(`Setu token error ${res.status}: ${responseText.substring(0, 500)}`);
   const d = JSON.parse(responseText);
   return d.accessToken || d.access_token || d.token;
 }
@@ -792,7 +795,6 @@ function setuHeaders(accessToken) {
   return {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${accessToken}`,
-    'x-client-id': SETU_CLIENT_ID,
     'x-product-instance-id': SETU_PRODUCT_ID
   };
 }
@@ -808,20 +810,22 @@ async function handleAaCreateConsent(req, res) {
   try {
     const accessToken = await getSetuToken();
     const now = new Date();
-    const txnid = crypto.randomUUID();
 
+    // Setu v2 consent body format (per docs.setu.co)
     const consentBody = {
       redirectUrl: `${APP_BASE_URL}/api/aa/consent-callback`,
       consentDuration: {
-        unit: 'YEAR',
-        value: 1
+        unit: 'MONTH',
+        value: 12
       },
       dataRange: {
-        from: new Date(now.getTime() - 2*365*24*3600*1000).toISOString(),
+        from: new Date(now.getTime() - 2 * 365 * 24 * 3600 * 1000).toISOString(),
         to: now.toISOString()
       },
       context: []
     };
+
+    console.log('Creating Setu consent:', JSON.stringify(consentBody));
 
     const cr = await fetch(`${SETU_BASE_URL}/consents`, {
       method: 'POST',
@@ -830,17 +834,22 @@ async function handleAaCreateConsent(req, res) {
     });
 
     const responseText = await cr.text();
-    console.log('Setu consent response:', cr.status, responseText);
+    console.log('Setu consent response:', cr.status, responseText.substring(0, 500));
 
-    if (!cr.ok) throw new Error(`Setu error ${cr.status}: ${responseText}`);
+    if (!cr.ok) throw new Error(`Setu error ${cr.status}: ${responseText.substring(0, 500)}`);
 
     const cd = JSON.parse(responseText);
-    const consentId  = cd.id || cd.consentId || cd.ConsentHandle;
-    const consentUrl = cd.url || cd.redirectUrl || cd.consentUrl;
-    if (!consentId || !consentUrl) throw new Error(`Missing id/url in response: ${responseText}`);
-    await supabase.from('aa_consents').insert({ user_id: userId, consent_id: consentId, status: 'PENDING', consent_detail: cd, created_at: new Date().toISOString() }).catch(()=>{});
+    const consentId  = cd.id || cd.ConsentHandle;
+    const consentUrl = cd.url;
+    if (!consentId || !consentUrl) throw new Error(`Missing id/url in response: ${responseText.substring(0, 300)}`);
+
+    await supabase.from('aa_consents').insert({
+      user_id: userId, consent_id: consentId, status: 'PENDING',
+      consent_detail: cd, created_at: new Date().toISOString()
+    }).catch(() => {});
+
     return res.status(200).json({ consentId, consentUrl });
-  } catch(e) {
+  } catch (e) {
     console.error('AA create-consent error:', e.message);
     return res.status(500).json({ error: e.message });
   }
