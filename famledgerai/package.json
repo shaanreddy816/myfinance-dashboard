@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "mkdir dist 2>nul & copy index.html dist\\index.html",
     "preview": "vite preview"
   },
   "devDependencies": {
