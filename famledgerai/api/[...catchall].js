@@ -770,17 +770,22 @@ const SETU_BASE_URL        = process.env.SETU_BASE_URL      || 'https://fiu-uat.
 const SETU_CLIENT_ID       = process.env.SETU_CLIENT_ID;
 const SETU_CLIENT_SECRET   = process.env.SETU_CLIENT_SECRET;
 const SETU_PRODUCT_ID      = process.env.SETU_PRODUCT_ID;
-const APP_BASE_URL         = process.env.APP_BASE_URL       || 'https://myfinance-dashboard-40i6njg12-shantan-kumar-bathinis-projects.vercel.app';
+const APP_BASE_URL         = process.env.APP_BASE_URL       || 'https://famledgerai.com';
 
 async function getSetuToken() {
-  const res = await fetch(`${SETU_BASE_URL}/api/v2/auth/token`, {
+  // Try Setu's v2 auth endpoint
+  const tokenUrl = `${SETU_BASE_URL}/v2/auth/token`;
+  console.log('Fetching Setu token from:', tokenUrl);
+  const res = await fetch(tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientID: SETU_CLIENT_ID, secret: SETU_CLIENT_SECRET, grant_type: 'client_credentials' })
+    body: JSON.stringify({ clientID: SETU_CLIENT_ID, secret: SETU_CLIENT_SECRET })
   });
-  if (!res.ok) throw new Error(`Setu token error: ${await res.text()}`);
-  const d = await res.json();
-  return d.accessToken || d.access_token;
+  const responseText = await res.text();
+  console.log('Setu token response:', res.status, responseText);
+  if (!res.ok) throw new Error(`Setu token error ${res.status}: ${responseText}`);
+  const d = JSON.parse(responseText);
+  return d.accessToken || d.access_token || d.token;
 }
 
 function setuHeaders(accessToken) {
@@ -798,38 +803,47 @@ async function handleAaCreateConsent(req, res) {
   if (!userId) return res.status(400).json({ error: 'userId required' });
   if (!SETU_CLIENT_ID || !SETU_CLIENT_SECRET)
     return res.status(500).json({ error: 'Setu credentials not configured.' });
+  if (!SETU_PRODUCT_ID)
+    return res.status(500).json({ error: 'SETU_PRODUCT_ID not configured.' });
   try {
     const accessToken = await getSetuToken();
     const now = new Date();
+    const txnid = crypto.randomUUID();
+
     const consentBody = {
       redirectUrl: `${APP_BASE_URL}/api/aa/consent-callback`,
-      Detail: {
-        consentStart:  new Date(now - 2*365*24*3600*1000).toISOString(),
-        consentExpiry: new Date(now.getTime() + 365*24*3600*1000).toISOString(),
-        consentMode: 'STORE', fetchType: 'PERIODIC',
-        consentTypes: ['TRANSACTIONS','SUMMARY','PROFILE'],
-        fiTypes: ['DEPOSIT','MUTUAL_FUNDS','EQUITIES','TERM_DEPOSIT'],
-        DataConsumer: { id: SETU_CLIENT_ID },
-        Customer: { id: userId },
-        Purpose: { code: '101', refUri: 'https://api.rebit.org.in/aa/purpose/101.xml', text: 'Wealth management', Category: { type: 'Personal Finance' } },
-        FIDataRange: { from: new Date(now - 2*365*24*3600*1000).toISOString(), to: now.toISOString() },
-        DataLife: { unit: 'YEAR', value: 1 },
-        Frequency: { unit: 'MONTH', value: 1 }
-      }
+      consentDuration: {
+        unit: 'YEAR',
+        value: 1
+      },
+      dataRange: {
+        from: new Date(now.getTime() - 2*365*24*3600*1000).toISOString(),
+        to: now.toISOString()
+      },
+      context: []
     };
-    const cr = await fetch(`${SETU_BASE_URL}/api/v2/consents`, {
+
+    const cr = await fetch(`${SETU_BASE_URL}/consents`, {
       method: 'POST',
       headers: setuHeaders(accessToken),
       body: JSON.stringify(consentBody)
     });
-    if (!cr.ok) throw new Error(`Setu error ${cr.status}: ${await cr.text()}`);
-    const cd = await cr.json();
-    const consentId  = cd.id || cd.consentId;
+
+    const responseText = await cr.text();
+    console.log('Setu consent response:', cr.status, responseText);
+
+    if (!cr.ok) throw new Error(`Setu error ${cr.status}: ${responseText}`);
+
+    const cd = JSON.parse(responseText);
+    const consentId  = cd.id || cd.consentId || cd.ConsentHandle;
     const consentUrl = cd.url || cd.redirectUrl || cd.consentUrl;
-    if (!consentId || !consentUrl) throw new Error(`Missing id/url: ${JSON.stringify(cd)}`);
+    if (!consentId || !consentUrl) throw new Error(`Missing id/url in response: ${responseText}`);
     await supabase.from('aa_consents').insert({ user_id: userId, consent_id: consentId, status: 'PENDING', consent_detail: cd, created_at: new Date().toISOString() }).catch(()=>{});
     return res.status(200).json({ consentId, consentUrl });
-  } catch(e) { return res.status(500).json({ error: e.message }); }
+  } catch(e) {
+    console.error('AA create-consent error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
 }
 
 async function handleAaConsentCallback(req, res) {
