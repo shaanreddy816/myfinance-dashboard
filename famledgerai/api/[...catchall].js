@@ -31,6 +31,12 @@ export default async function handler(req, res) {
   if (path === 'integrations/zerodha/mf-sips')       return handleZerodhaMfSips(req, res);
 
   // Optional test endpoint – remove in production if desired
+  if (path === 'aa/create-consent')                  return handleAaCreateConsent(req, res);
+  if (path === 'aa/consent-callback')                return handleAaConsentCallback(req, res);
+  if (path === 'aa/fetch-accounts')                  return handleAaFetchAccounts(req, res);
+  if (path === 'aa/refresh')                         return handleAaRefresh(req, res);
+  if (path === 'accounts')                           return handleAccounts(req, res);
+
   if (path === 'test-env') {
     return res.status(200).json({
       message: 'Environment check',
@@ -752,4 +758,112 @@ async function handleZerodhaMfSips(req, res) {
     console.error('SIPs fetch error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
+}
+
+// ─── SETU ACCOUNT AGGREGATOR ───────────────────────────────────────────────────
+
+const SETU_BASE_URL      = process.env.SETU_BASE_URL    || 'https://fiu-uat.setu.co';
+const SETU_CLIENT_ID     = process.env.SETU_CLIENT_ID;
+const SETU_CLIENT_SECRET = process.env.SETU_CLIENT_SECRET;
+const APP_BASE_URL       = process.env.APP_BASE_URL     || 'https://famledgerai.vercel.app';
+
+async function getSetuToken() {
+  const res = await fetch(`${SETU_BASE_URL}/api/v2/auth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientID: SETU_CLIENT_ID, secret: SETU_CLIENT_SECRET, grant_type: 'client_credentials' })
+  });
+  if (!res.ok) throw new Error(`Setu token error: ${await res.text()}`);
+  const d = await res.json();
+  return d.accessToken || d.access_token;
+}
+
+async function handleAaCreateConsent(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  if (!SETU_CLIENT_ID || !SETU_CLIENT_SECRET)
+    return res.status(500).json({ error: 'Setu credentials not configured.' });
+  try {
+    const accessToken = await getSetuToken();
+    const now = new Date();
+    const consentBody = {
+      redirectUrl: `${APP_BASE_URL}/api/aa/consent-callback`,
+      Detail: {
+        consentStart:  new Date(now - 2*365*24*3600*1000).toISOString(),
+        consentExpiry: new Date(now.getTime() + 365*24*3600*1000).toISOString(),
+        consentMode: 'STORE', fetchType: 'PERIODIC',
+        consentTypes: ['TRANSACTIONS','SUMMARY','PROFILE'],
+        fiTypes: ['DEPOSIT','MUTUAL_FUNDS','EQUITIES','TERM_DEPOSIT'],
+        DataConsumer: { id: SETU_CLIENT_ID },
+        Customer: { id: userId },
+        Purpose: { code: '101', refUri: 'https://api.rebit.org.in/aa/purpose/101.xml', text: 'Wealth management', Category: { type: 'Personal Finance' } },
+        FIDataRange: { from: new Date(now - 2*365*24*3600*1000).toISOString(), to: now.toISOString() },
+        DataLife: { unit: 'YEAR', value: 1 },
+        Frequency: { unit: 'MONTH', value: 1 }
+      }
+    };
+    const cr = await fetch(`${SETU_BASE_URL}/api/v2/consents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}`, 'x-client-id': SETU_CLIENT_ID },
+      body: JSON.stringify(consentBody)
+    });
+    if (!cr.ok) throw new Error(`Setu error ${cr.status}: ${await cr.text()}`);
+    const cd = await cr.json();
+    const consentId  = cd.id || cd.consentId;
+    const consentUrl = cd.url || cd.redirectUrl || cd.consentUrl;
+    if (!consentId || !consentUrl) throw new Error(`Missing id/url: ${JSON.stringify(cd)}`);
+    await supabase.from('aa_consents').insert({ user_id: userId, consent_id: consentId, status: 'PENDING', consent_detail: cd, created_at: new Date().toISOString() }).catch(()=>{});
+    return res.status(200).json({ consentId, consentUrl });
+  } catch(e) { return res.status(500).json({ error: e.message }); }
+}
+
+async function handleAaConsentCallback(req, res) {
+  const { consentId, status } = req.query;
+  if (!consentId) return res.redirect(`${APP_BASE_URL}/?error=missing_consent_id`);
+  if (status === 'REJECTED') {
+    await supabase.from('aa_consents').update({ status: 'REJECTED', updated_at: new Date().toISOString() }).eq('consent_id', consentId).catch(()=>{});
+    return res.redirect(`${APP_BASE_URL}/?page=accounts&error=consent_rejected`);
+  }
+  try {
+    const accessToken = await getSetuToken();
+    const dr = await fetch(`${SETU_BASE_URL}/api/v2/consents/${consentId}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'x-client-id': SETU_CLIENT_ID }
+    });
+    const detail = dr.ok ? await dr.json() : {};
+    await supabase.from('aa_consents').upsert({
+      consent_id: consentId, status: detail.status || 'ACTIVE',
+      consent_artefact: detail.consentArtefact, consent_detail: detail,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'consent_id' }).catch(()=>{});
+    return res.redirect(`${APP_BASE_URL}/?page=accounts&consent=success`);
+  } catch(e) { return res.redirect(`${APP_BASE_URL}/?page=accounts&error=callback_failed`); }
+}
+
+async function handleAaFetchAccounts(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    const { data: consents } = await supabase.from('aa_consents').select('*')
+      .eq('user_id', userId).eq('status', 'ACTIVE')
+      .order('created_at', { ascending: false }).limit(1);
+    if (!consents || consents.length === 0)
+      return res.status(200).json({ accounts: [], needsConsent: true });
+    const { data: accounts } = await supabase.from('accounts').select('*').eq('user_id', userId);
+    return res.status(200).json({ accounts: accounts || [], consentId: consents[0].consent_id });
+  } catch(e) { return res.status(500).json({ error: e.message, accounts: [] }); }
+}
+
+async function handleAaRefresh(req, res) {
+  return res.status(200).json({ message: 'Refresh scheduled', refreshed: 0 });
+}
+
+async function handleAccounts(req, res) {
+  const userId = req.headers['x-user-id'] || req.query.userId;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    const { data: accounts } = await supabase.from('accounts').select('*').eq('user_id', userId);
+    return res.status(200).json(accounts || []);
+  } catch(e) { return res.status(200).json([]); }
 }
