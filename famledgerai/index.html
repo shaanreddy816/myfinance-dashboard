@@ -1788,8 +1788,25 @@ async function renderCurrentPage() {
 }
 
 // ========== OVERVIEW PAGE ==========
+function getMemberExpenseTotal(memberId) {
+    const byMember = userData.expenses.byMember || {};
+    if(memberId === 'all') return Object.values(byMember).flat().reduce((s,e)=>s+(e.v||0),0);
+    return (byMember[memberId]||[]).reduce((s,e)=>s+(e.v||0),0);
+}
+
+function getMemberName(memberId) {
+    if(memberId === 'all') return userData.profile.name || 'User';
+    const m = (userData.profile.familyMembers||[]).find(m=>m.id===memberId);
+    return m ? m.name : userData.profile.name || 'User';
+}
+
 function renderOverview() {
     if(!userData.profile.age) { sh('page-overview', emptyState('Welcome! Set up your profile first.','⚙️ Complete Profile','goSettings')); return; }
+
+    const isAll = currentProfile === 'all';
+    const memberName = getMemberName(currentProfile);
+    const memberExpenses = getMemberExpenseTotal(currentProfile);
+
     const score   = computeHealthScore();
     const alerts  = getAlerts();
     const actions = getTopActions(4);
@@ -1835,9 +1852,12 @@ function renderOverview() {
     sh('page-overview', `
         <div class="card" style="display:flex; gap:24px; align-items:center; flex-wrap:wrap; background:linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 100%); border-color:var(--border2);">
             <div style="flex:1; min-width:200px;">
-                <p style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Hello,</p>
-                <h2 style="font-size:22px; font-weight:800; color:var(--text); margin-bottom:6px;">${userData.profile.name||'User'} 👋</h2>
-                <p style="font-size:13px; color:var(--text2);">Age: ${userData.profile.age} &nbsp;|&nbsp; Risk: ${userData.profile.risk||'—'} &nbsp;|&nbsp; ${userData.profile.occupation||'—'}</p>
+                <p style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">${isAll ? 'Family Dashboard' : 'Viewing'}</p>
+                <h2 style="font-size:22px; font-weight:800; color:var(--text); margin-bottom:6px;">${memberName} ${isAll ? '👨‍👩‍👧‍👦' : '👋'}</h2>
+                ${isAll
+                    ? `<p style="font-size:13px; color:var(--text2);">Age: ${userData.profile.age} &nbsp;|&nbsp; Risk: ${userData.profile.risk||'—'} &nbsp;|&nbsp; ${userData.profile.occupation||'—'}</p>`
+                    : `<p style="font-size:13px; color:var(--text2);">Member expenses: ${fl(memberExpenses)}/month</p>`
+                }
                 <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
                     ${(userData.profile.goals||[]).map(g=>badge(g,'blue')).join('')}
                 </div>
@@ -1889,17 +1909,17 @@ function renderOverview() {
             <div class="kpi-card ${computeMonthlySavings()>=0?'green':'red'}">
                 <div class="kpi-label">Monthly Income</div>
                 <div class="kpi-value">${fl(computeMonthlyIncome())}</div>
-                <div class="kpi-sub">Gross inflow</div>
+                <div class="kpi-sub">${isAll ? 'Gross inflow' : 'Household total'}</div>
             </div>
             <div class="kpi-card red">
-                <div class="kpi-label">Monthly Expenses</div>
-                <div class="kpi-value">${fl(computeMonthlyExpenses())}</div>
-                <div class="kpi-sub">${(userData.expenses.monthly||[]).length} items + EMIs: ${fl(computeTotalEmi())}</div>
+                <div class="kpi-label">${isAll ? 'Family' : memberName+"'s"} Expenses</div>
+                <div class="kpi-value">${fl(memberExpenses)}</div>
+                <div class="kpi-sub">${isAll ? (userData.expenses.monthly||[]).length+' items' : (userData.expenses.byMember?.[currentProfile]||[]).length+' items'}${isAll ? ' + EMIs: '+fl(computeTotalEmi()) : ''}</div>
             </div>
             <div class="kpi-card ${computeMonthlySavings()>=0?'green':'red'}">
-                <div class="kpi-label">Surplus / Deficit</div>
-                <div class="kpi-value" style="color:${computeMonthlySavings()>=0?'var(--green)':'var(--red)'};">${fl(computeMonthlySavings())}</div>
-                <div class="kpi-sub">Savings rate: ${pct(Math.max(0,computeSavingsRate()))}</div>
+                <div class="kpi-label">${isAll ? 'Surplus / Deficit' : 'Share of Income'}</div>
+                <div class="kpi-value" style="color:${isAll ? (computeMonthlySavings()>=0?'var(--green)':'var(--red)') : 'var(--text)'};">${isAll ? fl(computeMonthlySavings()) : (computeMonthlyIncome()>0 ? pct(memberExpenses/computeMonthlyIncome()) : '—')}</div>
+                <div class="kpi-sub">${isAll ? 'Savings rate: '+pct(Math.max(0,computeSavingsRate())) : 'of household income'}</div>
             </div>
             <div class="kpi-card purple">
                 <div class="kpi-label">Total Investments</div>
@@ -1907,6 +1927,19 @@ function renderOverview() {
                 <div class="kpi-sub">Portfolio value</div>
             </div>
         </div>
+
+        ${!isAll ? `
+        <div class="card">
+            <div class="card-title"><span class="icon">📉</span> ${memberName}'s Expenses</div>
+            ${(userData.expenses.byMember?.[currentProfile]||[]).length > 0
+                ? (userData.expenses.byMember[currentProfile]).map(e => `
+                    <div class="row-flex">
+                        <span class="row-label">${e.label}</span>
+                        <span class="row-value">${ff(e.v)}</span>
+                    </div>`).join('')
+                : `<p style="color:var(--text3); font-size:13px; padding:10px 0;">No expenses added yet. Go to Expenses page to add.</p>`
+            }
+        </div>` : ''}
 
         <div class="grid-2">
             <div class="card">
@@ -1971,9 +2004,11 @@ function renderOverview() {
 function renderIncome() {
     const inc = userData.income;
     const total = computeMonthlyIncome();
+    const selfName = userData.profile.name || 'Self';
+    const spouseName = (userData.profile.familyMembers||[]).find(m=>m.role==='spouse')?.name || userData.profile.spouseName || 'Spouse';
     const rows = [
-        { key:'husband', label:'Husband / Self Salary', icon:'👨', val:inc.husband },
-        { key:'wife',    label:'Wife Salary',            icon:'👩', val:inc.wife    },
+        { key:'husband', label:`${selfName}'s Salary`, icon:'�', val:inc.husband },
+        { key:'wife',    label:`${spouseName}'s Salary`, icon:'�', val:inc.wife    },
         { key:'rental',  label:'Rental Income',          icon:'🏠', val:inc.rental  }
     ];
     let rowsHtml = rows.map(r=>`
