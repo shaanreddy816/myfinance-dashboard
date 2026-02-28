@@ -1680,7 +1680,8 @@ async function loadUserData(email) {
                 paymentFrequency: 'annual',
                 premiumPayingTerm: '5 years',
                 nominees: 'Saritha Godhala (Spouse, 100%)',
-                additionalDetails: 'Base premium ₹1,19,433/yr + ATPD Rider ₹21,780/yr. Premium paying till 2030. Rider: TATA AIA Health Buddy (ATPD) - Accidental Total & Permanent Disability, Sum Assured ₹2Cr. Last premium due: 17-02-2030.'
+                additionalDetails: 'Base premium ₹1,19,433/yr + ATPD Rider ₹21,780/yr. Premium paying till 2030. Rider: TATA AIA Health Buddy (ATPD) - Accidental Total & Permanent Disability, Sum Assured ₹2Cr. Last premium due: 17-02-2030.',
+                member: 'self'
             });
         }
         userData.termCover = [...(userData.insurance.term||[]), ...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
@@ -3003,29 +3004,39 @@ window.getLoanAdvice = async () => {
 function renderInsurance() {
     if (!userData.insurance) userData.insurance = {};
     const ins = userData.insurance;
+    const members = userData.profile.familyMembers || [{ id:'self', name: userData.profile.name||'Me', role:'self' }];
+    const isAll = currentProfile === 'all';
+    
     const categories = [
         { key:'term',    label:'Term Insurance',    icon:'🛡️' },
-        { key:'life',    label:'Life Insurance',    icon:'💚' },
-        { key:'health',  label:'Health Insurance',  icon:'🏥' },
+        { key:'life',    label:'Life Insurance',    icon:'�' },
+        { key:'health',  label:'Health Insurance',  icon:'�' },
         { key:'vehicle', label:'Vehicle Insurance', icon:'🚗' },
         { key:'home',    label:'Home Insurance',    icon:'🏠' }
     ];
 
     const cardsHtml = categories.map(cat=>{
-        const items    = ins[cat.key] || [];
+        const allItems = ins[cat.key] || [];
+        // Filter by current profile
+        const items = isAll ? allItems : allItems.filter(item => (item.member || 'self') === currentProfile);
         const catCover = items.reduce((s,f)=>s+(f.cover||0),0);
-        const rowsHtml = items.map((item,i)=>`
+        
+        const rowsHtml = items.map((item,i)=>{
+            const globalIdx = allItems.indexOf(item);
+            const memberName = getMemberName(item.member || 'self');
+            return `
             <div class="row-flex">
                 ${editMode ? `
-                    <input class="edit-input-text" value="${item.label||''}" onchange="updateInsurance('${cat.key}',${i},'label',this.value)" style="max-width:180px;">
+                    <input class="edit-input-text" value="${item.label||''}" onchange="updateInsurance('${cat.key}',${globalIdx},'label',this.value)" style="max-width:180px;">
                     <div style="display:flex;gap:6px;align-items:center;">
-                        <input class="edit-input" type="number" value="${item.cover||0}" placeholder="Cover ₹" onchange="updateInsurance('${cat.key}',${i},'cover',this.value)" style="width:120px;">
-                        <input class="edit-input" type="number" value="${item.premium||0}" placeholder="Premium/yr" onchange="updateInsurance('${cat.key}',${i},'premium',this.value)" style="width:110px;">
-                        <button class="del-btn" onclick="deleteInsurance('${cat.key}',${i})">🗑</button>
+                        <input class="edit-input" type="number" value="${item.cover||0}" placeholder="Cover ₹" onchange="updateInsurance('${cat.key}',${globalIdx},'cover',this.value)" style="width:120px;">
+                        <input class="edit-input" type="number" value="${item.premium||0}" placeholder="Premium/yr" onchange="updateInsurance('${cat.key}',${globalIdx},'premium',this.value)" style="width:110px;">
+                        <button class="del-btn" onclick="deleteInsurance('${cat.key}',${globalIdx})">🗑</button>
                     </div>
                 ` : `
                     <div>
                         <span class="row-label">${item.label||'—'}</span>
+                        ${isAll ? `<div style="font-size:10px;color:var(--accent2);">${memberName}</div>` : ''}
                         ${item.insurer ? `<div style="font-size:10px;color:var(--text3);">${item.insurer}${item.policyNo?' · #'+item.policyNo:''}${item.expiry?' · Exp: '+item.expiry:''}</div>` : ''}
                     </div>
                     <div style="text-align:right;">
@@ -3034,7 +3045,7 @@ function renderInsurance() {
                     </div>
                 `}
             </div>
-        `).join('');
+        `}).join('');
         return `
             <div class="card">
                 <div class="card-title">
@@ -3052,41 +3063,57 @@ function renderInsurance() {
         `;
     }).join('');
 
-    const totalTermCover  = [...(ins.term||[]),...(ins.life||[])].reduce((s,f)=>s+(f.cover||0),0);
-    const totalHealthCover= (ins.health||[]).reduce((s,f)=>s+(f.cover||0),0);
-    const allPolicies     = categories.flatMap(c => ins[c.key]||[]);
-    const totalPremium    = allPolicies.reduce((s,f)=>s+(f.premium||0),0);
+    // Calculate totals based on current profile
+    const allTermLife = [...(ins.term||[]),...(ins.life||[])];
+    const filteredTermLife = isAll ? allTermLife : allTermLife.filter(p => (p.member || 'self') === currentProfile);
+    const totalTermCover  = filteredTermLife.reduce((s,f)=>s+(f.cover||0),0);
+    
+    const allHealth = ins.health || [];
+    const filteredHealth = isAll ? allHealth : allHealth.filter(p => (p.member || 'self') === currentProfile);
+    const totalHealthCover = filteredHealth.reduce((s,f)=>s+(f.cover||0),0);
+    
+    const allPolicies = categories.flatMap(c => {
+        const catItems = ins[c.key]||[];
+        return isAll ? catItems : catItems.filter(p => (p.member || 'self') === currentProfile);
+    });
+    const totalPremium = allPolicies.reduce((s,f)=>s+(f.premium||0),0);
+    
     const annInc          = computeMonthlyIncome()*12;
     const recommended     = annInc*12;
     const gap             = Math.max(0, recommended - totalTermCover);
-    userData.termCover    = totalTermCover;
+    userData.termCover    = [...(ins.term||[]),...(ins.life||[])].reduce((s,f)=>s+(f.cover||0),0); // Global term cover
 
     const irPct = computeInsuranceRatio();
+    const memberLabel = isAll ? 'Family' : getMemberName(currentProfile);
     const insInsight = totalTermCover === 0
-        ? `⚠️ No term/life insurance recorded. Recommended cover is 12× annual income (${fl(recommended)}).`
+        ? `⚠️ No term/life insurance recorded for ${memberLabel}. Recommended cover is 12× annual income (${fl(recommended)}).`
         : irPct >= 1
-        ? `✅ Term/life coverage is adequate (${fl(totalTermCover)} vs recommended ${fl(recommended)}).`
-        : `⚠️ Coverage gap of ${fl(gap)}. Increase cover to ${fl(recommended)} (12× annual income).`;
+        ? `✅ ${memberLabel}'s term/life coverage is adequate (${fl(totalTermCover)} vs recommended ${fl(recommended)}).`
+        : `⚠️ ${memberLabel} has coverage gap of ${fl(gap)}. Increase cover to ${fl(recommended)} (12× annual income).`;
 
     sh('page-insurance', `
         <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card ${irPct<0.5?'red':irPct<1?'yellow':'green'}">
-                <div class="kpi-label">Term / Life Cover</div>
+                <div class="kpi-label">${memberLabel} Term / Life Cover</div>
                 <div class="kpi-value">${fl(totalTermCover)}</div>
-                <div class="kpi-sub">${(ins.term||[]).length + (ins.life||[]).length} policies</div>
+                <div class="kpi-sub">${filteredTermLife.length} policies</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Health Cover</div>
+                <div class="kpi-label">${memberLabel} Health Cover</div>
                 <div class="kpi-value">${fl(totalHealthCover)}</div>
-                <div class="kpi-sub">${(ins.health||[]).length} policies</div>
+                <div class="kpi-sub">${filteredHealth.length} policies</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Total Policies</div>
+                <div class="kpi-label">${memberLabel} Total Policies</div>
                 <div class="kpi-value">${allPolicies.length}</div>
-                <div class="kpi-sub">across ${categories.filter(c=>(ins[c.key]||[]).length>0).length} categories</div>
+                <div class="kpi-sub">across ${categories.filter(c=>{
+                    const catItems = ins[c.key]||[];
+                    const filtered = isAll ? catItems : catItems.filter(p => (p.member || 'self') === currentProfile);
+                    return filtered.length > 0;
+                }).length} categories</div>
             </div>
             <div class="kpi-card purple">
-                <div class="kpi-label">Total Premium</div>
+                <div class="kpi-label">${memberLabel} Total Premium</div>
                 <div class="kpi-value">${fl(totalPremium)}</div>
                 <div class="kpi-sub">per year</div>
             </div>
@@ -3150,8 +3177,17 @@ window.saveInsModal = () => {
     const expiry   = document.getElementById('ins-m-expiry').value;
     if(!label) { alert('Please enter a policy name.'); return; }
     if(!userData.insurance[cat]) userData.insurance[cat]=[];
-    userData.insurance[cat].push({ id:'ins-'+Date.now(), label, insurer, policyNo, cover, premium, expiry });
-    userData.termCover = (userData.insurance.term||[]).reduce((s,f)=>s+(f.cover||0),0);
+    userData.insurance[cat].push({ 
+        id:'ins-'+Date.now(), 
+        label, 
+        insurer, 
+        policyNo, 
+        cover, 
+        premium, 
+        expiry,
+        member: currentProfile === 'all' ? 'self' : currentProfile
+    });
+    userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
     debounceSave();
     closeInsModal();
     renderInsurance();
@@ -3204,7 +3240,8 @@ window.handleInsurancePdfUpload = async (input, forceCat) => {
             startDate: policy.startDate || '',
             nominees: policy.nominees || '',
             policyTerm: policy.policyTerm || '',
-            additionalDetails: policy.additionalDetails || ''
+            additionalDetails: policy.additionalDetails || '',
+            member: currentProfile === 'all' ? 'self' : currentProfile
         });
         userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
         debounceSave();
