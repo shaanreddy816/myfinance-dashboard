@@ -13,6 +13,12 @@ export default async function handler(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const path = url.pathname.replace(/^\/api\//, '');
 
+  // Merge URL search params into req.query (catch-all routes don't auto-parse them)
+  if (!req.query) req.query = {};
+  for (const [key, value] of url.searchParams) {
+    req.query[key] = value;
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-User-Id');
