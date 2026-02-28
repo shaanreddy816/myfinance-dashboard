@@ -2252,7 +2252,10 @@ function renderInsurance() {
                         <button class="del-btn" onclick="deleteInsurance('${cat.key}',${i})">🗑</button>
                     </div>
                 ` : `
-                    <span class="row-label">${item.label||'—'}</span>
+                    <div>
+                        <span class="row-label">${item.label||'—'}</span>
+                        ${item.insurer ? `<div style="font-size:10px;color:var(--text3);">${item.insurer}${item.policyNo?' · #'+item.policyNo:''}${item.expiry?' · Exp: '+item.expiry:''}</div>` : ''}
+                    </div>
                     <div style="text-align:right;">
                         <div class="row-value">${fl(item.cover||0)} cover</div>
                         <div style="font-size:11px; color:var(--text3);">₹${(item.premium||0).toLocaleString('en-IN')}/yr</div>
@@ -2267,13 +2270,14 @@ function renderInsurance() {
                     <span style="margin-left:auto; font-family:var(--mono);">${fl(catCover)}</span>
                 </div>
                 ${rowsHtml || `<p style="color:var(--text3); font-size:12px; padding:8px 0;">No policies added.</p>`}
-                ${editMode ? `<button class="add-btn" onclick="addInsurance('${cat.key}')">➕ Add Policy</button>` : ''}
+                <button class="add-btn" onclick="showAddInsuranceModal('${cat.key}')">➕ Add Policy</button>
             </div>
         `;
     }).join('');
 
     const totalTermCover  = (ins.term||[]).reduce((s,f)=>s+(f.cover||0),0);
     const totalHealthCover= (ins.health||[]).reduce((s,f)=>s+(f.cover||0),0);
+    const totalPremium    = [...(ins.term||[]),...(ins.health||[]),...(ins.vehicle||[])].reduce((s,f)=>s+(f.premium||0),0);
     const annInc          = computeMonthlyIncome()*12;
     const recommended     = annInc*12;
     const gap             = Math.max(0, recommended - totalTermCover);
@@ -2299,13 +2303,33 @@ function renderInsurance() {
                 <div class="kpi-sub">${(ins.health||[]).length} policies</div>
             </div>
             <div class="kpi-card ${irPct<1?'yellow':'green'}">
-                <div class="kpi-label">Coverage Ratio</div>
-                <div class="kpi-value">${pct(Math.min(1,irPct))}</div>
-                <div class="kpi-sub">vs 12× annual income</div>
+                <div class="kpi-label">Total Premium</div>
+                <div class="kpi-value">${fl(totalPremium)}</div>
+                <div class="kpi-sub">per year</div>
             </div>
         </div>
         <div class="insight-box" style="margin-bottom:18px;">${insInsight}</div>
         <div class="grid-2">${cardsHtml}</div>
+
+        <!-- Add Insurance Modal -->
+        <div id="ins-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;display:none;align-items:center;justify-content:center;">
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:90%;max-width:420px;">
+                <h3 style="margin:0 0 16px;color:var(--text);">Add Insurance Policy</h3>
+                <input id="ins-m-label" class="ainp" placeholder="Policy name (e.g. Tata AIA Term Plan)" style="margin-bottom:8px;">
+                <input id="ins-m-insurer" class="ainp" placeholder="Insurer (e.g. Tata AIA, HDFC Ergo)" style="margin-bottom:8px;">
+                <input id="ins-m-policyno" class="ainp" placeholder="Policy number (optional)" style="margin-bottom:8px;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <input id="ins-m-cover" class="ainp" type="number" placeholder="Cover amount ₹" style="flex:1;">
+                    <input id="ins-m-premium" class="ainp" type="number" placeholder="Premium/yr ₹" style="flex:1;">
+                </div>
+                <input id="ins-m-expiry" class="ainp" type="date" placeholder="Expiry date" style="margin-bottom:16px;">
+                <input id="ins-m-cat" type="hidden">
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button class="secondary-btn" onclick="closeInsModal()">Cancel</button>
+                    <button class="primary-btn" onclick="saveInsModal()">Save Policy</button>
+                </div>
+            </div>
+        </div>
     `);
 }
 
@@ -2323,6 +2347,31 @@ window.addInsurance = cat => {
     if(!userData.insurance[cat]) userData.insurance[cat]=[];
     userData.insurance[cat].push({ id:'ins-'+Date.now(), label:'New Policy', cover:0, premium:0 });
     debounceSave(); renderInsurance();
+};
+
+window.showAddInsuranceModal = (cat) => {
+    const m = document.getElementById('ins-modal');
+    if(m) { m.style.display='flex'; document.getElementById('ins-m-cat').value=cat; }
+};
+window.closeInsModal = () => {
+    const m = document.getElementById('ins-modal');
+    if(m) m.style.display='none';
+};
+window.saveInsModal = () => {
+    const cat      = document.getElementById('ins-m-cat').value;
+    const label    = document.getElementById('ins-m-label').value.trim();
+    const insurer  = document.getElementById('ins-m-insurer').value.trim();
+    const policyNo = document.getElementById('ins-m-policyno').value.trim();
+    const cover    = num(document.getElementById('ins-m-cover').value);
+    const premium  = num(document.getElementById('ins-m-premium').value);
+    const expiry   = document.getElementById('ins-m-expiry').value;
+    if(!label) { alert('Please enter a policy name.'); return; }
+    if(!userData.insurance[cat]) userData.insurance[cat]=[];
+    userData.insurance[cat].push({ id:'ins-'+Date.now(), label, insurer, policyNo, cover, premium, expiry });
+    userData.termCover = (userData.insurance.term||[]).reduce((s,f)=>s+(f.cover||0),0);
+    debounceSave();
+    closeInsModal();
+    renderInsurance();
 };
 
 // ========== SCHEMES PAGE ==========
