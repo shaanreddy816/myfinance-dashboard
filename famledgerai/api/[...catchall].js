@@ -31,6 +31,7 @@ export default async function handler(req, res) {
   if (path === 'family/insights')                    return handleFamily(req, res);
   if (path === 'invest/recommend')                   return handleInvest(req, res);
   if (path === 'budget/coach')                       return handleBudget(req, res);
+  if (path === 'insurance/parse-pdf')                return handleInsuranceParsePdf(req, res);
   if (path === 'integrations/zerodha/callback')      return handleZerodhaCallback(req, res);
   if (path === 'integrations/zerodha/holdings')      return handleZerodhaHoldings(req, res);
   if (path === 'integrations/zerodha/mf-holdings')   return handleZerodhaHoldings(req, res);
@@ -622,6 +623,52 @@ Return ONLY valid JSON:
   } catch (e) {
     console.error('Budget coach error:', e);
     return res.status(500).json({ error: 'Internal server error', detail: e.message });
+  }
+}
+
+// ─── INSURANCE PDF PARSER ──────────────────────────────────────────────────────
+
+async function handleInsuranceParsePdf(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { pdfText } = req.body;
+  if (!pdfText || pdfText.length < 20) return res.status(400).json({ error: 'No PDF text provided' });
+
+  const prompt = `You are an Indian insurance document parser. Extract policy details from the following insurance document text.
+
+Document text:
+${pdfText.substring(0, 8000)}
+
+Extract and return ONLY a valid JSON object with these keys:
+{
+  "policyType": "term" or "health" or "vehicle",
+  "label": "Policy plan name (e.g. Tata AIA Life Insurance iRaksha TROP, HDFC Ergo Optima Secure etc.)",
+  "insurer": "Insurance company name (e.g. Tata AIA, HDFC Ergo, ICICI Lombard, Max Life etc.)",
+  "policyNo": "Policy number",
+  "cover": 5000000,
+  "premium": 15000,
+  "expiry": "2035-01-15",
+  "startDate": "2023-01-15",
+  "nominees": "Nominee name(s) if found",
+  "sumInsured": 5000000,
+  "policyTerm": "30 years",
+  "paymentFrequency": "annual/monthly/quarterly",
+  "additionalDetails": "Any riders, add-ons, or important clauses"
+}
+
+Rules:
+- cover and premium must be numbers (not strings), in INR
+- expiry and startDate in YYYY-MM-DD format
+- If a field is not found, use null
+- policyType must be one of: term, health, vehicle
+- For health insurance, cover = sum insured
+- Return ONLY the JSON, no markdown, no explanation`;
+
+  try {
+    const result = await callAIWithFallback(prompt, 'insurance_parse');
+    return res.status(200).json(result);
+  } catch (e) {
+    console.error('Insurance parse error:', e);
+    return res.status(500).json({ error: 'Failed to parse document' });
   }
 }
 

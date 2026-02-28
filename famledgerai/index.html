@@ -540,6 +540,8 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
@@ -2309,6 +2311,13 @@ function renderInsurance() {
             </div>
         </div>
         <div class="insight-box" style="margin-bottom:18px;">${insInsight}</div>
+        <div class="card" style="text-align:center;margin-bottom:18px;">
+            <div class="card-title"><i class="fas fa-file-pdf"></i> Upload Policy Document</div>
+            <p style="color:#94a3b8;margin-bottom:12px;font-size:13px;">Upload your insurance policy PDF — AI will extract all details automatically.</p>
+            <input type="file" id="ins-pdf-input" accept=".pdf" style="display:none;" onchange="handleInsurancePdfUpload(this)">
+            <button class="primary-btn" onclick="document.getElementById('ins-pdf-input').click()">📄 Upload Policy PDF</button>
+            <div id="ins-pdf-status" style="margin-top:10px;font-size:12px;color:var(--text3);"></div>
+        </div>
         <div class="grid-2">${cardsHtml}</div>
 
         <!-- Add Insurance Modal -->
@@ -2372,6 +2381,65 @@ window.saveInsModal = () => {
     debounceSave();
     closeInsModal();
     renderInsurance();
+};
+
+window.handleInsurancePdfUpload = async (input) => {
+    const file = input.files[0];
+    if (!file) return;
+    const statusEl = document.getElementById('ins-pdf-status');
+    statusEl.innerHTML = '⏳ Reading PDF...';
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            fullText += content.items.map(item => item.str).join(' ') + '\n';
+        }
+
+        if (fullText.trim().length < 30) {
+            statusEl.innerHTML = '❌ Could not extract text from PDF. It may be a scanned image.';
+            input.value = '';
+            return;
+        }
+
+        statusEl.innerHTML = '🤖 AI is extracting policy details...';
+
+        const res = await fetch('/api/insurance/parse-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdfText: fullText })
+        });
+
+        if (!res.ok) throw new Error('API error ' + res.status);
+        const policy = await res.json();
+
+        const cat = policy.policyType || 'health';
+        if (!userData.insurance[cat]) userData.insurance[cat] = [];
+        userData.insurance[cat].push({
+            id: 'ins-' + Date.now(),
+            label: policy.label || file.name,
+            insurer: policy.insurer || '',
+            policyNo: policy.policyNo || '',
+            cover: policy.cover || policy.sumInsured || 0,
+            premium: policy.premium || 0,
+            expiry: policy.expiry || '',
+            startDate: policy.startDate || '',
+            nominees: policy.nominees || '',
+            policyTerm: policy.policyTerm || '',
+            additionalDetails: policy.additionalDetails || ''
+        });
+        userData.termCover = (userData.insurance.term||[]).reduce((s,f)=>s+(f.cover||0),0);
+        debounceSave();
+        statusEl.innerHTML = `✅ Added: ${policy.label || 'Policy'} (${policy.insurer || cat}) — ${fl(policy.cover||0)} cover`;
+        renderInsurance();
+    } catch (e) {
+        console.error('PDF parse error:', e);
+        statusEl.innerHTML = '❌ Failed to parse PDF: ' + e.message;
+    }
+    input.value = '';
 };
 
 // ========== SCHEMES PAGE ==========
