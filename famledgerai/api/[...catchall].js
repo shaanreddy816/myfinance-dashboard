@@ -640,7 +640,7 @@ ${pdfText.substring(0, 8000)}
 
 Extract and return ONLY a valid JSON object with these keys:
 {
-  "policyType": "term" or "health" or "vehicle",
+  "policyType": "term" or "health" or "vehicle" or "life" or "home",
   "label": "Policy plan name (e.g. Tata AIA Life Insurance iRaksha TROP, HDFC Ergo Optima Secure etc.)",
   "insurer": "Insurance company name (e.g. Tata AIA, HDFC Ergo, ICICI Lombard, Max Life etc.)",
   "policyNo": "Policy number",

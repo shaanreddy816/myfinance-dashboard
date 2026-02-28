@@ -2234,11 +2234,14 @@ window.addLoan = () => {
 
 // ========== INSURANCE PAGE ==========
 function renderInsurance() {
-    const ins = userData.insurance || { term:[], health:[], vehicle:[] };
+    if (!userData.insurance) userData.insurance = {};
+    const ins = userData.insurance;
     const categories = [
         { key:'term',    label:'Term Insurance',    icon:'🛡️' },
+        { key:'life',    label:'Life Insurance',    icon:'💚' },
         { key:'health',  label:'Health Insurance',  icon:'🏥' },
-        { key:'vehicle', label:'Vehicle Insurance', icon:'🚗' }
+        { key:'vehicle', label:'Vehicle Insurance', icon:'🚗' },
+        { key:'home',    label:'Home Insurance',    icon:'🏠' }
     ];
 
     const cardsHtml = categories.map(cat=>{
@@ -2272,14 +2275,20 @@ function renderInsurance() {
                     <span style="margin-left:auto; font-family:var(--mono);">${fl(catCover)}</span>
                 </div>
                 ${rowsHtml || `<p style="color:var(--text3); font-size:12px; padding:8px 0;">No policies added.</p>`}
-                <button class="add-btn" onclick="showAddInsuranceModal('${cat.key}')">➕ Add Policy</button>
+                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                    <button class="add-btn" onclick="showAddInsuranceModal('${cat.key}')" style="flex:1;">➕ Add Manually</button>
+                    <input type="file" id="ins-pdf-${cat.key}" accept=".pdf" style="display:none;" onchange="handleInsurancePdfUpload(this,'${cat.key}')">
+                    <button class="add-btn" onclick="document.getElementById('ins-pdf-${cat.key}').click()" style="flex:1;">📄 Upload PDF</button>
+                </div>
+                <div id="ins-pdf-status-${cat.key}" style="margin-top:6px;font-size:11px;color:var(--text3);"></div>
             </div>
         `;
     }).join('');
 
-    const totalTermCover  = (ins.term||[]).reduce((s,f)=>s+(f.cover||0),0);
+    const totalTermCover  = [...(ins.term||[]),...(ins.life||[])].reduce((s,f)=>s+(f.cover||0),0);
     const totalHealthCover= (ins.health||[]).reduce((s,f)=>s+(f.cover||0),0);
-    const totalPremium    = [...(ins.term||[]),...(ins.health||[]),...(ins.vehicle||[])].reduce((s,f)=>s+(f.premium||0),0);
+    const allPolicies     = categories.flatMap(c => ins[c.key]||[]);
+    const totalPremium    = allPolicies.reduce((s,f)=>s+(f.premium||0),0);
     const annInc          = computeMonthlyIncome()*12;
     const recommended     = annInc*12;
     const gap             = Math.max(0, recommended - totalTermCover);
@@ -2287,37 +2296,35 @@ function renderInsurance() {
 
     const irPct = computeInsuranceRatio();
     const insInsight = totalTermCover === 0
-        ? `⚠️ No term insurance recorded. Recommended cover is 12× annual income (${fl(recommended)}).`
+        ? `⚠️ No term/life insurance recorded. Recommended cover is 12× annual income (${fl(recommended)}).`
         : irPct >= 1
-        ? `✅ Term coverage is adequate (${fl(totalTermCover)} vs recommended ${fl(recommended)}).`
-        : `⚠️ Coverage gap of ${fl(gap)}. Increase term cover to ${fl(recommended)} (12× annual income).`;
+        ? `✅ Term/life coverage is adequate (${fl(totalTermCover)} vs recommended ${fl(recommended)}).`
+        : `⚠️ Coverage gap of ${fl(gap)}. Increase cover to ${fl(recommended)} (12× annual income).`;
 
     sh('page-insurance', `
-        <div class="grid-3" style="margin-bottom:18px;">
+        <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card ${irPct<0.5?'red':irPct<1?'yellow':'green'}">
-                <div class="kpi-label">Total Term Cover</div>
+                <div class="kpi-label">Term / Life Cover</div>
                 <div class="kpi-value">${fl(totalTermCover)}</div>
-                <div class="kpi-sub">Life coverage</div>
+                <div class="kpi-sub">${(ins.term||[]).length + (ins.life||[]).length} policies</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Health Cover</div>
                 <div class="kpi-value">${fl(totalHealthCover)}</div>
                 <div class="kpi-sub">${(ins.health||[]).length} policies</div>
             </div>
-            <div class="kpi-card ${irPct<1?'yellow':'green'}">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Policies</div>
+                <div class="kpi-value">${allPolicies.length}</div>
+                <div class="kpi-sub">across ${categories.filter(c=>(ins[c.key]||[]).length>0).length} categories</div>
+            </div>
+            <div class="kpi-card purple">
                 <div class="kpi-label">Total Premium</div>
                 <div class="kpi-value">${fl(totalPremium)}</div>
                 <div class="kpi-sub">per year</div>
             </div>
         </div>
         <div class="insight-box" style="margin-bottom:18px;">${insInsight}</div>
-        <div class="card" style="text-align:center;margin-bottom:18px;">
-            <div class="card-title"><i class="fas fa-file-pdf"></i> Upload Policy Document</div>
-            <p style="color:#94a3b8;margin-bottom:12px;font-size:13px;">Upload your insurance policy PDF — AI will extract all details automatically.</p>
-            <input type="file" id="ins-pdf-input" accept=".pdf" style="display:none;" onchange="handleInsurancePdfUpload(this)">
-            <button class="primary-btn" onclick="document.getElementById('ins-pdf-input').click()">📄 Upload Policy PDF</button>
-            <div id="ins-pdf-status" style="margin-top:10px;font-size:12px;color:var(--text3);"></div>
-        </div>
         <div class="grid-2">${cardsHtml}</div>
 
         <!-- Add Insurance Modal -->
@@ -2383,11 +2390,11 @@ window.saveInsModal = () => {
     renderInsurance();
 };
 
-window.handleInsurancePdfUpload = async (input) => {
+window.handleInsurancePdfUpload = async (input, forceCat) => {
     const file = input.files[0];
     if (!file) return;
-    const statusEl = document.getElementById('ins-pdf-status');
-    statusEl.innerHTML = '⏳ Reading PDF...';
+    const statusEl = document.getElementById('ins-pdf-status-' + forceCat);
+    if (statusEl) statusEl.innerHTML = '⏳ Reading PDF...';
 
     try {
         const arrayBuffer = await file.arrayBuffer();
@@ -2400,12 +2407,12 @@ window.handleInsurancePdfUpload = async (input) => {
         }
 
         if (fullText.trim().length < 30) {
-            statusEl.innerHTML = '❌ Could not extract text from PDF. It may be a scanned image.';
+            if (statusEl) statusEl.innerHTML = '❌ Could not extract text from PDF. It may be a scanned image.';
             input.value = '';
             return;
         }
 
-        statusEl.innerHTML = '🤖 AI is extracting policy details...';
+        if (statusEl) statusEl.innerHTML = '🤖 AI is extracting policy details...';
 
         const res = await fetch('/api/insurance/parse-pdf', {
             method: 'POST',
@@ -2416,7 +2423,8 @@ window.handleInsurancePdfUpload = async (input) => {
         if (!res.ok) throw new Error('API error ' + res.status);
         const policy = await res.json();
 
-        const cat = policy.policyType || 'health';
+        // Use the forced category from the button, fallback to AI detection
+        const cat = forceCat || policy.policyType || 'health';
         if (!userData.insurance[cat]) userData.insurance[cat] = [];
         userData.insurance[cat].push({
             id: 'ins-' + Date.now(),
@@ -2431,13 +2439,13 @@ window.handleInsurancePdfUpload = async (input) => {
             policyTerm: policy.policyTerm || '',
             additionalDetails: policy.additionalDetails || ''
         });
-        userData.termCover = (userData.insurance.term||[]).reduce((s,f)=>s+(f.cover||0),0);
+        userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
         debounceSave();
-        statusEl.innerHTML = `✅ Added: ${policy.label || 'Policy'} (${policy.insurer || cat}) — ${fl(policy.cover||0)} cover`;
+        if (statusEl) statusEl.innerHTML = `✅ Added: ${policy.label || 'Policy'} (${policy.insurer || cat}) — ${fl(policy.cover||0)} cover`;
         renderInsurance();
     } catch (e) {
         console.error('PDF parse error:', e);
-        statusEl.innerHTML = '❌ Failed to parse PDF: ' + e.message;
+        if (statusEl) statusEl.innerHTML = '❌ Failed to parse PDF: ' + e.message;
     }
     input.value = '';
 };
