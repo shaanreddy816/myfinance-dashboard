@@ -430,7 +430,14 @@
             <button class="abtn" id="loginBtn" onclick="doLogin()">Sign In →</button>
         </div>
         <div id="aform-reg" style="display:none">
-            <input id="r-nm" class="ainp" placeholder="Full Name">
+            <input id="r-nm" class="ainp" placeholder="Your Full Name">
+            <input id="r-spouse" class="ainp" placeholder="Spouse Name (optional)">
+            <div id="r-kids-wrap">
+                <div style="display:flex; gap:6px; align-items:center; margin-bottom:10px;">
+                    <input id="r-kid-1" class="ainp" style="margin-bottom:0; flex:1;" placeholder="Kid 1 Name (optional)">
+                    <button type="button" onclick="addKidField()" style="background:var(--accent-glow); border:1px solid var(--accent); border-radius:var(--radius-sm); padding:8px 12px; color:var(--accent2); font-size:16px; cursor:pointer; font-weight:700; line-height:1;">+</button>
+                </div>
+            </div>
             <input id="r-em" class="ainp" type="email" placeholder="Email address" autocomplete="email">
             <input id="r-age" class="ainp" type="number" placeholder="Age" min="18" max="100">
             <select id="r-occupation" class="ainp">
@@ -505,9 +512,7 @@
         </div>
         <div class="sidebar-profile">
             <select class="profile-selector" id="profileSelect">
-                <option>Me</option>
-                <option>Wife</option>
-                <option>Kid</option>
+                <option value="all">👨‍👩‍👧‍👦 All (Master)</option>
             </select>
             <div class="month-picker">
                 <label>Period</label>
@@ -784,7 +789,7 @@ let userData = {
 };
 
 let editMode = false;
-let currentProfile = 'Me';
+let currentProfile = 'all';
 let currentMonth = '2026-02';
 let currentLang = 'en';
 let saveTimer = null;
@@ -1531,7 +1536,7 @@ async function loadUserData(email) {
         userData = {
             profile:     data.profile     || {},
             income:      data.income      || { husband:0, wife:0, rental:0, rentalActive:false },
-            expenses:    data.expenses    || { monthly:[], periodic:[] },
+            expenses:    data.expenses    || { monthly:[], periodic:[], byMember:{} },
             investments: data.investments || { mutualFunds:[], stocks:[], fd:[], ppf:[] },
             loans:       data.loans       || [],
             insurance:   data.insurance   || { term:[], health:[], vehicle:[] },
@@ -1542,6 +1547,22 @@ async function loadUserData(email) {
         };
     } else {
         await saveUserData(email);
+    }
+
+    // Ensure expenses.byMember exists
+    if(!userData.expenses.byMember) userData.expenses.byMember = {};
+
+    // Migrate old expenses to 'self' member if byMember is empty and monthly has items
+    if(Object.keys(userData.expenses.byMember).length === 0 && (userData.expenses.monthly||[]).length > 0) {
+        userData.expenses.byMember.self = [...userData.expenses.monthly];
+    }
+
+    // Build familyMembers from legacy data if missing
+    if(!userData.profile.familyMembers || userData.profile.familyMembers.length === 0) {
+        const fm = [{ id:'self', name: userData.profile.name || 'Me', role:'self' }];
+        if(userData.profile.spouseName) fm.push({ id:'spouse', name: userData.profile.spouseName, role:'spouse' });
+        (userData.profile.kids||[]).forEach((k,i) => fm.push({ id:'kid-'+(i+1), name:k, role:'kid' }));
+        userData.profile.familyMembers = fm;
     }
 
     userData.investments = userData.investments || { mutualFunds:[], stocks:[], fd:[], ppf:[] };
@@ -1612,7 +1633,31 @@ async function checkSession() {
     }
 }
 
-function showApp()  { $('auth').style.display='none'; $('app').style.display='block'; renderCurrentPage(); }
+function showApp() {
+    $('auth').style.display='none'; $('app').style.display='block';
+    populateProfileSelector();
+    renderCurrentPage();
+}
+
+function populateProfileSelector() {
+    const sel = $('profileSelect');
+    const members = userData.profile.familyMembers || [];
+    const name = userData.profile.name || 'Me';
+    sel.innerHTML = '<option value="all">👨‍👩‍👧‍👦 All (Master)</option>';
+    if(members.length > 0) {
+        members.forEach(m => {
+            const icon = m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : '👶';
+            sel.innerHTML += `<option value="${m.id}">${icon} ${m.name}</option>`;
+        });
+    } else {
+        sel.innerHTML += `<option value="self">👤 ${name}</option>`;
+        if(userData.profile.spouseName) sel.innerHTML += `<option value="spouse">💑 ${userData.profile.spouseName}</option>`;
+        (userData.profile.kids||[]).forEach((k,i) => {
+            sel.innerHTML += `<option value="kid-${i+1}">👶 ${k}</option>`;
+        });
+    }
+    sel.value = currentProfile;
+}
 function showAuth() { $('auth').style.display='flex'; $('app').style.display='none'; clearTimeout(inactivityTimer); }
 
 window.switchAuth = mode => {
@@ -1639,8 +1684,22 @@ window.doLogin = async () => {
     }
 };
 
+window.addKidField = () => {
+    const wrap = $('r-kids-wrap');
+    const count = wrap.querySelectorAll('input').length + 1;
+    if(count > 5) return;
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex; gap:6px; align-items:center; margin-bottom:10px;';
+    div.innerHTML = `<input id="r-kid-${count}" class="ainp" style="margin-bottom:0; flex:1;" placeholder="Kid ${count} Name (optional)">
+        <button type="button" onclick="this.parentElement.remove()" style="background:var(--red-dim); border:1px solid var(--red); border-radius:var(--radius-sm); padding:8px 12px; color:var(--red); font-size:16px; cursor:pointer; font-weight:700; line-height:1;">−</button>`;
+    wrap.appendChild(div);
+};
+
 window.doReg = async () => {
     const name       = $('r-nm').value.trim();
+    const spouseName = $('r-spouse')?.value?.trim() || '';
+    const kidInputs  = document.querySelectorAll('#r-kids-wrap input');
+    const kids       = [...kidInputs].map(el=>el.value.trim()).filter(Boolean);
     const email      = $('r-em').value.trim();
     const age        = parseInt($('r-age').value);
     const occupation = $('r-occupation').value;
@@ -1654,12 +1713,17 @@ window.doReg = async () => {
     if(pass.length<6) { alert('Password must be at least 6 characters.'); return; }
     if(pass!==pass2)  { alert('Passwords do not match.'); return; }
 
+    // Build family members array
+    const familyMembers = [{ id:'self', name, role:'self' }];
+    if(spouseName) familyMembers.push({ id:'spouse', name:spouseName, role:'spouse' });
+    kids.forEach((k,i) => familyMembers.push({ id:'kid-'+(i+1), name:k, role:'kid' }));
+
     const btn=$('regBtn'); btn.textContent='Creating…'; btn.disabled=true;
     try {
         const { data, error } = await sb.auth.signUp({ email, password:pass, options:{ data:{ name, age, occupation, incomeRange, goals, risk } } });
         if(error) { alert('Registration error: '+error.message); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
-        userData = { profile:{ name, age, occupation, incomeRange, goals, risk }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[] }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
+        userData = { profile:{ name, age, occupation, incomeRange, goals, risk, spouseName, kids, familyMembers }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
         currentUserEmail = email;
         await saveUserData(email);
         showApp(); resetInactivity();
@@ -1960,38 +2024,110 @@ window.updateIncome = (field, value) => {
 
 // ========== EXPENSES PAGE ==========
 function renderExpenses() {
-    const monthly = userData.expenses.monthly || [];
-    const total   = computeMonthlyExpenses();
-    const income  = computeMonthlyIncome();
+    const byMember = userData.expenses.byMember || {};
+    const members = userData.profile.familyMembers || [{ id:'self', name: userData.profile.name||'Me', role:'self' }];
+    const isAll = currentProfile === 'all';
 
-    let monthlyHtml = monthly.map((exp,i)=>`
-        <div class="row-flex">
-            ${editMode
-                ? `<input class="edit-input-text" value="${exp.label}" onchange="updateExpense(${i},'label',this.value)">
-                   <div style="display:flex; gap:6px; align-items:center;">
-                       <input class="edit-input" type="number" value="${exp.v}" onchange="updateExpense(${i},'v',this.value)">
-                       <button class="del-btn" onclick="deleteExpense(${i})">🗑</button>
-                   </div>`
-                : `<span class="row-label">${exp.label}</span>
-                   <div style="display:flex; align-items:center; gap:10px;">
-                       <div class="progress-bar" style="width:70px;"><div class="progress-fill" style="width:${income?Math.min(100,(exp.v/income)*100):0}%; background:var(--accent);"></div></div>
-                       <span class="row-value">${ff(exp.v)}</span>
-                   </div>`}
-        </div>
-    `).join('');
+    // Get current member's expenses or combined
+    let displayExpenses = [];
+    let memberLabel = 'All Members';
+    if(isAll) {
+        // Master view: show all members' expenses grouped
+        members.forEach(m => {
+            (byMember[m.id]||[]).forEach(exp => {
+                displayExpenses.push({ ...exp, _member: m.name, _memberId: m.id });
+            });
+        });
+    } else {
+        const m = members.find(m=>m.id===currentProfile);
+        memberLabel = m ? m.name : currentProfile;
+        displayExpenses = (byMember[currentProfile]||[]).map(exp => ({ ...exp, _memberId: currentProfile }));
+    }
 
-    if(!monthlyHtml && !editMode) monthlyHtml = `<p style="color:var(--text3); font-size:13px; padding:10px 0;">No expenses added yet.</p>`;
+    const total = displayExpenses.reduce((s,e) => s + (e.v||0), 0);
+    const income = computeMonthlyIncome();
+
+    // Per-member totals for KPI
+    const memberTotals = members.map(m => {
+        const t = (byMember[m.id]||[]).reduce((s,e)=>s+(e.v||0),0);
+        return { name:m.name, id:m.id, total:t };
+    }).filter(m => m.total > 0 || isAll);
+
+    let expHtml = '';
+    if(isAll && members.length > 1) {
+        // Grouped by member
+        members.forEach(m => {
+            const mExp = byMember[m.id] || [];
+            if(mExp.length === 0 && !editMode) return;
+            const mTotal = mExp.reduce((s,e)=>s+(e.v||0),0);
+            const icon = m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : '👶';
+            expHtml += `<div style="margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--border);">
+                    <span style="font-size:13px; font-weight:700; color:var(--accent2);">${icon} ${m.name}</span>
+                    <span style="font-size:12px; font-family:var(--mono); color:var(--text);">${fl(mTotal)}</span>
+                </div>`;
+            mExp.forEach((exp,i) => {
+                expHtml += `<div class="row-flex">
+                    ${editMode
+                        ? `<input class="edit-input-text" value="${exp.label}" onchange="updateMemberExpense('${m.id}',${i},'label',this.value)">
+                           <div style="display:flex; gap:6px; align-items:center;">
+                               <input class="edit-input" type="number" value="${exp.v}" onchange="updateMemberExpense('${m.id}',${i},'v',this.value)">
+                               <button class="del-btn" onclick="deleteMemberExpense('${m.id}',${i})">🗑</button>
+                           </div>`
+                        : `<span class="row-label">${exp.label}</span>
+                           <span class="row-value">${ff(exp.v)}</span>`}
+                </div>`;
+            });
+            if(editMode) expHtml += `<button class="add-btn" onclick="addMemberExpense('${m.id}')" style="margin-top:6px; margin-bottom:8px;">➕ Add for ${m.name}</button>`;
+            expHtml += `</div>`;
+        });
+    } else {
+        // Single member view
+        const mid = isAll ? 'self' : currentProfile;
+        const mExp = byMember[mid] || [];
+        mExp.forEach((exp,i) => {
+            expHtml += `<div class="row-flex">
+                ${editMode
+                    ? `<input class="edit-input-text" value="${exp.label}" onchange="updateMemberExpense('${mid}',${i},'label',this.value)">
+                       <div style="display:flex; gap:6px; align-items:center;">
+                           <input class="edit-input" type="number" value="${exp.v}" onchange="updateMemberExpense('${mid}',${i},'v',this.value)">
+                           <button class="del-btn" onclick="deleteMemberExpense('${mid}',${i})">🗑</button>
+                       </div>`
+                    : `<span class="row-label">${exp.label}</span>
+                       <div style="display:flex; align-items:center; gap:10px;">
+                           <div class="progress-bar" style="width:70px;"><div class="progress-fill" style="width:${income?Math.min(100,(exp.v/income)*100):0}%; background:var(--accent);"></div></div>
+                           <span class="row-value">${ff(exp.v)}</span>
+                       </div>`}
+            </div>`;
+        });
+        if(!mExp.length && !editMode) expHtml = `<p style="color:var(--text3); font-size:13px; padding:10px 0;">No expenses added yet.</p>`;
+        if(editMode) expHtml += `<button class="add-btn" onclick="addMemberExpense('${mid}')">➕ Add Expense</button>`;
+    }
+
+    // Member breakdown KPI cards (only in master view with multiple members)
+    let memberKpiHtml = '';
+    if(isAll && memberTotals.length > 1) {
+        memberKpiHtml = memberTotals.map(m => `
+            <div class="kpi-card" style="cursor:pointer;" onclick="$('profileSelect').value='${m.id}'; currentProfile='${m.id}'; renderCurrentPage();">
+                <div class="kpi-label">${m.name}</div>
+                <div class="kpi-value">${fl(m.total)}</div>
+                <div class="kpi-sub">${income>0?pct(m.total/income):''} of income</div>
+            </div>
+        `).join('');
+    }
+
+    const allTotal = Object.values(byMember).flat().reduce((s,e)=>s+(e.v||0),0);
 
     sh('page-expenses', `
         <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card red">
-                <div class="kpi-label">Total Monthly</div>
-                <div class="kpi-value">${fl(total)}</div>
-                <div class="kpi-sub">${monthly.length} items</div>
+                <div class="kpi-label">${isAll ? 'Family Total' : memberLabel} Monthly</div>
+                <div class="kpi-value">${fl(isAll ? allTotal : total)}</div>
+                <div class="kpi-sub">${displayExpenses.length} items</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">% of Income</div>
-                <div class="kpi-value">${income > 0 ? pct(total/income) : '—'}</div>
+                <div class="kpi-value">${income > 0 ? pct((isAll?allTotal:total)/income) : '—'}</div>
                 <div class="kpi-sub">Expense ratio</div>
             </div>
             <div class="kpi-card ${computeTotalEmi()>0?'yellow':'green'}">
@@ -2000,21 +2136,37 @@ function renderExpenses() {
                 <div class="kpi-sub">From ${(userData.loans||[]).length} loan(s)</div>
             </div>
         </div>
+        ${memberKpiHtml ? `<div class="grid-4" style="margin-bottom:18px;">${memberKpiHtml}</div>` : ''}
         <div class="card">
-            <div class="card-title"><span class="icon">📉</span> Monthly Expenses</div>
-            ${monthlyHtml}
-            ${editMode ? `<button class="add-btn" onclick="addExpense()">➕ Add Expense</button>` : ''}
+            <div class="card-title"><span class="icon">📉</span> ${isAll ? 'Family Expenses' : memberLabel + "'s Expenses"}</div>
+            ${expHtml}
         </div>
     `);
 }
 
-window.updateExpense = (i, field, val) => {
-    if(field==='label') userData.expenses.monthly[i].label = val;
-    else userData.expenses.monthly[i].v = num(val);
-    debounceSave(); renderExpenses();
+// Sync byMember back to legacy monthly array (for computeMonthlyExpenses compatibility)
+function syncExpensesToLegacy() {
+    const byMember = userData.expenses.byMember || {};
+    userData.expenses.monthly = Object.values(byMember).flat();
+}
+
+window.updateMemberExpense = (memberId, i, field, val) => {
+    if(!userData.expenses.byMember[memberId]) return;
+    if(field==='label') userData.expenses.byMember[memberId][i].label = val;
+    else userData.expenses.byMember[memberId][i].v = num(val);
+    syncExpensesToLegacy(); debounceSave(); renderExpenses();
 };
-window.deleteExpense = i => { userData.expenses.monthly.splice(i,1); debounceSave(); renderExpenses(); };
-window.addExpense = () => { userData.expenses.monthly.push({ id:'exp-'+Date.now(), label:'New Expense', v:0 }); debounceSave(); renderExpenses(); };
+window.deleteMemberExpense = (memberId, i) => {
+    if(!userData.expenses.byMember[memberId]) return;
+    userData.expenses.byMember[memberId].splice(i,1);
+    syncExpensesToLegacy(); debounceSave(); renderExpenses();
+};
+window.addMemberExpense = (memberId) => {
+    if(!userData.expenses.byMember) userData.expenses.byMember = {};
+    if(!userData.expenses.byMember[memberId]) userData.expenses.byMember[memberId] = [];
+    userData.expenses.byMember[memberId].push({ id:'exp-'+Date.now(), label:'New Expense', v:0 });
+    syncExpensesToLegacy(); debounceSave(); renderExpenses();
+};
 
 // ========== INVESTMENTS PAGE (with Zerodha integration) ==========
 async function renderInvestments() {
@@ -2716,6 +2868,7 @@ function renderSettings() {
     sb.auth.getSession().then(({ data: { session } }) => {
         const email = session?.user?.email || '';
         const p     = userData.profile;
+        const members = p.familyMembers || [];
 
         const occupations  = ['salaried','business','self-employed','retired'];
         const incomeRanges = [['0-3','Up to ₹3L'],['3-6','₹3–6L'],['6-12','₹6–12L'],['12-25','₹12–25L'],['25+','₹25L+']];
@@ -2726,10 +2879,32 @@ function renderSettings() {
         const goalsHtml      = goalsList.map(g=>`<span class="goal-option ${(p.goals||[]).includes(g)?'selected':''}" data-goal="${g}">${g.replace('-',' ')}</span>`).join('');
         const riskHtml       = ['low','moderate','high'].map(r=>`<span class="risk-option ${p.risk===r?'selected':''}" data-risk="${r}">${r}</span>`).join('');
 
+        // Family members editing
+        const spouseMember = members.find(m=>m.role==='spouse');
+        const kidMembers = members.filter(m=>m.role==='kid');
+        let familyHtml = `
+            <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Spouse Name</label>
+            <input id="s-spouse" class="modal-inp" value="${spouseMember?.name || p.spouseName || ''}" placeholder="Spouse name (optional)">
+            <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Kids</label>
+            <div id="s-kids-wrap">`;
+        kidMembers.forEach((k,i) => {
+            familyHtml += `<div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+                <input class="modal-inp s-kid-input" style="margin-bottom:0; flex:1;" value="${k.name}" placeholder="Kid ${i+1} name">
+                <button type="button" onclick="this.parentElement.remove()" style="background:var(--red-dim); border:1px solid var(--red); border-radius:var(--radius-sm); padding:6px 10px; color:var(--red); font-size:14px; cursor:pointer; font-weight:700;">−</button>
+            </div>`;
+        });
+        if(kidMembers.length === 0) {
+            familyHtml += `<div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+                <input class="modal-inp s-kid-input" style="margin-bottom:0; flex:1;" value="" placeholder="Kid 1 name (optional)">
+            </div>`;
+        }
+        familyHtml += `</div>
+            <button type="button" class="add-btn" onclick="addSettingsKidField()" style="margin-top:0;">➕ Add Kid</button>`;
+
         sh('page-settings', `
             <div class="grid-2">
                 <div class="card">
-                    <div class="card-title"><span class="icon">👤</span> Personal Information</div>
+                    <div class="card-title"><span class="icon">�</span> Personal Information</div>
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Full Name</label>
                     <input id="s-name" class="modal-inp" value="${p.name||''}">
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Email</label>
@@ -2741,6 +2916,12 @@ function renderSettings() {
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Annual Income Range</label>
                     <select id="s-income" class="modal-inp">${incomeOpts}</select>
                 </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">👨‍👩‍👧‍👦</span> Family Members</div>
+                    ${familyHtml}
+                </div>
+            </div>
+            <div class="grid-2">
                 <div class="card">
                     <div class="card-title"><span class="icon">🎯</span> Financial Preferences</div>
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:8px;">Financial Goals</label>
@@ -2765,6 +2946,17 @@ function renderSettings() {
     });
 }
 
+window.addSettingsKidField = () => {
+    const wrap = $('s-kids-wrap');
+    const count = wrap.querySelectorAll('input').length + 1;
+    if(count > 5) return;
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex; gap:6px; align-items:center; margin-bottom:8px;';
+    div.innerHTML = `<input class="modal-inp s-kid-input" style="margin-bottom:0; flex:1;" value="" placeholder="Kid ${count} name">
+        <button type="button" onclick="this.parentElement.remove()" style="background:var(--red-dim); border:1px solid var(--red); border-radius:var(--radius-sm); padding:6px 10px; color:var(--red); font-size:14px; cursor:pointer; font-weight:700;">−</button>`;
+    wrap.appendChild(div);
+};
+
 window.saveProfile = async () => {
     userData.profile.name        = $('s-name').value.trim();
     userData.profile.age         = parseInt($('s-age').value);
@@ -2775,9 +2967,24 @@ window.saveProfile = async () => {
     userData.liquidSavings       = num($('s-liquid').value);
     userData.termCover           = num($('s-term').value);
 
+    // Save family members
+    const spouseName = $('s-spouse')?.value?.trim() || '';
+    const kidInputs = document.querySelectorAll('.s-kid-input');
+    const kids = [...kidInputs].map(el=>el.value.trim()).filter(Boolean);
+
+    userData.profile.spouseName = spouseName;
+    userData.profile.kids = kids;
+
+    // Rebuild familyMembers array
+    const fm = [{ id:'self', name: userData.profile.name || 'Me', role:'self' }];
+    if(spouseName) fm.push({ id:'spouse', name: spouseName, role:'spouse' });
+    kids.forEach((k,i) => fm.push({ id:'kid-'+(i+1), name:k, role:'kid' }));
+    userData.profile.familyMembers = fm;
+
     const { data: { session } } = await sb.auth.getSession();
     if(session) {
         await saveUserData(session.user.email);
+        populateProfileSelector();
         showToast('Profile saved successfully!');
         renderCurrentPage();
     }
