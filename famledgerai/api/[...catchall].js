@@ -773,22 +773,24 @@ const SETU_PRODUCT_ID      = process.env.SETU_PRODUCT_ID;
 const APP_BASE_URL         = process.env.APP_BASE_URL       || 'https://famledgerai.com';
 
 async function getSetuToken() {
-  // Setu sandbox base: https://fiu-sandbox.setu.co
-  const tokenUrl = `${SETU_BASE_URL}/v2/auth/token`;
+  // Setu auth is at a separate service, not on the FIU domain
+  const tokenUrl = 'https://accountservice.setu.co/v1/users/login';
   console.log('Fetching Setu token from:', tokenUrl);
   const res = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-product-instance-id': SETU_PRODUCT_ID
+      'client': 'bridge'
     },
-    body: JSON.stringify({ clientID: SETU_CLIENT_ID, secret: SETU_CLIENT_SECRET })
+    body: JSON.stringify({ clientID: SETU_CLIENT_ID, secret: SETU_CLIENT_SECRET, grant_type: 'client_credentials' })
   });
   const responseText = await res.text();
   console.log('Setu token response:', res.status, responseText.substring(0, 300));
   if (!res.ok) throw new Error(`Setu token error ${res.status}: ${responseText.substring(0, 500)}`);
   const d = JSON.parse(responseText);
-  return d.accessToken || d.access_token || d.token;
+  const token = d.access_token || d.accessToken || d.token;
+  if (!token) throw new Error(`No token in response: ${responseText.substring(0, 300)}`);
+  return token;
 }
 
 function setuHeaders(accessToken) {
