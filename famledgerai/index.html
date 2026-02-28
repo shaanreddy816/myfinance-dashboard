@@ -736,6 +736,7 @@ let userData = {
     loans: [],
     insurance: { term:[], health:[], vehicle:[] },
     schemes: [],
+    bankAccounts: [],
     liquidSavings: 0,
     termCover: 0
 };
@@ -1493,6 +1494,7 @@ async function loadUserData(email) {
             loans:       data.loans       || [],
             insurance:   data.insurance   || { term:[], health:[], vehicle:[] },
             schemes:     data.schemes     || [],
+            bankAccounts: data.bank_accounts || [],
             liquidSavings: data.profile?.liquidSavings || 0,
             termCover:   data.profile?.termCover || data.insurance?.termCover || 0
         };
@@ -1529,7 +1531,8 @@ async function saveUserData(email) {
         investments: userData.investments,
         loans:       userData.loans,
         insurance:   userData.insurance,
-        schemes:     userData.schemes
+        schemes:     userData.schemes,
+        bank_accounts: userData.bankAccounts || []
     }, { onConflict: 'email' });
     if(error) console.error('Save error:', error);
 }
@@ -1614,7 +1617,7 @@ window.doReg = async () => {
         const { data, error } = await sb.auth.signUp({ email, password:pass, options:{ data:{ name, age, occupation, incomeRange, goals, risk } } });
         if(error) { alert('Registration error: '+error.message); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
-        userData = { profile:{ name, age, occupation, incomeRange, goals, risk }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[] }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], liquidSavings:0, termCover:0 };
+        userData = { profile:{ name, age, occupation, incomeRange, goals, risk }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[] }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
         currentUserEmail = email;
         await saveUserData(email);
         showApp(); resetInactivity();
@@ -2565,83 +2568,185 @@ window.saveProfile = async () => {
 
 // ========== ACCOUNTS PAGE ==========
 async function renderAccounts() {
-  sh('page-accounts', `<div class="loading-state"><div class="spinner"></div><p>Loading your accounts...</p></div>`);
-
   if (!currentUserEmail) {
     sh('page-accounts', `<div class="card"><p style="color:var(--red);">Please log in first.</p></div>`);
     return;
   }
 
-  try {
-    // Fetch linked accounts — falls back gracefully if endpoint not yet deployed
-    let accounts = [];
-    try {
-      const res = await fetch('/api/accounts', {
-        headers: { 'X-User-Id': currentUserEmail }
-      });
-      if (res.ok) accounts = await res.json();
-    } catch(_) { /* endpoint not deployed yet, show empty state */ }
+  const accounts = userData.bankAccounts || [];
 
-    let html = `
-      <div class="card" style="text-align:center;">
-        <div class="card-title"><span class="icon">🏦</span> Your Bank Accounts</div>
-        <p style="color:#94a3b8; margin-bottom:12px;">Connect your bank to automatically track balances and transactions.</p>
-        <button class="primary-btn" onclick="connectBank()">➕ Connect New Bank</button>
-      </div>
-    `;
+  const bankOptions = ['SBI','HDFC','ICICI','Axis','Kotak','PNB','Bank of Baroda','Canara Bank','Union Bank','IndusInd','Yes Bank','IDFC First','Federal Bank','Other'];
+  const typeOptions = ['Savings','Current','Salary','NRE','NRO','Fixed Deposit'];
 
-    if (accounts.length > 0) {
-      const accountsList = accounts.map(acc => `
-        <div class="kpi-card" style="margin-bottom:12px;">
-          <div class="kpi-label">${acc.name}</div>
-          <div class="kpi-value">${fl(acc.last_balance || 0)}</div>
-          <div class="kpi-sub">Last updated: ${acc.last_refreshed_at ? new Date(acc.last_refreshed_at).toLocaleDateString() : 'Never'}</div>
+  const accountsList = accounts.map((acc, i) => `
+    <div class="kpi-card" style="margin-bottom:12px; position:relative;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <div class="kpi-label">${acc.bank} — ${acc.type}</div>
+          <div class="kpi-value">${fl(acc.balance || 0)}</div>
+          <div class="kpi-sub">
+            ${acc.accountNumber ? `A/C: ****${acc.accountNumber.slice(-4)}` : ''}
+            ${acc.ifsc ? ` · IFSC: ${acc.ifsc}` : ''}
+          </div>
+          <div class="kpi-sub">Updated: ${acc.updatedAt ? new Date(acc.updatedAt).toLocaleDateString('en-IN') : '—'}</div>
         </div>
-      `).join('');
-      html += `<div class="card"><div class="card-title">Linked Accounts</div>${accountsList}</div>`;
-    } else {
-      html += `<div class="card"><p style="color:var(--text3);">No accounts connected yet. Click the button above to get started.</p></div>`;
-    }
+        <div style="display:flex; gap:6px;">
+          ${editMode ? `
+            <button class="del-btn" onclick="editBankAccount(${i})">✏️</button>
+            <button class="del-btn" onclick="deleteBankAccount(${i})">🗑</button>
+          ` : `
+            <button class="snap-btn" style="padding:5px 10px; font-size:11px;" onclick="updateBankBalance(${i})">Update Balance</button>
+          `}
+        </div>
+      </div>
+    </div>
+  `).join('');
 
-    sh('page-accounts', html);
-  } catch (e) {
-    console.error('Failed to load accounts', e);
-    sh('page-accounts', `<div class="card"><p style="color:var(--red);">Error loading accounts. Please try again.</p></div>`);
-  }
+  const totalBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0);
+  const savingsTotal = accounts.filter(a => a.type === 'Savings' || a.type === 'Salary').reduce((s, a) => s + (a.balance || 0), 0);
+  const fdTotal = accounts.filter(a => a.type === 'Fixed Deposit').reduce((s, a) => s + (a.balance || 0), 0);
+
+  sh('page-accounts', `
+    ${accounts.length > 0 ? `
+      <div class="grid-4" style="margin-bottom:18px;">
+        <div class="kpi-card green">
+          <div class="kpi-label">Total Balance</div>
+          <div class="kpi-value">${fl(totalBalance)}</div>
+          <div class="kpi-sub">${accounts.length} account(s)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Savings / Salary</div>
+          <div class="kpi-value">${fl(savingsTotal)}</div>
+          <div class="kpi-sub">Liquid funds</div>
+        </div>
+        <div class="kpi-card purple">
+          <div class="kpi-label">Fixed Deposits</div>
+          <div class="kpi-value">${fl(fdTotal)}</div>
+          <div class="kpi-sub">Locked funds</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Other</div>
+          <div class="kpi-value">${fl(totalBalance - savingsTotal - fdTotal)}</div>
+          <div class="kpi-sub">NRE/NRO/Current</div>
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🏦</span> Your Bank Accounts</div>
+      ${accountsList || `<p style="color:var(--text3); font-size:13px; padding:10px 0;">No accounts added yet. Add your first bank account below.</p>`}
+      <button class="add-btn" onclick="showAddBankModal()">➕ Add Bank Account</button>
+    </div>
+
+    ${accounts.length > 0 ? `
+      <div class="insight-box">
+        <strong>💡 Tip:</strong> Keep balances updated regularly for accurate financial health scores.
+        Your liquid savings (${fl(savingsTotal)}) ${savingsTotal >= computeMonthlyExpenses() * 6
+          ? 'cover 6+ months of expenses — great emergency fund!'
+          : savingsTotal >= computeMonthlyExpenses() * 3
+          ? 'cover 3-6 months of expenses — building up nicely.'
+          : 'are below 3 months of expenses — consider building an emergency fund.'}
+      </div>
+    ` : ''}
+  `);
 }
 
-// ========== CONNECT BANK BUTTON ==========
-window.connectBank = async () => {
-  if (!currentUserEmail) {
-    alert('You must be logged in first.');
-    return;
+// ========== ADD / EDIT BANK ACCOUNT MODAL ==========
+window.showAddBankModal = (editIndex) => {
+  const isEdit = editIndex !== undefined;
+  const acc = isEdit ? (userData.bankAccounts || [])[editIndex] : {};
+
+  const bankOptions = ['SBI','HDFC','ICICI','Axis','Kotak','PNB','Bank of Baroda','Canara Bank','Union Bank','IndusInd','Yes Bank','IDFC First','Federal Bank','Other'];
+  const typeOptions = ['Savings','Current','Salary','NRE','NRO','Fixed Deposit'];
+
+  const bankOpts = bankOptions.map(b => `<option value="${b}" ${acc.bank === b ? 'selected' : ''}>${b}</option>`).join('');
+  const typeOpts = typeOptions.map(t => `<option value="${t}" ${acc.type === t ? 'selected' : ''}>${t}</option>`).join('');
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'bankModal';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div class="modal-content">
+      <h3>${isEdit ? '✏️ Edit' : '➕ Add'} Bank Account</h3>
+      <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Bank</label>
+      <select id="ba-bank" class="modal-inp">${bankOpts}</select>
+      <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Account Type</label>
+      <select id="ba-type" class="modal-inp">${typeOpts}</select>
+      <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Account Number (optional)</label>
+      <input id="ba-number" class="modal-inp" placeholder="e.g. 1234567890" value="${acc.accountNumber || ''}">
+      <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">IFSC Code (optional)</label>
+      <input id="ba-ifsc" class="modal-inp" placeholder="e.g. SBIN0001234" value="${acc.ifsc || ''}">
+      <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Current Balance (₹)</label>
+      <input id="ba-balance" class="modal-inp" type="number" placeholder="e.g. 150000" value="${acc.balance || ''}">
+      <div class="modal-buttons">
+        <button class="secondary-btn" onclick="document.getElementById('bankModal').remove()">Cancel</button>
+        <button class="primary-btn" onclick="saveBankAccount(${isEdit ? editIndex : -1})">${isEdit ? 'Update' : 'Add Account'}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+};
+
+window.saveBankAccount = (editIndex) => {
+  const bank    = document.getElementById('ba-bank').value;
+  const type    = document.getElementById('ba-type').value;
+  const number  = document.getElementById('ba-number').value.trim();
+  const ifsc    = document.getElementById('ba-ifsc').value.trim().toUpperCase();
+  const balance = num(document.getElementById('ba-balance').value);
+
+  if (!bank || !type) { alert('Please select bank and account type.'); return; }
+
+  if (!userData.bankAccounts) userData.bankAccounts = [];
+
+  const account = {
+    id: editIndex >= 0 ? userData.bankAccounts[editIndex].id : 'ba-' + Date.now(),
+    bank, type, accountNumber: number, ifsc, balance,
+    updatedAt: new Date().toISOString()
+  };
+
+  if (editIndex >= 0) {
+    userData.bankAccounts[editIndex] = account;
+  } else {
+    userData.bankAccounts.push(account);
   }
 
-  try {
-    const res = await fetch('/api/aa/create-consent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: currentUserEmail })
-    });
+  // Update liquid savings for health score
+  userData.liquidSavings = userData.bankAccounts
+    .filter(a => a.type === 'Savings' || a.type === 'Salary' || a.type === 'Current')
+    .reduce((s, a) => s + (a.balance || 0), 0);
 
-    const data = await res.json();
+  document.getElementById('bankModal').remove();
+  debounceSave();
+  showToast(editIndex >= 0 ? 'Account updated!' : 'Account added!');
+  renderAccounts();
+};
 
-    if (!res.ok) {
-      alert('Bank connection error: ' + (data.error || `HTTP ${res.status}`));
-      console.error('Consent creation failed:', data);
-      return;
-    }
+window.editBankAccount = (i) => showAddBankModal(i);
 
-    if (data.consentUrl) {
-      window.location.href = data.consentUrl;
-    } else {
-      alert('No consent URL returned. Check Setu configuration.');
-      console.error('Response missing consentUrl:', data);
-    }
-  } catch (e) {
-    console.error('Connect bank error:', e);
-    alert('Error connecting bank: ' + e.message);
-  }
+window.deleteBankAccount = (i) => {
+  if (!confirm('Remove this bank account?')) return;
+  userData.bankAccounts.splice(i, 1);
+  userData.liquidSavings = (userData.bankAccounts || [])
+    .filter(a => a.type === 'Savings' || a.type === 'Salary' || a.type === 'Current')
+    .reduce((s, a) => s + (a.balance || 0), 0);
+  debounceSave();
+  showToast('Account removed.', 'yellow');
+  renderAccounts();
+};
+
+window.updateBankBalance = (i) => {
+  const acc = userData.bankAccounts[i];
+  const newBal = prompt(`Update balance for ${acc.bank} (${acc.type}):`, acc.balance || 0);
+  if (newBal === null) return;
+  userData.bankAccounts[i].balance = num(newBal);
+  userData.bankAccounts[i].updatedAt = new Date().toISOString();
+  userData.liquidSavings = (userData.bankAccounts || [])
+    .filter(a => a.type === 'Savings' || a.type === 'Salary' || a.type === 'Current')
+    .reduce((s, a) => s + (a.balance || 0), 0);
+  debounceSave();
+  showToast('Balance updated!');
+  renderAccounts();
 };
 
 // ========== UTILITIES ==========
