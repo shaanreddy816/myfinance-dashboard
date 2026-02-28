@@ -57,7 +57,7 @@ async function callAnthropic(prompt) {
     },
     body: JSON.stringify({
       model:      'claude-3-haiku-20240307',
-      max_tokens: 1500,
+      max_tokens: 4000,
       messages:   [{ role: 'user', content: prompt }]
     })
   });
@@ -285,6 +285,58 @@ function getMockAdvice(module) {
       disclaimer: 'This is AI-generated advice for informational purposes. Consult a SEBI-registered financial advisor before making investment decisions.',
       confidence: 0.5,
       missingData: ['detailed expense breakdown', 'investment history', 'tax returns']
+    },
+    loan_advisor: {
+      summary: 'Your home loan is a long-term commitment. With a floating rate of 7.45%, focus on making periodic prepayments to reduce total interest outgo significantly.',
+      debtHealthScore: 65,
+      debtHealthLabel: 'Moderate',
+      priorityOrder: ['SBI Home Loan'],
+      priorityReason: 'Since this is your only loan, all extra payments should go here. Home loans have tax benefits under Section 24(b) for interest (up to ₹2L/yr) and Section 80C for principal (up to ₹1.5L/yr), so balance prepayment with tax savings.',
+      strategies: [
+        { name: 'Extra ₹10,000/month Prepayment', description: 'Pay ₹83,377 instead of ₹73,377 each month. This reduces your tenure significantly and saves lakhs in interest.', timeSaved: '5-6 years', interestSaved: 1500000, difficulty: 'Easy', recommended: true },
+        { name: 'Annual Lumpsum of ₹1-2 Lakhs', description: 'Use annual bonus or savings to make a lumpsum prepayment once a year. Even ₹1L/year makes a big difference over 30 years.', timeSaved: '3-4 years', interestSaved: 800000, difficulty: 'Easy', recommended: true },
+        { name: 'Rate Negotiation / Balance Transfer', description: 'Check with other banks for lower rates. If you can get 7.0% or below, a balance transfer could save significant interest. SBI periodically revises rates — request a rate review.', timeSaved: '2-3 years', interestSaved: 500000, difficulty: 'Medium', recommended: false }
+      ],
+      quickWins: [
+        'SBI floating rate home loans have ZERO prepayment charges — take advantage of this',
+        'Claim Section 24(b) deduction of up to ₹2L/year on home loan interest to reduce tax',
+        'Claim Section 80C deduction of up to ₹1.5L/year on principal repayment',
+        'Set up auto-debit for EMI to avoid late payment charges'
+      ],
+      warnings: ['Your EMI of ₹73,377 is a significant monthly commitment — ensure you maintain an emergency fund of at least 6 months expenses'],
+      refinanceAdvice: 'At 7.45%, your rate is reasonable for current market conditions. Monitor RBI repo rate changes — if rates drop below 7%, consider requesting SBI for a rate reduction or explore balance transfer to banks offering 6.5-7%.',
+      monthlyPlan: 'Pay your regular EMI of ₹73,377 + try to add ₹5,000-10,000 extra as prepayment each month. Even small consistent prepayments compound into massive savings over 30 years.',
+      projections: {
+        currentPayoffDate: 'April 2054',
+        optimizedPayoffDate: 'March 2048',
+        totalInterestCurrent: 17200000,
+        totalInterestOptimized: 12500000,
+        totalSavings: 4700000
+      }
+    },
+    loan_parse: {
+      label: 'Loan Statement',
+      lender: 'Unknown Bank',
+      loanType: 'other',
+      principal: 0,
+      outstanding: 0,
+      emi: 0,
+      rate: 0,
+      tenureMonths: 0,
+      paidMonths: 0,
+      totalInterestPaid: 0,
+      totalPrincipalPaid: 0,
+      interestType: 'floating',
+      prepaymentCharges: 'Unknown',
+      additionalDetails: 'Could not parse — AI service temporarily unavailable. Please try again or enter details manually.'
+    },
+    insurance_parse: {
+      policyType: 'health',
+      label: 'Insurance Policy',
+      insurer: 'Unknown',
+      cover: 0,
+      premium: 0,
+      additionalDetails: 'Could not parse — AI service temporarily unavailable. Please try again or enter details manually.'
     }
   };
 
