@@ -43,6 +43,10 @@ export default async function handler(req, res) {
       SUPABASE_URL: process.env.SUPABASE_URL || 'undefined',
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'defined' : 'undefined',
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? 'defined' : 'undefined',
+      SETU_CLIENT_ID: process.env.SETU_CLIENT_ID ? 'defined' : 'undefined',
+      SETU_CLIENT_SECRET: process.env.SETU_CLIENT_SECRET ? 'defined' : 'undefined',
+      SETU_PRODUCT_ID: process.env.SETU_PRODUCT_ID || 'undefined',
+      SETU_BASE_URL: process.env.SETU_BASE_URL || 'default',
       NODE_ENV: process.env.NODE_ENV,
     });
   }
@@ -762,10 +766,11 @@ async function handleZerodhaMfSips(req, res) {
 
 // ─── SETU ACCOUNT AGGREGATOR ───────────────────────────────────────────────────
 
-const SETU_BASE_URL      = process.env.SETU_BASE_URL    || 'https://fiu-uat.setu.co';
-const SETU_CLIENT_ID     = process.env.SETU_CLIENT_ID;
-const SETU_CLIENT_SECRET = process.env.SETU_CLIENT_SECRET;
-const APP_BASE_URL       = process.env.APP_BASE_URL     || 'https://famledgerai.vercel.app';
+const SETU_BASE_URL        = process.env.SETU_BASE_URL      || 'https://fiu-uat.setu.co';
+const SETU_CLIENT_ID       = process.env.SETU_CLIENT_ID;
+const SETU_CLIENT_SECRET   = process.env.SETU_CLIENT_SECRET;
+const SETU_PRODUCT_ID      = process.env.SETU_PRODUCT_ID;
+const APP_BASE_URL         = process.env.APP_BASE_URL       || 'https://myfinance-dashboard-40i6njg12-shantan-kumar-bathinis-projects.vercel.app';
 
 async function getSetuToken() {
   const res = await fetch(`${SETU_BASE_URL}/api/v2/auth/token`, {
@@ -776,6 +781,15 @@ async function getSetuToken() {
   if (!res.ok) throw new Error(`Setu token error: ${await res.text()}`);
   const d = await res.json();
   return d.accessToken || d.access_token;
+}
+
+function setuHeaders(accessToken) {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${accessToken}`,
+    'x-client-id': SETU_CLIENT_ID,
+    'x-product-instance-id': SETU_PRODUCT_ID
+  };
 }
 
 async function handleAaCreateConsent(req, res) {
@@ -805,7 +819,7 @@ async function handleAaCreateConsent(req, res) {
     };
     const cr = await fetch(`${SETU_BASE_URL}/api/v2/consents`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}`, 'x-client-id': SETU_CLIENT_ID },
+      headers: setuHeaders(accessToken),
       body: JSON.stringify(consentBody)
     });
     if (!cr.ok) throw new Error(`Setu error ${cr.status}: ${await cr.text()}`);
@@ -828,7 +842,7 @@ async function handleAaConsentCallback(req, res) {
   try {
     const accessToken = await getSetuToken();
     const dr = await fetch(`${SETU_BASE_URL}/api/v2/consents/${consentId}`, {
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'x-client-id': SETU_CLIENT_ID }
+      headers: setuHeaders(accessToken)
     });
     const detail = dr.ok ? await dr.json() : {};
     await supabase.from('aa_consents').upsert({

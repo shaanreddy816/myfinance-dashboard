@@ -543,19 +543,16 @@
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// Safe env var access — works with Vite (import.meta.env) and falls back to localStorage for non-Vite serving
-const _env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
-const SUPABASE_URL      = _env.VITE_SUPABASE_URL      || localStorage.getItem('sb_url') || 'https://ivvkzforsgruhofpekir.supabase.co';
-const SUPABASE_ANON_KEY = _env.VITE_SUPABASE_ANON_KEY || localStorage.getItem('sb_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2dmt6Zm9yc2dydWhvZnBla2lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODg4NjMsImV4cCI6MjA4NzQ2NDg2M30.aKVXCPFsNIbN3dH2xbjJKntGG0bQu9HSywvTWEnGnhU';
-
-if(!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.error('Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env.local or use the config modal.');
-}
+// Supabase credentials — hardcoded for single-file deploy (no Vite build step)
+// Override via localStorage if needed (config modal still works)
+const SUPABASE_URL      = localStorage.getItem('sb_url') || 'https://ivvkzforsgruhofpekir.supabase.co';
+const SUPABASE_ANON_KEY = localStorage.getItem('sb_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2dmt6Zm9yc2dydWhvZnBla2lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODg4NjMsImV4cCI6MjA4NzQ2NDg2M30.aKVXCPFsNIbN3dH2xbjJKntGG0bQu9HSywvTWEnGnhU';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Hide the creds notice since we have hardcoded credentials
 const credsNotice = document.getElementById('creds-notice-login');
-if(credsNotice) credsNotice.style.display = (!SUPABASE_URL || !SUPABASE_ANON_KEY) ? 'block' : 'none';
+if(credsNotice) credsNotice.style.display = 'none';
 
 // ========== TRANSLATIONS ==========
 const translations = {
@@ -1546,9 +1543,14 @@ function debounceSave() {
 async function checkSession() {
     const ls = document.getElementById('loading-screen');
     try {
-        console.log('Checking session...');
-        const { data: { session } } = await sb.auth.getSession();
-        console.log('Session result:', session);
+        console.log('Checking session with Supabase URL:', SUPABASE_URL);
+        const { data: { session }, error } = await sb.auth.getSession();
+        if (error) {
+            console.error('getSession error:', error);
+            showAuth();
+            return;
+        }
+        console.log('Session result:', session ? 'active' : 'none');
         if (session) {
             currentUserEmail = session.user.email;
             await loadUserData(currentUserEmail);
@@ -1579,11 +1581,17 @@ window.doLogin = async () => {
     const pass  = $('l-pw').value;
     if(!email||!pass) { alert('Please enter email and password.'); return; }
     const btn = $('loginBtn'); btn.textContent='Signing in…'; btn.disabled=true;
-    const { data, error } = await sb.auth.signInWithPassword({ email, password:pass });
-    if(error) { alert('Login failed: ' + error.message); btn.textContent='Sign In →'; btn.disabled=false; return; }
-    currentUserEmail = data.user.email;
-    await loadUserData(currentUserEmail);
-    showApp(); resetInactivity();
+    try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password:pass });
+        if(error) { alert('Login failed: ' + error.message); btn.textContent='Sign In →'; btn.disabled=false; return; }
+        currentUserEmail = data.user.email;
+        await loadUserData(currentUserEmail);
+        showApp(); resetInactivity();
+    } catch(e) {
+        console.error('Login error:', e);
+        alert('Login failed: ' + (e.message || 'Network error. Check your connection.'));
+        btn.textContent='Sign In →'; btn.disabled=false;
+    }
 };
 
 window.doReg = async () => {
@@ -1602,13 +1610,19 @@ window.doReg = async () => {
     if(pass!==pass2)  { alert('Passwords do not match.'); return; }
 
     const btn=$('regBtn'); btn.textContent='Creating…'; btn.disabled=true;
-    const { data, error } = await sb.auth.signUp({ email, password:pass, options:{ data:{ name, age, occupation, incomeRange, goals, risk } } });
-    if(error) { alert('Registration error: '+error.message); btn.textContent='Create Account →'; btn.disabled=false; return; }
+    try {
+        const { data, error } = await sb.auth.signUp({ email, password:pass, options:{ data:{ name, age, occupation, incomeRange, goals, risk } } });
+        if(error) { alert('Registration error: '+error.message); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
-    userData = { profile:{ name, age, occupation, incomeRange, goals, risk }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[] }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], liquidSavings:0, termCover:0 };
-    currentUserEmail = email;
-    await saveUserData(email);
-    showApp(); resetInactivity();
+        userData = { profile:{ name, age, occupation, incomeRange, goals, risk }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[] }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], liquidSavings:0, termCover:0 };
+        currentUserEmail = email;
+        await saveUserData(email);
+        showApp(); resetInactivity();
+    } catch(e) {
+        console.error('Registration error:', e);
+        alert('Registration failed: ' + (e.message || 'Network error. Check your connection.'));
+        btn.textContent='Create Account →'; btn.disabled=false;
+    }
 };
 
 window.doLogout = async () => { await sb.auth.signOut(); showAuth(); };
@@ -2610,15 +2624,23 @@ window.connectBank = async () => {
       body: JSON.stringify({ userId: currentUserEmail })
     });
 
-    const { consentUrl } = await res.json();
-    if (consentUrl) {
-      window.location.href = consentUrl; // redirect to Setu's consent page
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert('Bank connection error: ' + (data.error || `HTTP ${res.status}`));
+      console.error('Consent creation failed:', data);
+      return;
+    }
+
+    if (data.consentUrl) {
+      window.location.href = data.consentUrl;
     } else {
-      alert('Failed to initiate bank connection.');
+      alert('No consent URL returned. Check Setu configuration.');
+      console.error('Response missing consentUrl:', data);
     }
   } catch (e) {
-    console.error(e);
-    alert('Error connecting bank.');
+    console.error('Connect bank error:', e);
+    alert('Error connecting bank: ' + e.message);
   }
 };
 
