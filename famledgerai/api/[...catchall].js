@@ -692,30 +692,60 @@ async function handleZerodhaHoldings(req, res) {
 
     if (!integration) return res.status(404).json({ error: 'Zerodha not connected' });
 
-    const response = await fetch('https://api.kite.trade/mf/holdings', {
-      headers: {
-        'X-Kite-Version': '3',
-        'Authorization':  `token ${process.env.KITE_API_KEY}:${integration.access_token}`
+    const authHeader = {
+      'X-Kite-Version': '3',
+      'Authorization':  `token ${process.env.KITE_API_KEY}:${integration.access_token}`
+    };
+
+    // Fetch both equity and MF holdings in parallel
+    const [equityRes, mfRes] = await Promise.all([
+      fetch('https://api.kite.trade/portfolio/holdings', { headers: authHeader }),
+      fetch('https://api.kite.trade/mf/holdings', { headers: authHeader })
+    ]);
+
+    const equityData = await equityRes.json();
+    const mfData     = await mfRes.json();
+
+    // If token is expired/invalid, tell frontend to re-auth
+    if (equityData.error_type === 'TokenException' || mfData.error_type === 'TokenException') {
+      // Clear stale token
+      await supabase.from('integrations').delete()
+        .eq('user_id', userId).eq('provider', 'zerodha').catch(() => {});
+      return res.status(401).json({ error: 'Zerodha session expired. Please reconnect.', needsReauth: true });
+    }
+
+    const holdings = [];
+
+    // Equity holdings
+    if (equityData.status === 'success' && equityData.data) {
+      for (const stock of equityData.data) {
+        holdings.push({
+          source:         'zerodha',
+          asset_type:     'stock',
+          fund_name:      stock.tradingsymbol,
+          quantity:       stock.quantity,
+          purchase_price: stock.average_price,
+          current_price:  stock.last_price,
+          pnl:            stock.pnl,
+          last_synced:    new Date().toISOString()
+        });
       }
-    });
-    const data = await response.json();
-    if (data.status !== 'success') return res.status(500).json({ error: 'Zerodha API error', details: data });
+    }
 
-    const holdings = data.data.map(fund => ({
-      source:         'zerodha',
-      asset_type:     'mutual_fund',
-      fund_name:      fund.scheme,
-      quantity:       fund.quantity,
-      purchase_price: fund.average_price,
-      current_price:  fund.last_price,
-      last_synced:    new Date().toISOString()
-    }));
-
-    // Optionally upsert to portfolio_holdings
-    for (const h of holdings) {
-      await supabase.from('portfolio_holdings')
-        .upsert({ user_id: userId, ...h }, { onConflict: 'fund_name' })
-        .then(() => {}).catch(() => {});
+    // MF holdings
+    if (mfData.status === 'success' && mfData.data) {
+      for (const fund of mfData.data) {
+        holdings.push({
+          source:         'zerodha',
+          asset_type:     'mutual_fund',
+          fund_name:      fund.tradingsymbol || fund.scheme,
+          quantity:       fund.quantity,
+          purchase_price: fund.average_price,
+          current_price:  fund.last_price,
+          pnl:            fund.pnl,
+          last_synced:    new Date().toISOString()
+        });
+      }
     }
 
     return res.status(200).json(holdings);

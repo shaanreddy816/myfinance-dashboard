@@ -2008,42 +2008,79 @@ async function renderInvestments() {
                          diversified>=3  ? '✅ Well-diversified across multiple asset classes.' :
                          '💡 Good start — adding more asset classes improves risk balance.';
 
-    // ===== UPDATED ZERODHA SECTION – no localStorage, always fetch =====
+    // ===== ZERODHA SECTION – fetch equity + MF holdings =====
     let zerodhaSection = '';
     try {
         const holdingsRes = await fetch('/api/integrations/zerodha/holdings', {
             headers: { 'X-User-Id': currentUserEmail }
         });
         if (holdingsRes.status === 404) {
-            // Not connected – show connect button
             zerodhaSection = `
                 <div class="card" style="text-align:center;">
                     <div class="card-title"><i class="fas fa-link"></i> Zerodha</div>
-                    <p style="color:#94a3b8; margin-bottom:12px;">Connect your Zerodha account to see your mutual funds.</p>
+                    <p style="color:#94a3b8; margin-bottom:12px;">Connect your Zerodha account to see your holdings.</p>
                     <button class="primary-btn" onclick="connectZerodha()">${t('connectZerodha')} →</button>
-                </div>
-            `;
+                </div>`;
+        } else if (holdingsRes.status === 401) {
+            // Token expired — need to reconnect
+            zerodhaSection = `
+                <div class="card" style="text-align:center;">
+                    <div class="card-title"><i class="fas fa-link"></i> Zerodha</div>
+                    <p style="color:#f59e0b; margin-bottom:12px;">Session expired. Zerodha tokens reset daily — please reconnect.</p>
+                    <button class="primary-btn" onclick="connectZerodha()">${t('connectZerodha')} →</button>
+                </div>`;
         } else if (holdingsRes.ok) {
             const holdings = await holdingsRes.json();
             if (holdings.length) {
-                let holdingsHtml = holdings.map(h => `
-                    <div class="reco-card">
-                        <h4>${h.fund_name}</h4>
-                        <p>Quantity: ${h.quantity} | NAV: ₹${h.current_price}</p>
-                        <div class="row-value">Value: ₹${(h.quantity * h.current_price).toLocaleString('en-IN')}</div>
-                    </div>
-                `).join('');
+                const stocks = holdings.filter(h => h.asset_type === 'stock');
+                const mfs    = holdings.filter(h => h.asset_type === 'mutual_fund');
+                const totalVal = holdings.reduce((s,h) => s + (h.quantity * h.current_price), 0);
+
+                let stocksHtml = stocks.length ? stocks.map(h => {
+                    const val = h.quantity * h.current_price;
+                    const pnlColor = (h.pnl||0) >= 0 ? 'var(--green)' : '#ef4444';
+                    return `<div class="row-flex">
+                        <span class="row-label">${h.fund_name}</span>
+                        <div style="text-align:right;">
+                            <span class="row-value">${fl(val)}</span>
+                            <div style="font-size:10px;color:${pnlColor};">${(h.pnl||0)>=0?'+':''}${fl(h.pnl||0)} P&L</div>
+                        </div>
+                    </div>`;
+                }).join('') : '<p style="color:var(--text3);font-size:12px;padding:4px 0;">No stocks found.</p>';
+
+                let mfHtml = mfs.length ? mfs.map(h => {
+                    const val = h.quantity * h.current_price;
+                    const pnlColor = (h.pnl||0) >= 0 ? 'var(--green)' : '#ef4444';
+                    return `<div class="row-flex">
+                        <span class="row-label">${h.fund_name}</span>
+                        <div style="text-align:right;">
+                            <span class="row-value">${fl(val)}</span>
+                            <div style="font-size:10px;color:${pnlColor};">${(h.pnl||0)>=0?'+':''}${fl(h.pnl||0)} P&L</div>
+                        </div>
+                    </div>`;
+                }).join('') : '<p style="color:var(--text3);font-size:12px;padding:4px 0;">No mutual funds found.</p>';
+
                 zerodhaSection = `
-                    <div class="card">
-                        <div class="card-title"><i class="fas fa-link"></i> Zerodha Mutual Funds</div>
-                        ${holdingsHtml}
+                    <div class="card" style="margin-bottom:12px;">
+                        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                            <span><i class="fas fa-link"></i> Zerodha Holdings</span>
+                            <span style="font-family:var(--mono);color:var(--green);">${fl(totalVal)}</span>
+                        </div>
                     </div>
-                `;
+                    <div class="grid-2">
+                        <div class="card">
+                            <div class="card-title">📈 Stocks (${stocks.length})</div>
+                            ${stocksHtml}
+                        </div>
+                        <div class="card">
+                            <div class="card-title">📊 Mutual Funds (${mfs.length})</div>
+                            ${mfHtml}
+                        </div>
+                    </div>`;
             } else {
-                zerodhaSection = `<div class="card"><p>No mutual funds found in your Zerodha account.</p></div>`;
+                zerodhaSection = `<div class="card"><p style="color:var(--text3);">Connected to Zerodha but no holdings found.</p></div>`;
             }
         } else {
-            // Some other error (e.g., 500)
             zerodhaSection = `<div class="card"><p>Error loading Zerodha holdings.</p></div>`;
         }
     } catch (e) {
