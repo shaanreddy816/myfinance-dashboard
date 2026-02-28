@@ -1657,6 +1657,36 @@ async function loadUserData(email) {
         userData.profile._sbiLoanV2 = true;
         await saveUserData(email);
     }
+
+    // One-time seed: Tata AIA Term Insurance from user screenshots
+    if(!userData.profile._tataInsV1) {
+        if(!userData.insurance) userData.insurance = {};
+        if(!Array.isArray(userData.insurance.term)) userData.insurance.term = [];
+        if(!Array.isArray(userData.insurance.life)) userData.insurance.life = [];
+
+        // Check if already exists
+        const hasTata = [...userData.insurance.term, ...userData.insurance.life].some(p => p.label && p.label.toLowerCase().includes('tata'));
+        if(!hasTata) {
+            userData.insurance.term.push({
+                id: 'ins-tata-mrs-1',
+                label: 'Tata AIA Maha Raksha Supreme Select - Life Secure',
+                insurer: 'Tata AIA Life Insurance',
+                policyNo: '110N171V14',
+                cover: 20000000,
+                premium: 141213,
+                startDate: '2026-02-17',
+                expiry: '2063-02-17',
+                policyTerm: '37 years',
+                paymentFrequency: 'annual',
+                premiumPayingTerm: '5 years',
+                nominees: 'Saritha Godhala (Spouse, 100%)',
+                additionalDetails: 'Base premium ₹1,19,433/yr + ATPD Rider ₹21,780/yr. Premium paying till 2030. Rider: TATA AIA Health Buddy (ATPD) - Accidental Total & Permanent Disability, Sum Assured ₹2Cr. Last premium due: 17-02-2030.'
+            });
+        }
+        userData.termCover = [...(userData.insurance.term||[]), ...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
+        userData.profile._tataInsV1 = true;
+        await saveUserData(email);
+    }
 }
 
 async function saveUserData(email) {
