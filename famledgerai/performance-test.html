@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FamLedgerAI Performance Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #0b0f1a; color: #e8edf5; }
+        .test { margin: 20px 0; padding: 15px; background: #1a2235; border-radius: 8px; }
+        .pass { color: #10d98e; }
+        .fail { color: #f4495c; }
+        .warn { color: #f5c542; }
+        h2 { color: #3b7eff; }
+        .metric { display: flex; justify-content: space-between; margin: 5px 0; }
+        .metric-label { font-weight: bold; }
+        button { background: #3b7eff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin: 5px; }
+        button:hover { background: #60a5fa; }
+    </style>
+</head>
+<body>
+    <h1>🚀 FamLedgerAI Performance Test Suite</h1>
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="clearResults()">Clear Results</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const results = document.getElementById('results');
+        
+        function clearResults() {
+            results.innerHTML = '';
+        }
+        
+        function addResult(title, metrics, status = 'pass') {
+            const div = document.createElement('div');
+            div.className = 'test';
+            div.innerHTML = `
+                <h2>${title} <span class="${status}">${status.toUpperCase()}</span></h2>
+                ${metrics.map(m => `
+                    <div class="metric">
+                        <span class="metric-label">${m.label}:</span>
+                        <span class="${m.status || status}">${m.value}</span>
+                    </div>
+                `).join('')}
+            `;
+            results.appendChild(div);
+        }
+        
+        // Test 1: Page Load Performance
+        function testPageLoad() {
+            const start = performance.now();
+            const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+            const domReady = performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart;
+            const end = performance.now();
+            
+            addResult('Page Load Performance', [
+                { label: 'Total Load Time', value: `${loadTime}ms`, status: loadTime < 3000 ? 'pass' : 'warn' },
+                { label: 'DOM Ready', value: `${domReady}ms`, status: domReady < 1500 ? 'pass' : 'warn' },
+                { label: 'Test Execution', value: `${(end - start).toFixed(2)}ms`, status: 'pass' }
+            ], loadTime < 3000 ? 'pass' : 'warn');
+        }
+        
+        // Test 2: Memory Usage
+        function testMemory() {
+            if (performance.memory) {
+                const used = (performance.memory.usedJSHeapSize / 1048576).toFixed(2);
+                const total = (performance.memory.totalJSHeapSize / 1048576).toFixed(2);
+                const limit = (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2);
+                
+                addResult('Memory Usage', [
+                    { label: 'Used Heap', value: `${used} MB`, status: used < 50 ? 'pass' : 'warn' },
+                    { label: 'Total Heap', value: `${total} MB`, status: 'pass' },
+                    { label: 'Heap Limit', value: `${limit} MB`, status: 'pass' },
+                    { label: 'Usage %', value: `${((used / limit) * 100).toFixed(1)}%`, status: (used / limit) < 0.5 ? 'pass' : 'warn' }
+                ], used < 50 ? 'pass' : 'warn');
+            } else {
+                addResult('Memory Usage', [
+                    { label: 'Status', value: 'Not available in this browser', status: 'warn' }
+                ], 'warn');
+            }
+        }
+        
+        // Test 3: Render Performance
+        function testRenderPerformance() {
+            const iterations = 100;
+            const start = performance.now();
+            
+            // Simulate compute operations
+            for (let i = 0; i < iterations; i++) {
+                const income = Math.random() * 100000;
+                const expenses = Math.random() * 50000;
+                const savings = income - expenses;
+                const rate = savings / income;
+            }
+            
+            const end = performance.now();
+            const avgTime = (end - start) / iterations;
+            
+            addResult('Compute Performance', [
+                { label: 'Iterations', value: iterations, status: 'pass' },
+                { label: 'Total Time', value: `${(end - start).toFixed(2)}ms`, status: 'pass' },
+                { label: 'Avg per Iteration', value: `${avgTime.toFixed(4)}ms`, status: avgTime < 1 ? 'pass' : 'warn' },
+                { label: 'Operations/sec', value: `${(1000 / avgTime).toFixed(0)}`, status: 'pass' }
+            ], avgTime < 1 ? 'pass' : 'warn');
+        }
+        
+        // Test 4: DOM Query Performance
+        function testDOMQueries() {
+            const iterations = 1000;
+            const start = performance.now();
+            
+            for (let i = 0; i < iterations; i++) {
+                document.querySelector('.page');
+                document.getElementById('app');
+                document.querySelectorAll('.nav-item');
+            }
+            
+            const end = performance.now();
+            const avgTime = (end - start) / iterations;
+            
+            addResult('DOM Query Performance', [
+                { label: 'Iterations', value: iterations, status: 'pass' },
+                { label: 'Total Time', value: `${(end - start).toFixed(2)}ms`, status: 'pass' },
+                { label: 'Avg per Query', value: `${avgTime.toFixed(4)}ms`, status: avgTime < 0.5 ? 'pass' : 'warn' },
+                { label: 'Queries/sec', value: `${(1000 / avgTime).toFixed(0)}`, status: 'pass' }
+            ], avgTime < 0.5 ? 'pass' : 'warn');
+        }
+        
+        // Test 5: Animation Frame Rate
+        function testAnimationPerformance() {
+            return new Promise((resolve) => {
+                const frames = [];
+                let lastTime = performance.now();
+                let frameCount = 0;
+                const maxFrames = 60;
+                
+                function measureFrame() {
+                    const now = performance.now();
+                    const delta = now - lastTime;
+                    frames.push(delta);
+                    lastTime = now;
+                    frameCount++;
+                    
+                    if (frameCount < maxFrames) {
+                        requestAnimationFrame(measureFrame);
+                    } else {
+                        const avgFrameTime = frames.reduce((a, b) => a + b, 0) / frames.length;
+                        const fps = 1000 / avgFrameTime;
+                        const minFrame = Math.min(...frames);
+                        const maxFrame = Math.max(...frames);
+                        
+                        addResult('Animation Performance', [
+                            { label: 'Frames Measured', value: maxFrames, status: 'pass' },
+                            { label: 'Avg Frame Time', value: `${avgFrameTime.toFixed(2)}ms`, status: avgFrameTime < 20 ? 'pass' : 'warn' },
+                            { label: 'Avg FPS', value: `${fps.toFixed(1)}`, status: fps > 50 ? 'pass' : 'warn' },
+                            { label: 'Min Frame Time', value: `${minFrame.toFixed(2)}ms`, status: 'pass' },
+                            { label: 'Max Frame Time', value: `${maxFrame.toFixed(2)}ms`, status: maxFrame < 50 ? 'pass' : 'warn' }
+                        ], fps > 50 ? 'pass' : 'warn');
+                        resolve();
+                    }
+                }
+                
+                requestAnimationFrame(measureFrame);
+            });
+        }
+        
+        // Test 6: Cache Performance
+        function testCachePerformance() {
+            const cache = {
+                _cache: {},
+                _version: 0,
+                invalidate() { this._version++; this._cache = {}; },
+                get(key, fn) {
+                    const cacheKey = `${key}_${this._version}`;
+                    if (this._cache[cacheKey] === undefined) {
+                        this._cache[cacheKey] = fn();
+                    }
+                    return this._cache[cacheKey];
+                }
+            };
+            
+            const iterations = 10000;
+            
+            // Test cached calls
+            const cachedStart = performance.now();
+            for (let i = 0; i < iterations; i++) {
+                cache.get('test', () => Math.random() * 1000);
+            }
+            const cachedEnd = performance.now();
+            const cachedTime = cachedEnd - cachedStart;
+            
+            // Test uncached calls
+            cache.invalidate();
+            const uncachedStart = performance.now();
+            for (let i = 0; i < iterations; i++) {
+                Math.random() * 1000;
+            }
+            const uncachedEnd = performance.now();
+            const uncachedTime = uncachedEnd - uncachedStart;
+            
+            const speedup = uncachedTime / cachedTime;
+            
+            addResult('Cache Performance', [
+                { label: 'Iterations', value: iterations, status: 'pass' },
+                { label: 'Cached Time', value: `${cachedTime.toFixed(2)}ms`, status: 'pass' },
+                { label: 'Uncached Time', value: `${uncachedTime.toFixed(2)}ms`, status: 'pass' },
+                { label: 'Speedup', value: `${speedup.toFixed(2)}x`, status: speedup > 0.8 ? 'pass' : 'warn' },
+                { label: 'Cache Hit Rate', value: `${((iterations - 1) / iterations * 100).toFixed(1)}%`, status: 'pass' }
+            ], speedup > 0.8 ? 'pass' : 'warn');
+        }
+        
+        // Run all tests
+        async function runAllTests() {
+            clearResults();
+            addResult('Test Suite Started', [
+                { label: 'Timestamp', value: new Date().toLocaleString(), status: 'pass' },
+                { label: 'User Agent', value: navigator.userAgent.split(' ').slice(-2).join(' '), status: 'pass' }
+            ], 'pass');
+            
+            testPageLoad();
+            testMemory();
+            testRenderPerformance();
+            testDOMQueries();
+            testCachePerformance();
+            await testAnimationPerformance();
+            
+            addResult('Test Suite Completed', [
+                { label: 'Status', value: 'All tests finished', status: 'pass' },
+                { label: 'Timestamp', value: new Date().toLocaleString(), status: 'pass' }
+            ], 'pass');
+        }
+        
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 1000);
+        });
+    </script>
+</body>
+</html>

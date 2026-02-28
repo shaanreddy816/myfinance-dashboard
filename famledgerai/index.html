@@ -853,6 +853,20 @@ let currentLang = 'en';
 let saveTimer = null;
 let currentUserEmail = '';
 
+// Performance optimization: Memoization cache
+const computeCache = {
+    _cache: {},
+    _version: 0,
+    invalidate() { this._version++; this._cache = {}; },
+    get(key, fn) {
+        const cacheKey = `${key}_${this._version}`;
+        if (this._cache[cacheKey] === undefined) {
+            this._cache[cacheKey] = fn();
+        }
+        return this._cache[cacheKey];
+    }
+};
+
 // Stores the last generated NRI plan HTML so it persists across re‑renders
 window.lastNriPlanHtml = null;
 
@@ -916,58 +930,76 @@ function scoreLabel(s) {
     return 'Needs Work';
 }
 
-// ========== FINANCIAL ENGINE ==========
+// ========== FINANCIAL ENGINE (with memoization) ==========
 function computeMonthlyIncome() {
-    const i = userData.income;
-    return (i.husband||0) + (i.wife||0) + (i.rentalActive ? (i.rental||0) : 0);
+    return computeCache.get('monthlyIncome', () => {
+        const i = userData.income;
+        return (i.husband||0) + (i.wife||0) + (i.rentalActive ? (i.rental||0) : 0);
+    });
 }
 
 function computeMonthlyExpenses() {
-    // Use current month's data if available, otherwise fall back to legacy
-    const byMember = getMonthByMember(currentMonth);
-    const monthTotal = Object.values(byMember).flat().reduce((s,e)=>s+(e.v||0),0);
-    if(monthTotal > 0) return monthTotal;
-    const monthly  = (userData.expenses.monthly||[]).reduce((s,e)=>s+(e.v||0),0);
-    const periodic = (userData.expenses.periodic||[]).reduce((s,e)=>{
-        const months=(e.years||1)*12; return s+((e.v||0)/months);
-    },0);
-    return monthly + periodic;
+    return computeCache.get('monthlyExpenses', () => {
+        // Use current month's data if available, otherwise fall back to legacy
+        const byMember = getMonthByMember(currentMonth);
+        const monthTotal = Object.values(byMember).flat().reduce((s,e)=>s+(e.v||0),0);
+        if(monthTotal > 0) return monthTotal;
+        const monthly  = (userData.expenses.monthly||[]).reduce((s,e)=>s+(e.v||0),0);
+        const periodic = (userData.expenses.periodic||[]).reduce((s,e)=>{
+            const months=(e.years||1)*12; return s+((e.v||0)/months);
+        },0);
+        return monthly + periodic;
+    });
 }
 
 function computeTotalEmi() {
-    return (userData.loans||[]).reduce((s,l)=>s+(l.emi||0),0);
+    return computeCache.get('totalEmi', () => {
+        return (userData.loans||[]).reduce((s,l)=>s+(l.emi||0),0);
+    });
 }
 
 function computeTotalLoanOutstanding() {
-    return (userData.loans||[]).reduce((s,l)=>s+(l.outstanding||0),0);
+    return computeCache.get('totalLoanOutstanding', () => {
+        return (userData.loans||[]).reduce((s,l)=>s+(l.outstanding||0),0);
+    });
 }
 
 function computeMonthlySavings() {
-    return computeMonthlyIncome() - computeMonthlyExpenses() - computeTotalEmi();
+    return computeCache.get('monthlySavings', () => {
+        return computeMonthlyIncome() - computeMonthlyExpenses() - computeTotalEmi();
+    });
 }
 
 function computeSavingsRate() {
-    const i = computeMonthlyIncome();
-    if(!i) return 0;
-    return computeMonthlySavings() / i;
+    return computeCache.get('savingsRate', () => {
+        const i = computeMonthlyIncome();
+        if(!i) return 0;
+        return computeMonthlySavings() / i;
+    });
 }
 
 function computeEmergencyRatio() {
-    const exp = computeMonthlyExpenses();
-    if(!exp) return 0;
-    return (userData.liquidSavings||0) / (exp*6);
+    return computeCache.get('emergencyRatio', () => {
+        const exp = computeMonthlyExpenses();
+        if(!exp) return 0;
+        return (userData.liquidSavings||0) / (exp*6);
+    });
 }
 
 function computeDebtRatio() {
-    const i = computeMonthlyIncome();
-    if(!i) return 0;
-    return computeTotalEmi() / i;
+    return computeCache.get('debtRatio', () => {
+        const i = computeMonthlyIncome();
+        if(!i) return 0;
+        return computeTotalEmi() / i;
+    });
 }
 
 function computeInsuranceRatio() {
-    const annualIncome = computeMonthlyIncome() * 12;
-    if(!annualIncome) return 0;
-    return (userData.termCover||0) / (annualIncome * 12);
+    return computeCache.get('insuranceRatio', () => {
+        const annualIncome = computeMonthlyIncome() * 12;
+        if(!annualIncome) return 0;
+        return (userData.termCover||0) / (annualIncome * 12);
+    });
 }
 
 function computeTotalInvestments() {
@@ -1614,27 +1646,30 @@ async function loadUserData(email) {
     // Ensure expenses.byMember exists
     if(!userData.expenses.byMember) userData.expenses.byMember = {};
 
-    // Migrate old expenses to 'self' member if byMember is empty and monthly has items
-    if(Object.keys(userData.expenses.byMember).length === 0 && (userData.expenses.monthly||[]).length > 0) {
+    // Migrate old expenses to 'self' member if byMember is empty and monthly has items (run once)
+    if(!userData.profile._expenseMigrationV1 && Object.keys(userData.expenses.byMember).length === 0 && (userData.expenses.monthly||[]).length > 0) {
         userData.expenses.byMember.self = [...userData.expenses.monthly];
+        userData.profile._expenseMigrationV1 = true;
     }
 
     // Ensure expenses.byMonth exists
     if(!userData.expenses.byMonth) userData.expenses.byMonth = {};
 
-    // Migrate flat byMember into byMonth under current month if byMonth is empty
-    if(Object.keys(userData.expenses.byMonth).length === 0 && Object.keys(userData.expenses.byMember).length > 0) {
+    // Migrate flat byMember into byMonth under current month if byMonth is empty (run once)
+    if(!userData.profile._monthMigrationV1 && Object.keys(userData.expenses.byMonth).length === 0 && Object.keys(userData.expenses.byMember).length > 0) {
         const now = new Date();
         const migrationMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
         userData.expenses.byMonth[migrationMonth] = { byMember: JSON.parse(JSON.stringify(userData.expenses.byMember)) };
+        userData.profile._monthMigrationV1 = true;
     }
 
-    // Build familyMembers from legacy data if missing
-    if(!userData.profile.familyMembers || userData.profile.familyMembers.length === 0) {
+    // Build familyMembers from legacy data if missing (run once)
+    if(!userData.profile._familyMigrationV1 && (!userData.profile.familyMembers || userData.profile.familyMembers.length === 0)) {
         const fm = [{ id:'self', name: userData.profile.name || 'Me', role:'self' }];
         if(userData.profile.spouseName) fm.push({ id:'spouse', name: userData.profile.spouseName, role:'spouse' });
         (userData.profile.kids||[]).forEach((k,i) => fm.push({ id:'kid-'+(i+1), name:k, role:'kid' }));
         userData.profile.familyMembers = fm;
+        userData.profile._familyMigrationV1 = true;
     }
 
     userData.investments = userData.investments || { mutualFunds:[], stocks:[], fd:[], ppf:[] };
@@ -1741,6 +1776,9 @@ async function loadUserData(email) {
         userData.profile._tataInsV1 = true;
         await saveUserData(email);
     }
+    
+    // Invalidate compute cache after loading new data
+    computeCache.invalidate();
 }
 
 async function saveUserData(email) {
@@ -1761,6 +1799,7 @@ async function saveUserData(email) {
 
 function debounceSave() {
     clearTimeout(saveTimer);
+    computeCache.invalidate(); // Invalidate cache when data changes
     saveTimer = setTimeout(() => { if(currentUserEmail) saveUserData(currentUserEmail); }, 600);
 }
 
@@ -1925,7 +1964,13 @@ function updateEditBtn() {
     else         { btn.textContent='✏️ Edit'; btn.classList.remove('active-edit'); }
 }
 
-// ========== RENDER DISPATCH ==========
+// ========== RENDER DISPATCH (with debouncing) ==========
+let renderTimer = null;
+function debounceRender(renderFn) {
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(renderFn, 50); // 50ms debounce
+}
+
 async function renderCurrentPage() {
     const activePage = document.querySelector('.page.active-page')?.id;
     if(!activePage) return;
@@ -2269,7 +2314,8 @@ function renderIncome() {
 window.updateIncome = (field, value) => {
     if(field==='rentalActive') userData.income.rentalActive = Boolean(value);
     else userData.income[field] = num(value);
-    debounceSave(); renderIncome();
+    debounceSave(); 
+    debounceRender(renderIncome);
 };
 
 // ========== EXPENSES PAGE ==========
