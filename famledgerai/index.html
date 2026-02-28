@@ -516,7 +516,12 @@
             </select>
             <div class="month-picker">
                 <label>Period</label>
-                <input type="month" id="monthPicker" value="2026-02">
+                <input type="month" id="monthPicker">
+            </div>
+            <div id="monthSummary" style="margin-top:10px; padding:10px; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); display:none;">
+                <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">This Month</div>
+                <div id="monthExpTotal" style="font-size:18px; font-weight:800; font-family:var(--mono); color:var(--text);"></div>
+                <div id="monthExpTrend" style="font-size:11px; margin-top:4px;"></div>
             </div>
         </div>
         <div class="sidebar-nav" id="sidebarNav">
@@ -790,7 +795,7 @@ let userData = {
 
 let editMode = false;
 let currentProfile = 'all';
-let currentMonth = '2026-02';
+let currentMonth = (() => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); })();
 let currentLang = 'en';
 let saveTimer = null;
 let currentUserEmail = '';
@@ -865,6 +870,10 @@ function computeMonthlyIncome() {
 }
 
 function computeMonthlyExpenses() {
+    // Use current month's data if available, otherwise fall back to legacy
+    const byMember = getMonthByMember(currentMonth);
+    const monthTotal = Object.values(byMember).flat().reduce((s,e)=>s+(e.v||0),0);
+    if(monthTotal > 0) return monthTotal;
     const monthly  = (userData.expenses.monthly||[]).reduce((s,e)=>s+(e.v||0),0);
     const periodic = (userData.expenses.periodic||[]).reduce((s,e)=>{
         const months=(e.years||1)*12; return s+((e.v||0)/months);
@@ -1557,6 +1566,16 @@ async function loadUserData(email) {
         userData.expenses.byMember.self = [...userData.expenses.monthly];
     }
 
+    // Ensure expenses.byMonth exists
+    if(!userData.expenses.byMonth) userData.expenses.byMonth = {};
+
+    // Migrate flat byMember into byMonth under current month if byMonth is empty
+    if(Object.keys(userData.expenses.byMonth).length === 0 && Object.keys(userData.expenses.byMember).length > 0) {
+        const now = new Date();
+        const migrationMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+        userData.expenses.byMonth[migrationMonth] = { byMember: JSON.parse(JSON.stringify(userData.expenses.byMember)) };
+    }
+
     // Build familyMembers from legacy data if missing
     if(!userData.profile.familyMembers || userData.profile.familyMembers.length === 0) {
         const fm = [{ id:'self', name: userData.profile.name || 'Me', role:'self' }];
@@ -1635,7 +1654,9 @@ async function checkSession() {
 
 function showApp() {
     $('auth').style.display='none'; $('app').style.display='block';
+    $('monthPicker').value = currentMonth;
     populateProfileSelector();
+    syncExpensesToLegacy();
     renderCurrentPage();
 }
 
@@ -1768,6 +1789,7 @@ function updateEditBtn() {
 async function renderCurrentPage() {
     const activePage = document.querySelector('.page.active-page')?.id;
     if(!activePage) return;
+    updateMonthSummary();
     switch(activePage.replace('page-','')) {
         case 'overview':        renderOverview();            break;
         case 'income':          renderIncome();              break;
@@ -1788,8 +1810,16 @@ async function renderCurrentPage() {
 }
 
 // ========== OVERVIEW PAGE ==========
-function getMemberExpenseTotal(memberId) {
-    const byMember = userData.expenses.byMember || {};
+// Helper: get byMember for a given month (defaults to currentMonth)
+function getMonthByMember(month) {
+    if(!userData.expenses.byMonth) userData.expenses.byMonth = {};
+    const m = month || currentMonth;
+    if(!userData.expenses.byMonth[m]) userData.expenses.byMonth[m] = { byMember: {} };
+    return userData.expenses.byMonth[m].byMember;
+}
+
+function getMemberExpenseTotal(memberId, month) {
+    const byMember = getMonthByMember(month);
     if(memberId === 'all') return Object.values(byMember).flat().reduce((s,e)=>s+(e.v||0),0);
     return (byMember[memberId]||[]).reduce((s,e)=>s+(e.v||0),0);
 }
@@ -2071,7 +2101,7 @@ window.updateIncome = (field, value) => {
 
 // ========== EXPENSES PAGE ==========
 function renderExpenses() {
-    const byMember = userData.expenses.byMember || {};
+    const byMember = getMonthByMember(currentMonth);
     const members = userData.profile.familyMembers || [{ id:'self', name: userData.profile.name||'Me', role:'self' }];
     const isAll = currentProfile === 'all';
 
@@ -2164,11 +2194,12 @@ function renderExpenses() {
     }
 
     const allTotal = Object.values(byMember).flat().reduce((s,e)=>s+(e.v||0),0);
+    const monthLabel = new Date(currentMonth+'-01').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
 
     sh('page-expenses', `
         <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card red">
-                <div class="kpi-label">${isAll ? 'Family Total' : memberLabel} Monthly</div>
+                <div class="kpi-label">${isAll ? 'Family Total' : memberLabel} – ${monthLabel}</div>
                 <div class="kpi-value">${fl(isAll ? allTotal : total)}</div>
                 <div class="kpi-sub">${displayExpenses.length} items</div>
             </div>
@@ -2185,35 +2216,76 @@ function renderExpenses() {
         </div>
         ${memberKpiHtml ? `<div class="grid-4" style="margin-bottom:18px;">${memberKpiHtml}</div>` : ''}
         <div class="card">
-            <div class="card-title"><span class="icon">📉</span> ${isAll ? 'Family Expenses' : memberLabel + "'s Expenses"}</div>
+            <div class="card-title"><span class="icon">📉</span> ${isAll ? 'Family Expenses' : memberLabel + "'s Expenses"} – ${monthLabel}</div>
             ${expHtml}
         </div>
     `);
 }
 
-// Sync byMember back to legacy monthly array (for computeMonthlyExpenses compatibility)
+// Sync current month byMember back to legacy structures (for computeMonthlyExpenses compatibility)
 function syncExpensesToLegacy() {
-    const byMember = userData.expenses.byMember || {};
+    const byMember = getMonthByMember(currentMonth);
+    // Keep flat byMember in sync (for backward compat)
+    userData.expenses.byMember = byMember;
     userData.expenses.monthly = Object.values(byMember).flat();
 }
 
 window.updateMemberExpense = (memberId, i, field, val) => {
-    if(!userData.expenses.byMember[memberId]) return;
-    if(field==='label') userData.expenses.byMember[memberId][i].label = val;
-    else userData.expenses.byMember[memberId][i].v = num(val);
-    syncExpensesToLegacy(); debounceSave(); renderExpenses();
+    const byMember = getMonthByMember(currentMonth);
+    if(!byMember[memberId]) return;
+    if(field==='label') byMember[memberId][i].label = val;
+    else byMember[memberId][i].v = num(val);
+    syncExpensesToLegacy(); debounceSave(); renderExpenses(); updateMonthSummary();
 };
 window.deleteMemberExpense = (memberId, i) => {
-    if(!userData.expenses.byMember[memberId]) return;
-    userData.expenses.byMember[memberId].splice(i,1);
-    syncExpensesToLegacy(); debounceSave(); renderExpenses();
+    const byMember = getMonthByMember(currentMonth);
+    if(!byMember[memberId]) return;
+    byMember[memberId].splice(i,1);
+    syncExpensesToLegacy(); debounceSave(); renderExpenses(); updateMonthSummary();
 };
 window.addMemberExpense = (memberId) => {
-    if(!userData.expenses.byMember) userData.expenses.byMember = {};
-    if(!userData.expenses.byMember[memberId]) userData.expenses.byMember[memberId] = [];
-    userData.expenses.byMember[memberId].push({ id:'exp-'+Date.now(), label:'New Expense', v:0 });
-    syncExpensesToLegacy(); debounceSave(); renderExpenses();
+    const byMember = getMonthByMember(currentMonth);
+    if(!byMember[memberId]) byMember[memberId] = [];
+    byMember[memberId].push({ id:'exp-'+Date.now(), label:'New Expense', v:0 });
+    syncExpensesToLegacy(); debounceSave(); renderExpenses(); updateMonthSummary();
 };
+
+// ========== MONTH SUMMARY WIDGET ==========
+function updateMonthSummary() {
+    const el = $('monthSummary');
+    if(!el) return;
+    const curTotal = getMemberExpenseTotal(currentProfile, currentMonth);
+    const monthLabel = new Date(currentMonth+'-01').toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+
+    // Get previous month
+    const [y, m] = currentMonth.split('-').map(Number);
+    const prevDate = new Date(y, m - 2, 1);
+    const prevMonth = prevDate.getFullYear() + '-' + String(prevDate.getMonth()+1).padStart(2,'0');
+    const prevTotal = getMemberExpenseTotal(currentProfile, prevMonth);
+
+    el.style.display = 'block';
+    $('monthExpTotal').textContent = fl(curTotal);
+
+    // Update the label to show month name
+    el.querySelector('div:first-child').textContent = monthLabel + ' Expenses';
+
+    const trendEl = $('monthExpTrend');
+    if(prevTotal === 0 && curTotal === 0) {
+        trendEl.innerHTML = `<span style="color:var(--text3);">No data to compare</span>`;
+    } else if(prevTotal === 0) {
+        trendEl.innerHTML = `<span style="color:var(--text3);">No previous month data</span>`;
+    } else {
+        const diff = curTotal - prevTotal;
+        const pctChange = Math.abs(diff / prevTotal * 100).toFixed(1);
+        if(diff > 0) {
+            trendEl.innerHTML = `<span style="color:var(--red);">↑ ${pctChange}% higher</span> <span style="color:var(--text3);">vs prev month (${fl(prevTotal)})</span>`;
+        } else if(diff < 0) {
+            trendEl.innerHTML = `<span style="color:var(--green);">↓ ${pctChange}% lower</span> <span style="color:var(--text3);">vs prev month (${fl(prevTotal)})</span>`;
+        } else {
+            trendEl.innerHTML = `<span style="color:var(--yellow);">→ Same</span> <span style="color:var(--text3);">as prev month (${fl(prevTotal)})</span>`;
+        }
+    }
+}
 
 // ========== INVESTMENTS PAGE (with Zerodha integration) ==========
 async function renderInvestments() {
