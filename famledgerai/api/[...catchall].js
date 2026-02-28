@@ -748,7 +748,7 @@ async function handleZerodhaHoldings(req, res) {
         holdings.push({
           source:         'zerodha',
           asset_type:     'mutual_fund',
-          fund_name:      fund.tradingsymbol || fund.scheme,
+          fund_name:      fund.fund || fund.scheme || fund.tradingsymbol,
           quantity:       fund.quantity,
           purchase_price: fund.average_price,
           current_price:  fund.last_price,
