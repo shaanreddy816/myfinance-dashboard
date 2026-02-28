@@ -2385,16 +2385,19 @@ async function renderInvestments() {
         const holdingsRes = await fetch('/api/integrations/zerodha/holdings', {
             headers: { 'X-User-Id': currentUserEmail }
         });
+        console.log('Zerodha holdings API status:', holdingsRes.status);
         if (holdingsRes.status === 404) zerodhaStatus = 'not_connected';
         else if (holdingsRes.status === 401) zerodhaStatus = 'expired';
         else if (holdingsRes.ok) {
             zerodhaHoldings = await holdingsRes.json();
             zerodhaStatus = 'connected';
+            console.log('Zerodha holdings:', zerodhaHoldings.length);
         } else zerodhaStatus = 'error';
     } catch (e) {
         console.error('Failed to fetch Zerodha holdings', e);
         zerodhaStatus = 'error';
     }
+    console.log('Final zerodhaStatus:', zerodhaStatus);
 
     const zStocks = zerodhaHoldings.filter(h => h.asset_type === 'stock');
     const zMFs    = zerodhaHoldings.filter(h => h.asset_type === 'mutual_fund');
@@ -2487,19 +2490,25 @@ async function renderInvestments() {
 
     // ===== Zerodha connect/status bar =====
     let zerodhaBar = '';
-    if (zerodhaStatus === 'not_connected') {
-        zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;">
-            <div class="card-title"><i class="fas fa-link"></i> Zerodha</div>
-            <p style="color:#94a3b8; margin-bottom:12px;">Connect your Zerodha account to auto-import stocks & mutual funds.</p>
-            <button class="primary-btn" onclick="connectZerodha()">${t('connectZerodha')} →</button>
+    if (zerodhaStatus === 'not_connected' || zerodhaStatus === 'error') {
+        zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;background:linear-gradient(135deg, rgba(59,126,255,0.05), rgba(167,139,250,0.05)); border-color:var(--accent);">
+            <div class="card-title"><i class="fas fa-link"></i> Auto-Import from Zerodha</div>
+            <p style="color:var(--text2); margin-bottom:12px; font-size:13px; line-height:1.6;">Connect your Zerodha account to automatically import stocks & mutual funds with live P&L tracking.</p>
+            <button class="primary-btn" onclick="connectZerodha()"><i class="fas fa-plug"></i> ${t('connectZerodha')} →</button>
         </div>`;
     } else if (zerodhaStatus === 'expired') {
-        zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;">
-            <p style="color:#f59e0b;margin-bottom:8px;">⚠️ Zerodha session expired (tokens reset daily). <button class="primary-btn" onclick="connectZerodha()" style="margin-left:8px;">Reconnect →</button></p>
+        zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;background:rgba(245,158,11,0.05);border-color:var(--yellow);">
+            <p style="color:var(--yellow);margin-bottom:8px;font-size:13px;">⚠️ Zerodha session expired (tokens reset daily at 6 AM IST)</p>
+            <button class="primary-btn" onclick="connectZerodha()"><i class="fas fa-sync"></i> Reconnect Zerodha →</button>
         </div>`;
     } else if (zerodhaStatus === 'connected' && zerodhaHoldings.length) {
         zerodhaBar = `<div style="text-align:right;margin-bottom:12px;font-size:11px;color:var(--text3);">
-            <i class="fas fa-link"></i> Zerodha connected · ${zerodhaHoldings.length} holdings synced
+            <i class="fas fa-check-circle" style="color:var(--green);"></i> Zerodha connected · ${zerodhaHoldings.length} holdings synced
+        </div>`;
+    } else if (zerodhaStatus === 'connected' && zerodhaHoldings.length === 0) {
+        zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;">
+            <p style="color:var(--text3);margin-bottom:8px;font-size:13px;">✅ Zerodha connected, but no holdings found. Make sure you have stocks or mutual funds in your Zerodha account.</p>
+            <button class="secondary-btn" onclick="renderInvestments()"><i class="fas fa-sync"></i> Refresh</button>
         </div>`;
     }
 
