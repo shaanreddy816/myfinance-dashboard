@@ -242,18 +242,21 @@
         .badge-blue { background:var(--accent-glow); color:var(--accent2); }
         .badge-purple { background:var(--purple-dim); color:var(--purple); }
 
-        .score-wrap { position:relative; width:130px; height:130px; flex-shrink:0; }
-        .score-ring-svg { width:130px; height:130px; transform:rotate(-90deg); filter:drop-shadow(0 0 8px rgba(99,102,241,0.3)); }
-        .score-ring-bg { fill:none; stroke:var(--border2); stroke-width:9; }
-        .score-ring-fg { fill:none; stroke-width:9; stroke-linecap:round; transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1); filter:drop-shadow(0 0 6px currentColor); }
+        .score-wrap { position:relative; width:150px; height:150px; flex-shrink:0; }
+        .score-ring-svg { width:150px; height:150px; transform:rotate(-90deg); }
+        .score-ring-bg { fill:none; stroke:var(--border2); stroke-width:8; opacity:0.5; }
+        .score-ring-track { fill:none; stroke:var(--border2); stroke-width:10; opacity:0.15; }
+        .score-ring-fg { fill:none; stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1); }
         .score-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
-        .score-num { font-size:32px; font-weight:800; font-family:var(--mono); transition:color 0.5s; }
-        .score-lbl { font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; }
+        .score-num { font-size:38px; font-weight:800; font-family:var(--mono); transition:color 0.5s; line-height:1; }
+        .score-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-top:2px; }
+        .score-glow { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:120px; height:120px; border-radius:50%; opacity:0; transition:opacity 1.5s ease; }
+        .score-glow.visible { opacity:1; }
         @keyframes scoreGlow {
             0%, 100% { filter:drop-shadow(0 0 6px currentColor); }
-            50% { filter:drop-shadow(0 0 14px currentColor); }
+            50% { filter:drop-shadow(0 0 16px currentColor); }
         }
-        .score-ring-fg.animated { animation:scoreGlow 2s ease-in-out infinite; }
+        .score-ring-fg.animated { animation:scoreGlow 2.5s ease-in-out infinite; }
 
         .alert-row { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
         .alert-row:last-child { border-bottom:none; }
@@ -1781,20 +1784,28 @@ function renderOverview() {
             </div>
             <div style="text-align:center; flex-shrink:0;">
                 <div class="score-wrap">
+                    <div class="score-glow" id="scoreGlow" style="background:radial-gradient(circle, ${c}22 0%, transparent 70%);"></div>
                     <svg class="score-ring-svg" viewBox="0 0 120 120">
+                        <defs>
+                            <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="${score>=65?'#22c55e':score>=45?'#eab308':'#ef4444'}"/>
+                                <stop offset="100%" stop-color="${score>=65?'#10b981':score>=45?'#f59e0b':'#f97316'}"/>
+                            </linearGradient>
+                        </defs>
+                        <circle class="score-ring-track" cx="60" cy="60" r="${r}"/>
                         <circle class="score-ring-bg" cx="60" cy="60" r="${r}"/>
                         <circle class="score-ring-fg" cx="60" cy="60" r="${r}"
-                            stroke="${c}"
+                            stroke="url(#scoreGrad)"
                             stroke-dasharray="${circ.toFixed(1)}"
                             stroke-dashoffset="${circ.toFixed(1)}"
                             id="scoreArc"/>
                     </svg>
                     <div class="score-center">
                         <div class="score-num" style="color:${c}" id="scoreNum">0</div>
-                        <div class="score-lbl">${label}</div>
+                        <div class="score-lbl" style="color:${c}">${label}</div>
                     </div>
                 </div>
-                <p style="font-size:11px; color:var(--text3); margin-top:6px;">Financial Health Score</p>
+                <p style="font-size:11px; color:var(--text3); margin-top:8px;">Financial Health Score</p>
             </div>
         </div>
 
@@ -1846,11 +1857,15 @@ function renderOverview() {
     requestAnimationFrame(() => {
         const arc = document.getElementById('scoreArc');
         const numEl = document.getElementById('scoreNum');
+        const glowEl = document.getElementById('scoreGlow');
         if(arc) {
             setTimeout(() => {
                 arc.style.strokeDashoffset = dash.toFixed(1);
                 setTimeout(() => arc.classList.add('animated'), 1600);
             }, 100);
+        }
+        if(glowEl) {
+            setTimeout(() => glowEl.classList.add('visible'), 800);
         }
         if(numEl) {
             let current = 0;
@@ -1859,7 +1874,6 @@ function renderOverview() {
             const animate = (now) => {
                 const elapsed = now - startTime;
                 const progress = Math.min(elapsed / duration, 1);
-                // Ease out cubic
                 const eased = 1 - Math.pow(1 - progress, 3);
                 current = Math.round(eased * score);
                 numEl.textContent = current;
