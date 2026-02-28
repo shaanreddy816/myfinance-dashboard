@@ -31,6 +31,8 @@ export default async function handler(req, res) {
   if (path === 'family/insights')                    return handleFamily(req, res);
   if (path === 'invest/recommend')                   return handleInvest(req, res);
   if (path === 'budget/coach')                       return handleBudget(req, res);
+  if (path === 'loans/parse-statement')              return handleLoanParseStatement(req, res);
+  if (path === 'loans/advisor')                      return handleLoanAdvisor(req, res);
   if (path === 'insurance/parse-pdf')                return handleInsuranceParsePdf(req, res);
   if (path === 'integrations/zerodha/callback')      return handleZerodhaCallback(req, res);
   if (path === 'integrations/zerodha/holdings')      return handleZerodhaHoldings(req, res);
@@ -623,6 +625,125 @@ Return ONLY valid JSON:
   } catch (e) {
     console.error('Budget coach error:', e);
     return res.status(500).json({ error: 'Internal server error', detail: e.message });
+  }
+}
+
+// ─── LOAN STATEMENT PARSER ─────────────────────────────────────────────────────
+
+async function handleLoanParseStatement(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { pdfText } = req.body;
+  if (!pdfText || pdfText.length < 20) return res.status(400).json({ error: 'No PDF text provided' });
+
+  const prompt = `You are an Indian loan/bank statement parser. Extract loan details from the following document text.
+
+Document text:
+${pdfText.substring(0, 10000)}
+
+Extract and return ONLY a valid JSON object with these keys:
+{
+  "label": "Loan type and lender (e.g. HDFC Home Loan, SBI Personal Loan)",
+  "lender": "Bank/NBFC name",
+  "loanType": "home" or "personal" or "car" or "education" or "gold" or "business" or "other",
+  "principal": 5000000,
+  "outstanding": 4200000,
+  "emi": 45000,
+  "rate": 8.5,
+  "tenureMonths": 240,
+  "paidMonths": 36,
+  "totalInterestPaid": 850000,
+  "totalPrincipalPaid": 800000,
+  "disbursementDate": "2023-01-15",
+  "maturityDate": "2043-01-15",
+  "nextEmiDate": "2026-03-05",
+  "interestType": "floating" or "fixed",
+  "processingFee": 25000,
+  "prepaymentCharges": "2% of outstanding or NIL",
+  "collateral": "Property at [address]" or null,
+  "coApplicant": "Name if found" or null,
+  "accountNumber": "Loan account number",
+  "additionalDetails": "Any other important details"
+}
+
+Rules:
+- All monetary values must be numbers in INR (not strings)
+- Dates in YYYY-MM-DD format
+- rate is annual percentage (e.g. 8.5 not 0.085)
+- If a field is not found, use null
+- Return ONLY the JSON, no markdown, no explanation`;
+
+  try {
+    const result = await callAIWithFallback(prompt, 'loan_parse');
+    return res.status(200).json(result);
+  } catch (e) {
+    console.error('Loan parse error:', e);
+    return res.status(500).json({ error: 'Failed to parse loan statement' });
+  }
+}
+
+async function handleLoanAdvisor(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { loans, monthlyIncome, monthlyExpenses, monthlySavings, liquidSavings } = req.body;
+  if (!loans || !loans.length) return res.status(400).json({ error: 'No loan data provided' });
+
+  const loansDesc = loans.map((l, i) => `Loan ${i+1}: ${l.label||'Unknown'} — Outstanding: ₹${l.outstanding||0}, EMI: ₹${l.emi||0}, Rate: ${l.rate||0}%, Principal: ₹${l.principal||0}, Tenure: ${l.tenureMonths||0} months, Paid: ${l.paidMonths||0} months, Interest Type: ${l.interestType||'unknown'}, Prepayment Charges: ${l.prepaymentCharges||'unknown'}`).join('\n');
+
+  const prompt = `You are an expert Indian financial advisor specializing in loan management and debt payoff strategies.
+
+User's Financial Profile:
+- Monthly Income: ₹${monthlyIncome||0}
+- Monthly Expenses: ₹${monthlyExpenses||0}
+- Monthly Savings (after EMIs): ₹${monthlySavings||0}
+- Liquid Savings: ₹${liquidSavings||0}
+
+Active Loans:
+${loansDesc}
+
+Provide comprehensive loan payoff advice. Return ONLY a valid JSON object:
+{
+  "summary": "2-3 sentence overview of their debt situation and overall strategy",
+  "debtHealthScore": 75,
+  "debtHealthLabel": "Moderate" or "Healthy" or "Critical" or "Good",
+  "priorityOrder": ["Loan name to pay first", "Loan name second", ...],
+  "priorityReason": "Why this order (avalanche vs snowball explanation)",
+  "strategies": [
+    {
+      "name": "Strategy name (e.g. Avalanche Method, Snowball Method, Balance Transfer, Prepayment)",
+      "description": "How to execute this strategy",
+      "monthlySaving": 50000,
+      "timeSaved": "2 years 3 months",
+      "interestSaved": 350000,
+      "difficulty": "Easy" or "Medium" or "Hard",
+      "recommended": true or false
+    }
+  ],
+  "quickWins": ["Actionable tip 1", "Actionable tip 2", "Actionable tip 3"],
+  "warnings": ["Any red flags or urgent concerns"],
+  "refinanceAdvice": "Should they consider refinancing? Which loans and why?",
+  "monthlyPlan": "Specific monthly allocation suggestion — how much extra to pay on which loan",
+  "projections": {
+    "currentPayoffDate": "Month Year (e.g. March 2043)",
+    "optimizedPayoffDate": "Month Year with recommended strategy",
+    "totalInterestCurrent": 2500000,
+    "totalInterestOptimized": 1800000,
+    "totalSavings": 700000
+  }
+}
+
+Rules:
+- All monetary values as numbers in INR
+- Be specific with Indian context (mention RBI guidelines, tax benefits under 80C/24b where applicable)
+- Consider prepayment charges before recommending prepayment
+- Factor in tax benefits on home loan interest (Section 24b) and principal (Section 80C)
+- If debt-to-income ratio > 50%, flag it as critical
+- Return ONLY the JSON, no markdown`;
+
+  try {
+    const result = await callAIWithFallback(prompt, 'loan_advisor');
+    return res.status(200).json(result);
+  } catch (e) {
+    console.error('Loan advisor error:', e);
+    return res.status(500).json({ error: 'Failed to generate loan advice' });
   }
 }
 

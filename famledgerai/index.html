@@ -2471,6 +2471,9 @@ function renderLoans() {
     const income   = computeMonthlyIncome();
 
     const highestRate = loans.length ? Math.max(...loans.map(l=>l.rate||0)) : 0;
+    const totalIntPaid = loans.reduce((s,l)=>s+(l.totalInterestPaid||0),0);
+    const totalPrinPaid = loans.reduce((s,l)=>s+(l.totalPrincipalPaid||0),0);
+
     const loansInsight = loans.length === 0 ? '✅ No loans — great financial position!' :
         dr > 0.4 ? `⚠️ Your EMI load (${pct(dr)}) exceeds the safe 40% threshold. Prioritise repaying the highest-rate loan${highestRate>0?' ('+highestRate+'% p.a.)':''}.` :
         `💡 EMI load is within safe limits (${pct(dr)}). Consider prepaying high-interest loans to reduce total interest paid.`;
@@ -2493,11 +2496,15 @@ function renderLoans() {
                         <td>—</td>
                         <td><button class="del-btn" onclick="deleteLoan(${i})">🗑</button></td>
                     ` : `
-                        <td>${l.label||'—'}</td>
+                        <td>
+                            <div>${l.label||'—'}</div>
+                            ${l.lender?`<div style="font-size:10px;color:var(--text3);">${l.lender}</div>`:''}
+                            ${l.interestType?`<span class="badge badge-blue" style="margin-top:3px;">${l.interestType}</span>`:''}
+                        </td>
                         <td class="mono">${fl(l.outstanding||0)}</td>
                         <td class="mono">${fl(l.emi||0)}</td>
                         <td class="mono">${l.rate||0}%</td>
-                        <td>${l.tenure||'—'}</td>
+                        <td>${l.tenure || (l.tenureMonths ? l.tenureMonths+' mo' : '—')}</td>
                         <td>${income?`<span style="font-family:var(--mono); font-size:12px; color:${l.emi/income>0.15?'var(--red)':'var(--text2)'};">${pct(l.emi/income)}</span>`:'—'}</td>
                     `}
                 </tr>
@@ -2511,14 +2518,50 @@ function renderLoans() {
             : emptyStateInline('No loans recorded','✅ Great — or add your loans using the Edit button.')}
     `;
 
-    // Build per-loan analysis cards
+    // Per-loan detail cards (interest/principal paid breakdown)
+    const detailCards = loans.length && !editMode ? loans.map(l => {
+        const hasDetail = l.totalInterestPaid || l.totalPrincipalPaid || l.paidMonths;
+        if(!hasDetail) return '';
+        const totalPaid = (l.totalInterestPaid||0) + (l.totalPrincipalPaid||0);
+        const intPct = totalPaid > 0 ? ((l.totalInterestPaid||0)/totalPaid*100).toFixed(1) : 0;
+        const prinPct = totalPaid > 0 ? ((l.totalPrincipalPaid||0)/totalPaid*100).toFixed(1) : 0;
+        return `
+            <div class="card">
+                <div class="card-title"><span class="icon">📊</span> ${l.label||'Loan'} — Payment Breakdown</div>
+                <div class="grid-3" style="margin-bottom:12px;">
+                    <div style="text-align:center;">
+                        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Principal Paid</div>
+                        <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--green);">${fl(l.totalPrincipalPaid||0)}</div>
+                        <div style="font-size:11px;color:var(--text3);">${prinPct}% of total paid</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Interest Paid</div>
+                        <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--red);">${fl(l.totalInterestPaid||0)}</div>
+                        <div style="font-size:11px;color:var(--text3);">${intPct}% of total paid</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">EMIs Paid</div>
+                        <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--accent2);">${l.paidMonths||0}</div>
+                        <div style="font-size:11px;color:var(--text3);">of ${l.tenureMonths||'—'} months</div>
+                    </div>
+                </div>
+                ${l.tenureMonths ? `<div class="progress-bar" style="height:8px;margin-top:8px;">
+                    <div class="progress-fill" style="width:${Math.min(100,(l.paidMonths||0)/l.tenureMonths*100)}%;background:linear-gradient(90deg,var(--green),var(--accent));"></div>
+                </div>
+                <div style="font-size:10px;color:var(--text3);margin-top:4px;text-align:right;">${((l.paidMonths||0)/l.tenureMonths*100).toFixed(1)}% completed</div>` : ''}
+                ${l.prepaymentCharges ? `<div style="font-size:11px;color:var(--yellow);margin-top:8px;">⚠️ Prepayment charges: ${l.prepaymentCharges}</div>` : ''}
+            </div>
+        `;
+    }).join('') : '';
+
+    // Build per-loan scenario analysis cards
     const analysisCards = loans.length && !editMode ? loans.map(l => {
         const canAnalyse = l.principal && l.rate && l.emi;
         if (!canAnalyse) return '';
         return `
             <div class="card">
                 <div class="card-title">
-                    <span class="icon">🔬</span> Analysis: ${l.label||'Loan'}
+                    <span class="icon">🔬</span> Payoff Scenarios: ${l.label||'Loan'}
                     <span style="margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--yellow);">${l.rate}% p.a.</span>
                 </div>
                 ${loanScenarioHtml(l)}
@@ -2543,18 +2586,56 @@ function renderLoans() {
                 <div class="kpi-value">${pct(dr)}</div>
                 <div class="kpi-sub">Safe threshold: 40%</div>
             </div>
+            ${totalIntPaid || totalPrinPaid ? `
+            <div class="kpi-card purple">
+                <div class="kpi-label">Interest Paid (Total)</div>
+                <div class="kpi-value">${fl(totalIntPaid)}</div>
+                <div class="kpi-sub">Principal paid: ${fl(totalPrinPaid)}</div>
+            </div>` : ''}
         </div>
+
+        <!-- Upload & Add buttons -->
+        <div class="card">
+            <div class="card-title"><span class="icon">📄</span> Upload Loan Statement</div>
+            <p style="font-size:12px; color:var(--text2); margin-bottom:12px; line-height:1.5;">
+                Upload your loan statement PDF (from bank/NBFC) and AI will auto-extract all loan details — outstanding, EMI, interest rate, tenure, principal/interest paid, and more.
+            </p>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <label class="snap-btn" style="cursor:pointer;">
+                    <i class="fas fa-file-pdf" style="color:var(--red);"></i> Upload PDF
+                    <input type="file" accept=".pdf" onchange="handleLoanPdfUpload(this)" style="display:none;">
+                </label>
+                <button class="snap-btn" onclick="showAddLoanModal()"><i class="fas fa-plus"></i> Add Manually</button>
+            </div>
+            <div id="loan-pdf-status" style="margin-top:10px; font-size:12px;"></div>
+        </div>
+
         <div class="card">
             <div class="card-title"><span class="icon">💳</span> Active Loans</div>
             ${tableHtml}
         </div>
+        ${detailCards}
         ${analysisCards}
         <div class="insight-box">${loansInsight}</div>
+
+        <!-- AI Loan Advisor button -->
+        ${loans.length && !editMode ? `
+        <div class="card" style="background:linear-gradient(135deg, rgba(59,126,255,0.05), rgba(167,139,250,0.05)); border-color:var(--accent);">
+            <div class="card-title"><span class="icon">🤖</span> AI Loan Advisor</div>
+            <p style="font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:14px;">
+                Get personalized strategies to pay off your loans faster — avalanche vs snowball method, refinancing tips, prepayment analysis, and projected savings.
+            </p>
+            <button class="primary-btn" onclick="getLoanAdvice()" id="loan-advice-btn">
+                <i class="fas fa-brain"></i> Get AI Payoff Strategy
+            </button>
+            <div id="loan-advice-result" style="margin-top:16px;"></div>
+        </div>` : ''}
+
         ${loans.length && !editMode ? `
         <div class="card" style="margin-top:0;">
             <div class="card-title"><span class="icon">💡</span> How to use Loan Analysis</div>
             <p style="font-size:13px; color:var(--text2); line-height:1.6;">
-                To unlock payoff scenarios, make sure each loan has <strong>Principal</strong>, <strong>Rate %</strong>, <strong>EMI</strong>, <strong>Tenure (months)</strong>, and <strong>Paid Months</strong> filled in via the Edit button. The calculator will then show you exactly how many months you save by paying extra each month or making a lump-sum prepayment.
+                To unlock payoff scenarios, make sure each loan has <strong>Principal</strong>, <strong>Rate %</strong>, <strong>EMI</strong>, <strong>Tenure (months)</strong>, and <strong>Paid Months</strong> filled in via the Edit button or by uploading your loan statement. The calculator will then show you exactly how many months you save by paying extra each month or making a lump-sum prepayment.
             </p>
         </div>` : ''}
     `);
@@ -2562,13 +2643,274 @@ function renderLoans() {
 
 window.updateLoan = (i, field, val) => {
     if(!userData.loans[i]) return;
-    userData.loans[i][field] = ['outstanding','emi','rate','principal','tenureMonths','paidMonths'].includes(field) ? num(val) : val;
+    userData.loans[i][field] = ['outstanding','emi','rate','principal','tenureMonths','paidMonths','totalInterestPaid','totalPrincipalPaid','processingFee'].includes(field) ? num(val) : val;
     debounceSave(); renderLoans();
 };
 window.deleteLoan = i => { userData.loans.splice(i,1); debounceSave(); renderLoans(); };
 window.addLoan = () => {
     userData.loans.push({ id:'loan-'+Date.now(), label:'New Loan', outstanding:0, emi:0, rate:0, tenure:'', principal:0, tenureMonths:0, paidMonths:0 });
     debounceSave(); renderLoans();
+};
+
+// ── Loan PDF Upload Handler ──
+window.handleLoanPdfUpload = async (input) => {
+    const file = input.files[0];
+    if(!file) return;
+    const statusEl = document.getElementById('loan-pdf-status');
+    if(statusEl) statusEl.innerHTML = '⏳ Reading PDF...';
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for(let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            fullText += content.items.map(item => item.str).join(' ') + '\n';
+        }
+
+        if(fullText.trim().length < 30) {
+            if(statusEl) statusEl.innerHTML = '❌ Could not extract text from PDF. It may be a scanned image.';
+            input.value = ''; return;
+        }
+
+        if(statusEl) statusEl.innerHTML = '🤖 AI is extracting loan details...';
+
+        const res = await fetch('/api/loans/parse-statement', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdfText: fullText })
+        });
+
+        if(!res.ok) throw new Error('API error ' + res.status);
+        const loan = await res.json();
+
+        userData.loans.push({
+            id: 'loan-' + Date.now(),
+            label: loan.label || file.name.replace('.pdf',''),
+            lender: loan.lender || '',
+            loanType: loan.loanType || 'other',
+            principal: loan.principal || 0,
+            outstanding: loan.outstanding || 0,
+            emi: loan.emi || 0,
+            rate: loan.rate || 0,
+            tenureMonths: loan.tenureMonths || 0,
+            tenure: loan.tenureMonths ? loan.tenureMonths + ' mo' : '',
+            paidMonths: loan.paidMonths || 0,
+            totalInterestPaid: loan.totalInterestPaid || 0,
+            totalPrincipalPaid: loan.totalPrincipalPaid || 0,
+            disbursementDate: loan.disbursementDate || '',
+            maturityDate: loan.maturityDate || '',
+            nextEmiDate: loan.nextEmiDate || '',
+            interestType: loan.interestType || '',
+            processingFee: loan.processingFee || 0,
+            prepaymentCharges: loan.prepaymentCharges || '',
+            collateral: loan.collateral || '',
+            coApplicant: loan.coApplicant || '',
+            accountNumber: loan.accountNumber || ''
+        });
+        debounceSave();
+        if(statusEl) statusEl.innerHTML = `✅ Added: ${loan.label || 'Loan'} — Outstanding ${fl(loan.outstanding||0)}, EMI ${fl(loan.emi||0)}, Rate ${loan.rate||0}%`;
+        renderLoans();
+    } catch(e) {
+        console.error('Loan PDF parse error:', e);
+        if(statusEl) statusEl.innerHTML = '❌ Failed to parse PDF: ' + e.message;
+    }
+    input.value = '';
+};
+
+// ── Manual Add Loan Modal ──
+window.showAddLoanModal = () => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'loan-add-modal';
+    overlay.innerHTML = `
+        <div class="modal-content">
+            <h3>➕ Add Loan Manually</h3>
+            <input id="lm-label" class="modal-inp" placeholder="Loan name (e.g. HDFC Home Loan)">
+            <div class="grid-2">
+                <input id="lm-principal" class="modal-inp" type="number" placeholder="Original loan amount (₹)">
+                <input id="lm-outstanding" class="modal-inp" type="number" placeholder="Current outstanding (₹)">
+            </div>
+            <div class="grid-2">
+                <input id="lm-emi" class="modal-inp" type="number" placeholder="Monthly EMI (₹)">
+                <input id="lm-rate" class="modal-inp" type="number" step="0.01" placeholder="Interest rate (% p.a.)">
+            </div>
+            <div class="grid-2">
+                <input id="lm-tenure" class="modal-inp" type="number" placeholder="Total tenure (months)">
+                <input id="lm-paid" class="modal-inp" type="number" placeholder="EMIs paid so far">
+            </div>
+            <div class="grid-2">
+                <input id="lm-intpaid" class="modal-inp" type="number" placeholder="Total interest paid (₹)">
+                <input id="lm-prinpaid" class="modal-inp" type="number" placeholder="Total principal paid (₹)">
+            </div>
+            <select id="lm-type" class="modal-inp">
+                <option value="">Loan Type</option>
+                <option value="home">Home Loan</option>
+                <option value="personal">Personal Loan</option>
+                <option value="car">Car Loan</option>
+                <option value="education">Education Loan</option>
+                <option value="gold">Gold Loan</option>
+                <option value="business">Business Loan</option>
+                <option value="other">Other</option>
+            </select>
+            <select id="lm-inttype" class="modal-inp">
+                <option value="">Interest Type</option>
+                <option value="floating">Floating</option>
+                <option value="fixed">Fixed</option>
+            </select>
+            <input id="lm-prepay" class="modal-inp" placeholder="Prepayment charges (e.g. 2% or NIL)">
+            <div class="modal-buttons">
+                <button class="secondary-btn" onclick="document.getElementById('loan-add-modal').remove()">Cancel</button>
+                <button class="primary-btn" onclick="saveLoanModal()">Save Loan</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+window.saveLoanModal = () => {
+    const label = document.getElementById('lm-label').value.trim();
+    if(!label) { alert('Please enter a loan name.'); return; }
+    const tenureMonths = num(document.getElementById('lm-tenure').value);
+    userData.loans.push({
+        id: 'loan-' + Date.now(),
+        label,
+        loanType: document.getElementById('lm-type').value || 'other',
+        principal: num(document.getElementById('lm-principal').value),
+        outstanding: num(document.getElementById('lm-outstanding').value),
+        emi: num(document.getElementById('lm-emi').value),
+        rate: num(document.getElementById('lm-rate').value),
+        tenureMonths,
+        tenure: tenureMonths ? tenureMonths + ' mo' : '',
+        paidMonths: num(document.getElementById('lm-paid').value),
+        totalInterestPaid: num(document.getElementById('lm-intpaid').value),
+        totalPrincipalPaid: num(document.getElementById('lm-prinpaid').value),
+        interestType: document.getElementById('lm-inttype').value || '',
+        prepaymentCharges: document.getElementById('lm-prepay').value.trim() || ''
+    });
+    debounceSave();
+    document.getElementById('loan-add-modal').remove();
+    renderLoans();
+};
+
+// ── AI Loan Advisor ──
+window.getLoanAdvice = async () => {
+    const btn = document.getElementById('loan-advice-btn');
+    const resultEl = document.getElementById('loan-advice-result');
+    if(!resultEl) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analysing...';
+    resultEl.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>AI is analysing your loans and building payoff strategies...</p></div>';
+
+    try {
+        const res = await fetch('/api/loans/advisor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                loans: userData.loans || [],
+                monthlyIncome: computeMonthlyIncome(),
+                monthlyExpenses: computeMonthlyExpenses(),
+                monthlySavings: computeMonthlySavings(),
+                liquidSavings: userData.liquidSavings || 0
+            })
+        });
+
+        if(!res.ok) throw new Error('API error ' + res.status);
+        const data = await res.json();
+        if(data.error) throw new Error(data.error);
+
+        const scoreColor = (data.debtHealthScore||0) >= 70 ? 'var(--green)' : (data.debtHealthScore||0) >= 40 ? 'var(--yellow)' : 'var(--red)';
+
+        resultEl.innerHTML = `
+            <div style="display:flex; gap:16px; align-items:center; margin-bottom:16px; padding:14px; background:var(--bg3); border-radius:var(--radius-sm); border:1px solid var(--border2);">
+                <div style="text-align:center;">
+                    <div style="font-size:32px; font-weight:800; font-family:var(--mono); color:${scoreColor};">${data.debtHealthScore||'—'}</div>
+                    <div style="font-size:10px; color:var(--text3); text-transform:uppercase;">Debt Health</div>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-size:13px; color:var(--text); font-weight:600; margin-bottom:4px;">${data.debtHealthLabel||''}</div>
+                    <div style="font-size:12px; color:var(--text2); line-height:1.5;">${data.summary||''}</div>
+                </div>
+            </div>
+
+            ${data.priorityOrder ? `
+            <div class="advisor-msg">
+                <h4>🎯 Repayment Priority</h4>
+                <ol style="margin-left:16px;">${data.priorityOrder.map(p=>`<li style="margin-bottom:4px;"><strong>${p}</strong></li>`).join('')}</ol>
+                <p style="font-size:12px; color:var(--text3); margin-top:8px;">${data.priorityReason||''}</p>
+            </div>` : ''}
+
+            ${data.strategies && data.strategies.length ? `
+            <div class="advisor-msg">
+                <h4>📋 Payoff Strategies</h4>
+                ${data.strategies.map(s => `
+                    <div style="background:var(--bg3); border:1px solid ${s.recommended?'var(--accent)':'var(--border2)'}; border-radius:var(--radius-sm); padding:12px; margin-bottom:10px; ${s.recommended?'box-shadow:0 0 12px var(--accent-glow);':''}">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:13px; font-weight:700; color:var(--text);">${s.recommended?'⭐ ':''}${s.name}</span>
+                            <span class="badge ${s.difficulty==='Easy'?'badge-green':s.difficulty==='Hard'?'badge-red':'badge-yellow'}">${s.difficulty}</span>
+                        </div>
+                        <p style="font-size:12px; color:var(--text2); line-height:1.5; margin-bottom:8px;">${s.description}</p>
+                        <div style="display:flex; gap:12px; flex-wrap:wrap; font-size:11px;">
+                            ${s.timeSaved?`<span style="color:var(--green);">⏱ Save ${s.timeSaved}</span>`:''}
+                            ${s.interestSaved?`<span style="color:var(--green);">💰 Save ${fl(s.interestSaved)}</span>`:''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>` : ''}
+
+            ${data.quickWins && data.quickWins.length ? `
+            <div class="advisor-msg">
+                <h4>⚡ Quick Wins</h4>
+                <ul>${data.quickWins.map(q=>`<li>${q}</li>`).join('')}</ul>
+            </div>` : ''}
+
+            ${data.warnings && data.warnings.length ? `
+            <div class="advisor-msg" style="border-color:var(--red);">
+                <h4 style="color:var(--red);">⚠️ Warnings</h4>
+                <ul>${data.warnings.map(w=>`<li style="color:var(--red);">${w}</li>`).join('')}</ul>
+            </div>` : ''}
+
+            ${data.refinanceAdvice ? `
+            <div class="advisor-msg">
+                <h4>🔄 Refinancing</h4>
+                <p>${data.refinanceAdvice}</p>
+            </div>` : ''}
+
+            ${data.monthlyPlan ? `
+            <div class="advisor-msg">
+                <h4>📅 Monthly Plan</h4>
+                <p>${data.monthlyPlan}</p>
+            </div>` : ''}
+
+            ${data.projections ? `
+            <div style="background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); padding:16px; margin-top:12px;">
+                <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:12px;">📈 Projections</div>
+                <div class="grid-2">
+                    <div>
+                        <div style="font-size:11px; color:var(--text3);">Current payoff</div>
+                        <div style="font-size:14px; font-weight:700; color:var(--red); font-family:var(--mono);">${data.projections.currentPayoffDate||'—'}</div>
+                        <div style="font-size:11px; color:var(--text3); margin-top:2px;">Interest: ${fl(data.projections.totalInterestCurrent||0)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px; color:var(--text3);">Optimized payoff</div>
+                        <div style="font-size:14px; font-weight:700; color:var(--green); font-family:var(--mono);">${data.projections.optimizedPayoffDate||'—'}</div>
+                        <div style="font-size:11px; color:var(--text3); margin-top:2px;">Interest: ${fl(data.projections.totalInterestOptimized||0)}</div>
+                    </div>
+                </div>
+                ${data.projections.totalSavings ? `<div style="text-align:center; margin-top:12px; padding:10px; background:var(--green-dim); border-radius:var(--radius-sm);">
+                    <span style="font-size:12px; color:var(--green); font-weight:700;">💰 Total potential savings: ${fl(data.projections.totalSavings)}</span>
+                </div>` : ''}
+            </div>` : ''}
+
+            <p style="font-size:10px; color:var(--text3); margin-top:12px;">⚠️ AI-generated advice. Consult a certified financial advisor before making major decisions.</p>
+        `;
+    } catch(e) {
+        console.error('Loan advice error:', e);
+        resultEl.innerHTML = `<div style="color:var(--red); font-size:13px;">❌ Failed to get advice: ${e.message}</div>`;
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-brain"></i> Get AI Payoff Strategy';
 };
 
 // ========== INSURANCE PAGE ==========
