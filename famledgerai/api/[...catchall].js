@@ -658,23 +658,26 @@ async function handleZerodhaCallback(req, res) {
     if (data.status === 'success') {
       const accessToken = data.data.access_token;
 
-      // Store token in Supabase integrations table
+      // Delete existing row first, then insert (avoids onConflict issues)
+      await supabase.from('integrations')
+        .delete()
+        .eq('user_id', userEmail)
+        .eq('provider', 'zerodha');
+
       const { error } = await supabase
         .from('integrations')
-        .upsert({
+        .insert({
           user_id: userEmail,
           provider: 'zerodha',
           access_token: accessToken,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,provider' });
+        });
 
       if (error) {
-        console.error('Failed to store Zerodha token:', error);
-        return res.status(500).send('Failed to store token.');
+        console.error('Failed to store Zerodha token:', JSON.stringify(error));
+        return res.status(500).send('Failed to store token: ' + error.message);
       }
 
-      // Redirect to a simple success page (which will redirect back to the app)
-      // Ensure zerodha-success.html exists in your public folder.
       return res.redirect(`https://famledgerai.com/zerodha-success.html?status=success`);
     }
     return res.status(400).send(`Kite API error: ${JSON.stringify(data)}`);
