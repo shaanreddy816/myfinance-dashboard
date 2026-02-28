@@ -715,15 +715,16 @@ function t(key) { return translations[currentLang]?.[key] || translations['en'][
 
 // ========== ZERODHA INTEGRATION ==========
 const KITE_API_KEY = '77labkoqjfkr779r'; // Zerodha Kite Connect Personal (Free)
-const REDIRECT_URI = encodeURIComponent('https://famledgerai.com/api/integrations/zerodha/callback');
+const ZERODHA_REDIRECT = 'https://famledgerai.com/api/integrations/zerodha/callback';
 
 window.connectZerodha = () => {
   if (!currentUserEmail) {
     alert('You must be logged in first.');
     return;
   }
-  const state = encodeURIComponent(currentUserEmail);
-  const loginUrl = `https://kite.zerodha.com/connect/login?api_key=${KITE_API_KEY}&v=3&redirect_uri=${REDIRECT_URI}&state=${state}`;
+  // Kite uses redirect_params (not state) to pass custom data back to the callback
+  const redirectParams = encodeURIComponent('user_email=' + encodeURIComponent(currentUserEmail));
+  const loginUrl = `https://kite.zerodha.com/connect/login?v=3&api_key=${KITE_API_KEY}&redirect_params=${redirectParams}`;
   window.location.href = loginUrl;
 };
 

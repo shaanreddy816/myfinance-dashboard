@@ -633,14 +633,15 @@ Return ONLY valid JSON:
  */
 async function handleZerodhaCallback(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  const { request_token, state } = req.query;  // state contains the user's email
-  console.log('Zerodha callback query:', req.query); 
+  const { request_token, user_email } = req.query;
+  const userEmail = user_email || req.query.state;  // fallback to state for safety
+  console.log('Zerodha callback query:', JSON.stringify(req.query));
   const apiKey    = process.env.KITE_API_KEY;
   const apiSecret = process.env.KITE_API_SECRET;
 
   if (!apiKey || !apiSecret) return res.status(500).send('Missing KITE_API_KEY or KITE_API_SECRET');
   if (!request_token)        return res.status(400).send('Missing request_token');
-  if (!state)                return res.status(400).send('Missing state (user email)');
+  if (!userEmail)            return res.status(400).send('Missing user_email. Query: ' + JSON.stringify(req.query));
 
   try {
     const checksum = crypto.createHash('sha256')
@@ -661,7 +662,7 @@ async function handleZerodhaCallback(req, res) {
       const { error } = await supabase
         .from('integrations')
         .upsert({
-          user_id: state,            // state contains the user's email
+          user_id: userEmail,
           provider: 'zerodha',
           access_token: accessToken,
           updated_at: new Date().toISOString()
