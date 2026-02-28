@@ -2916,11 +2916,82 @@ function renderSettings() {
         const email = session?.user?.email || '';
         const p     = userData.profile;
         const members = p.familyMembers || [];
+        const isAll = currentProfile === 'all' || currentProfile === 'self';
+        const currentMember = members.find(m => m.id === currentProfile);
+        const memberProfiles = p.memberProfiles || {};
 
         const occupations  = ['salaried','business','self-employed','retired'];
         const incomeRanges = [['0-3','Up to ₹3L'],['3-6','₹3–6L'],['6-12','₹6–12L'],['12-25','₹12–25L'],['25+','₹25L+']];
         const goalsList    = ['retirement','child-education','house','car','emergency','travel'];
 
+        // ── SPOUSE VIEW ──
+        if(currentMember && currentMember.role === 'spouse') {
+            const sp = memberProfiles.spouse || {};
+            const spOccOpts = occupations.map(o=>`<option value="${o}" ${sp.occupation===o?'selected':''}>${o}</option>`).join('');
+            const spIncOpts = incomeRanges.map(([v,l])=>`<option value="${v}" ${sp.incomeRange===v?'selected':''}>${l}</option>`).join('');
+
+            sh('page-settings', `
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title"><span class="icon">💑</span> ${currentMember.name}'s Profile</div>
+                        <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Full Name</label>
+                        <input id="sp-name" class="modal-inp" value="${currentMember.name||''}">
+                        <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Age</label>
+                        <input id="sp-age" type="number" class="modal-inp" value="${sp.age||''}">
+                        <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Occupation</label>
+                        <select id="sp-occupation" class="modal-inp">${spOccOpts}</select>
+                        <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Annual Income Range</label>
+                        <select id="sp-income" class="modal-inp">${spIncOpts}</select>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><span class="icon">📊</span> ${currentMember.name}'s Expenses Summary</div>
+                        <div style="font-size:13px; color:var(--text2); padding:10px 0;">
+                            Monthly expenses: <strong style="color:var(--text); font-family:var(--mono);">${fl(getMemberExpenseTotal('spouse'))}</strong>
+                        </div>
+                        <p style="font-size:12px; color:var(--text3); margin-top:8px;">Go to <strong>Expenses</strong> page to add/edit ${currentMember.name}'s expenses.</p>
+                    </div>
+                </div>
+                <button class="primary-btn" onclick="saveSpouseProfile()" style="margin-top:4px;">💾 Save ${currentMember.name}'s Profile</button>
+            `);
+            return;
+        }
+
+        // ── KID VIEW ──
+        if(currentMember && currentMember.role === 'kid') {
+            const kidId = currentMember.id;
+            const kp = memberProfiles[kidId] || {};
+
+            sh('page-settings', `
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title"><span class="icon">�</span> ${currentMember.name}'s Profile</div>
+                        <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Full Name</label>
+                        <input id="kid-name" class="modal-inp" value="${currentMember.name||''}">
+                        <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Age</label>
+                        <input id="kid-age" type="number" class="modal-inp" value="${kp.age||''}" min="0" max="25">
+                        <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">School / Class</label>
+                        <input id="kid-school" class="modal-inp" value="${kp.school||''}" placeholder="e.g. DPS, Class 5">
+                        <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Hobbies / Activities</label>
+                        <input id="kid-hobbies" class="modal-inp" value="${kp.hobbies||''}" placeholder="e.g. Cricket, Piano">
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><span class="icon">📊</span> ${currentMember.name}'s Expenses Summary</div>
+                        <div style="font-size:13px; color:var(--text2); padding:10px 0;">
+                            Monthly expenses: <strong style="color:var(--text); font-family:var(--mono);">${fl(getMemberExpenseTotal(kidId))}</strong>
+                        </div>
+                        <p style="font-size:12px; color:var(--text3); margin-top:8px;">Go to <strong>Expenses</strong> page to add/edit ${currentMember.name}'s expenses (school fees, tuition, etc.).</p>
+                        <div style="margin-top:16px; padding:12px; background:var(--accent-glow); border-radius:var(--radius-sm); border:1px solid var(--border2);">
+                            <div style="font-size:11px; color:var(--accent2); font-weight:700; margin-bottom:6px;">👶 Kid Account</div>
+                            <p style="font-size:12px; color:var(--text2); line-height:1.5;">This is a dependent profile. Income, investments, loans, and insurance are managed at the household level.</p>
+                        </div>
+                    </div>
+                </div>
+                <button class="primary-btn" onclick="saveKidProfile('${kidId}')" style="margin-top:4px;">💾 Save ${currentMember.name}'s Profile</button>
+            `);
+            return;
+        }
+
+        // ── SELF / ALL VIEW (main account holder) ──
         const occupationOpts = occupations.map(o=>`<option value="${o}" ${p.occupation===o?'selected':''}>${o}</option>`).join('');
         const incomeOpts     = incomeRanges.map(([v,l])=>`<option value="${v}" ${p.incomeRange===v?'selected':''}>${l}</option>`).join('');
         const goalsHtml      = goalsList.map(g=>`<span class="goal-option ${(p.goals||[]).includes(g)?'selected':''}" data-goal="${g}">${g.replace('-',' ')}</span>`).join('');
@@ -3002,6 +3073,58 @@ window.addSettingsKidField = () => {
     div.innerHTML = `<input class="modal-inp s-kid-input" style="margin-bottom:0; flex:1;" value="" placeholder="Kid ${count} name">
         <button type="button" onclick="this.parentElement.remove()" style="background:var(--red-dim); border:1px solid var(--red); border-radius:var(--radius-sm); padding:6px 10px; color:var(--red); font-size:14px; cursor:pointer; font-weight:700;">−</button>`;
     wrap.appendChild(div);
+};
+
+window.saveSpouseProfile = async () => {
+    if(!userData.profile.memberProfiles) userData.profile.memberProfiles = {};
+    const newName = $('sp-name')?.value?.trim() || '';
+    userData.profile.memberProfiles.spouse = {
+        age: parseInt($('sp-age')?.value) || null,
+        occupation: $('sp-occupation')?.value || '',
+        incomeRange: $('sp-income')?.value || ''
+    };
+    // Update spouse name in familyMembers
+    if(newName) {
+        const fm = userData.profile.familyMembers || [];
+        const sp = fm.find(m=>m.role==='spouse');
+        if(sp) sp.name = newName;
+        userData.profile.spouseName = newName;
+    }
+    const { data: { session } } = await sb.auth.getSession();
+    if(session) {
+        await saveUserData(session.user.email);
+        populateProfileSelector();
+        showToast('Spouse profile saved!');
+        renderCurrentPage();
+    }
+};
+
+window.saveKidProfile = async (kidId) => {
+    if(!userData.profile.memberProfiles) userData.profile.memberProfiles = {};
+    const newName = $('kid-name')?.value?.trim() || '';
+    userData.profile.memberProfiles[kidId] = {
+        age: parseInt($('kid-age')?.value) || null,
+        school: $('kid-school')?.value?.trim() || '',
+        hobbies: $('kid-hobbies')?.value?.trim() || ''
+    };
+    // Update kid name in familyMembers
+    if(newName) {
+        const fm = userData.profile.familyMembers || [];
+        const kid = fm.find(m=>m.id===kidId);
+        if(kid) kid.name = newName;
+        // Also update kids array
+        const idx = parseInt(kidId.replace('kid-','')) - 1;
+        if(userData.profile.kids && userData.profile.kids[idx] !== undefined) {
+            userData.profile.kids[idx] = newName;
+        }
+    }
+    const { data: { session } } = await sb.auth.getSession();
+    if(session) {
+        await saveUserData(session.user.email);
+        populateProfileSelector();
+        showToast('Kid profile saved!');
+        renderCurrentPage();
+    }
 };
 
 window.saveProfile = async () => {
