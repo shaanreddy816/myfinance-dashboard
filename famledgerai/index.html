@@ -1602,31 +1602,59 @@ async function loadUserData(email) {
         }
     }
 
-    // One-time seed: SBI Home Loan from screenshots
-    if((!userData.loans || userData.loans.length === 0) && !userData._sbiLoanSeeded) {
-        userData.loans = [{
-            id: 'loan-sbi-home-1',
-            label: 'SBI Home Loan',
-            lender: 'State Bank of India',
-            loanType: 'home',
-            principal: 9270000,
-            outstanding: 7993315,
-            emi: 73377,
-            rate: 7.45,
-            tenureMonths: 360,
-            tenure: '360 mo',
-            paidMonths: 22,
-            totalPrincipalPaid: 1276685,
-            totalInterestPaid: 337609,
-            disbursementDate: '2024-04-29',
-            maturityDate: '2054-04-15',
-            nextEmiDate: '2026-03-15',
-            interestType: 'floating',
-            accountNumber: 'XXXXXXX6856',
-            prepaymentCharges: 'NIL (floating rate home loan)',
-            collateral: 'Property'
-        }];
-        userData._sbiLoanSeeded = true;
+    // One-time fix: populate SBI Home Loan details from user screenshots
+    if(!userData.profile._sbiLoanV2) {
+        // Find existing SBI loan with no data, or add new one
+        let sbiIdx = (userData.loans||[]).findIndex(l => l.label && l.label.toLowerCase().includes('sbi'));
+        if(sbiIdx >= 0) {
+            // Update existing empty SBI loan with real data
+            Object.assign(userData.loans[sbiIdx], {
+                label: 'SBI Home Loan',
+                lender: 'State Bank of India',
+                loanType: 'home',
+                principal: 9270000,
+                outstanding: 7993315,
+                emi: 73377,
+                rate: 7.45,
+                tenureMonths: 360,
+                tenure: '360 mo',
+                paidMonths: 22,
+                totalPrincipalPaid: 1276685,
+                totalInterestPaid: 337609,
+                disbursementDate: '2024-04-29',
+                maturityDate: '2054-04-15',
+                nextEmiDate: '2026-03-15',
+                interestType: 'floating',
+                accountNumber: 'XXXXXXX6856',
+                prepaymentCharges: 'NIL (floating rate home loan)',
+                collateral: 'Property'
+            });
+        } else {
+            if(!userData.loans) userData.loans = [];
+            userData.loans.push({
+                id: 'loan-sbi-home-1',
+                label: 'SBI Home Loan',
+                lender: 'State Bank of India',
+                loanType: 'home',
+                principal: 9270000,
+                outstanding: 7993315,
+                emi: 73377,
+                rate: 7.45,
+                tenureMonths: 360,
+                tenure: '360 mo',
+                paidMonths: 22,
+                totalPrincipalPaid: 1276685,
+                totalInterestPaid: 337609,
+                disbursementDate: '2024-04-29',
+                maturityDate: '2054-04-15',
+                nextEmiDate: '2026-03-15',
+                interestType: 'floating',
+                accountNumber: 'XXXXXXX6856',
+                prepaymentCharges: 'NIL (floating rate home loan)',
+                collateral: 'Property'
+            });
+        }
+        userData.profile._sbiLoanV2 = true;
         await saveUserData(email);
     }
 }
