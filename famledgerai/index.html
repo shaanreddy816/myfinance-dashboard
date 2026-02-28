@@ -1873,6 +1873,18 @@ function renderOverview() {
             </div>
         </div>
 
+        ${(userData.profile.familyMembers||[]).length <= 1 ? `
+        <div class="card" style="background:linear-gradient(135deg, var(--accent-glow), var(--purple-dim)); border-color:var(--accent); cursor:pointer;" onclick="document.querySelector('[data-page=settings]').click()">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:28px;">👨‍👩‍👧‍👦</span>
+                <div>
+                    <div style="font-size:14px; font-weight:700; color:var(--text); margin-bottom:4px;">Add Family Members</div>
+                    <div style="font-size:12px; color:var(--text2);">Add your spouse and kids in Settings to track expenses per member and see a combined family dashboard.</div>
+                </div>
+                <i class="fas fa-chevron-right" style="color:var(--accent2); margin-left:auto; font-size:16px;"></i>
+            </div>
+        </div>` : ''}
+
         <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card ${computeMonthlySavings()>=0?'green':'red'}">
                 <div class="kpi-label">Monthly Income</div>
@@ -2904,7 +2916,7 @@ function renderSettings() {
         sh('page-settings', `
             <div class="grid-2">
                 <div class="card">
-                    <div class="card-title"><span class="icon">�</span> Personal Information</div>
+                    <div class="card-title"><span class="icon">👤</span> Personal Information</div>
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Full Name</label>
                     <input id="s-name" class="modal-inp" value="${p.name||''}">
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Email</label>
