@@ -339,6 +339,17 @@
         .reco-card h4 { font-size:14px; color:var(--text); margin-bottom:6px; }
         .reco-card p { font-size:12px; color:var(--text2); line-height:1.5; }
         .reco-meta { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+        
+        /* Recommendations grid layout */
+        .reco-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+        @media (max-width: 1200px) {
+            .reco-grid { grid-template-columns: 1fr; }
+        }
 
         .advisor-msg { background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); padding:16px; margin-bottom:12px; line-height:1.7; font-size:14px; color:var(--text2); }
         .advisor-msg h4 { color:var(--accent2); font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
@@ -3503,7 +3514,17 @@ async function renderRecommendations() {
             </div>
         `;
 
-        sh('page-recommendations', schemesHtml + insuranceHtml + fdHtml + portalHtml);
+        // Use 2-column grid layout for better screen utilization
+        sh('page-recommendations', `
+            <div class="reco-grid">
+                ${schemesHtml}
+                ${insuranceHtml}
+            </div>
+            <div class="reco-grid">
+                ${fdHtml}
+                ${portalHtml}
+            </div>
+        `);
     } catch(e) {
         sh('page-recommendations', `
             <div class="card">
