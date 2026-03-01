@@ -3632,7 +3632,66 @@ async function renderRecommendations() {
         const { data: healthIns, error: healthErr } = await sb.from('health_insurance_products').select('*').lte('min_age', age).gte('max_age', age).eq('is_active', true);
         if(healthErr) console.warn('Health insurance fetch error:', healthErr);
 
-        const filteredHealthIns = (healthIns || []).filter(p =>
+        // Fallback: Use hardcoded health insurance data if database is empty
+        const fallbackHealthIns = [
+            {
+                name: 'Star Health Comprehensive Insurance',
+                provider: 'Star Health',
+                description: 'India\'s largest standalone health insurer. Covers hospitalization, pre & post hospitalization, daycare procedures, and ambulance charges. Cashless at 14,000+ hospitals.',
+                coverage_min: 5,
+                coverage_max: 2500,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹8,500/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/star-health-insurance/'
+            },
+            {
+                name: 'Care Supreme',
+                provider: 'Care Health',
+                description: 'Comprehensive health plan with unlimited restoration of sum insured. Covers 156 daycare procedures, modern treatments, and worldwide emergency cover.',
+                coverage_min: 5,
+                coverage_max: 600,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹7,800/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/care-health-insurance/care-supreme/'
+            },
+            {
+                name: 'HDFC ERGO Optima Secure',
+                provider: 'HDFC ERGO',
+                description: 'Comprehensive health insurance with no room rent capping. Covers pre-existing diseases after 2 years, maternity, and newborn baby expenses.',
+                coverage_min: 5,
+                coverage_max: 5000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹9,200/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/hdfc-ergo-health-insurance/hdfc-ergo-optima-secure/'
+            },
+            {
+                name: 'Niva Bupa Reassure 2.0',
+                provider: 'Niva Bupa',
+                description: 'Unlimited automatic restoration of sum insured. Covers 1,000+ daycare procedures, organ donor expenses, and alternative treatments (AYUSH).',
+                coverage_min: 5,
+                coverage_max: 10000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹8,900/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/niva-bupa-health-insurance/niva-bupa-reassure/'
+            },
+            {
+                name: 'Digit Health Insurance',
+                provider: 'Go Digit',
+                description: 'Modern health insurance with instant claim settlement. Covers unlimited automatic restoration, no room rent capping, and 100% digital process.',
+                coverage_min: 5,
+                coverage_max: 10000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹7,500/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/digit-health-insurance/'
+            }
+        ];
+
+        const filteredHealthIns = (healthIns && healthIns.length > 0 ? healthIns : fallbackHealthIns).filter(p =>
             (!p.min_income || p.min_income <= userMaxIncome) &&
             (!p.max_income || p.max_income >= userMinIncome)
         );
