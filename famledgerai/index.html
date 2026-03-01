@@ -3575,7 +3575,7 @@ async function renderRecommendations() {
         const insuranceHtml = renderCollapsibleSection(
             'insurance',
             '🛡️',
-            'Insurance Plans',
+            'Term Insurance',
             filteredInsurance,
             p => ({
                 name: `${p.name} (${p.provider})`,
@@ -3705,6 +3705,157 @@ window.fixSchemeUrls = async () => {
     } catch (e) {
         console.error('Error fixing URLs:', e);
         showToast('Failed to update URLs', 'red');
+    }
+};
+
+// Add popular term insurance products (run once to populate database)
+window.addTermInsuranceProducts = async () => {
+    try {
+        const termInsuranceProducts = [
+            {
+                name: 'HDFC Life Click 2 Protect 3D Plus',
+                provider: 'HDFC Life',
+                description: 'Comprehensive online term plan with life cover, critical illness, and accidental death benefits. No medical tests for cover up to ₹50L.',
+                coverage_min: 25,
+                coverage_max: 1000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹490/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/hdfc-life-insurance/hdfc-click-2-protect-3d-plus/',
+                is_active: true
+            },
+            {
+                name: 'ICICI Prudential iProtect Smart',
+                provider: 'ICICI Prudential',
+                description: 'Flexible term insurance with return of premium option. Covers up to 85 years with multiple payout options.',
+                coverage_min: 25,
+                coverage_max: 2500,
+                min_age: 18,
+                max_age: 60,
+                premium_estimate: '₹520/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/icici-prudential-life-insurance/icici-iprotect-smart/',
+                is_active: true
+            },
+            {
+                name: 'Max Life Smart Secure Plus',
+                provider: 'Max Life',
+                description: 'Online term plan with 12 critical illness cover and accidental death benefit. Instant policy issuance.',
+                coverage_min: 25,
+                coverage_max: 1000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹475/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/max-life-insurance/max-life-smart-secure-plus/',
+                is_active: true
+            },
+            {
+                name: 'Tata AIA Sampoorna Raksha Supreme',
+                provider: 'Tata AIA',
+                description: 'Comprehensive protection with life cover, critical illness, and disability benefits. Covers 64 critical illnesses.',
+                coverage_min: 25,
+                coverage_max: 1000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹510/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/tata-aia-life-insurance/tata-aia-sampoorna-raksha-supreme/',
+                is_active: true
+            },
+            {
+                name: 'SBI Life eShield',
+                provider: 'SBI Life',
+                description: 'Affordable online term plan with life cover and optional critical illness rider. Trusted by millions.',
+                coverage_min: 25,
+                coverage_max: 1000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹465/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/sbi-life-insurance/sbi-eshield/',
+                is_active: true
+            },
+            {
+                name: 'LIC Tech Term',
+                provider: 'LIC',
+                description: 'Pure online term insurance from LIC with simple application process. No medical tests for select cases.',
+                coverage_min: 25,
+                coverage_max: 1000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹540/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/lic/lic-tech-term/',
+                is_active: true
+            },
+            {
+                name: 'Bajaj Allianz Smart Protect Goal',
+                provider: 'Bajaj Allianz',
+                description: 'Goal-based term plan with increasing cover option. Protects your family and future goals.',
+                coverage_min: 25,
+                coverage_max: 500,
+                min_age: 18,
+                max_age: 60,
+                premium_estimate: '₹495/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/bajaj-allianz-life-insurance/bajaj-allianz-smart-protect-goal/',
+                is_active: true
+            },
+            {
+                name: 'Aegon Life iTerm',
+                provider: 'Aegon Life',
+                description: 'Flexible term insurance with multiple payout options and critical illness cover. Quick online purchase.',
+                coverage_min: 25,
+                coverage_max: 1000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹485/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/aegon-life-insurance/aegon-iterm/',
+                is_active: true
+            },
+            {
+                name: 'Kotak e-Term',
+                provider: 'Kotak Life',
+                description: 'Simple online term plan with life cover and optional riders. Instant policy issuance in minutes.',
+                coverage_min: 25,
+                coverage_max: 1000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹500/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/kotak-life-insurance/kotak-e-term/',
+                is_active: true
+            },
+            {
+                name: 'Aditya Birla Sun Life DigiShield',
+                provider: 'Aditya Birla',
+                description: 'Digital term insurance with comprehensive coverage and flexible premium payment options.',
+                coverage_min: 25,
+                coverage_max: 500,
+                min_age: 18,
+                max_age: 60,
+                premium_estimate: '₹505/month for ₹1Cr cover (30yr male, non-smoker)',
+                official_url: 'https://www.policybazaar.com/life-insurance/aditya-birla-sun-life-insurance/aditya-birla-digishield/',
+                is_active: true
+            }
+        ];
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const product of termInsuranceProducts) {
+            const { error } = await sb
+                .from('insurance_products')
+                .upsert(product, { onConflict: 'name,provider' });
+            
+            if (error) {
+                console.error(`Error adding ${product.name}:`, error);
+                errorCount++;
+            } else {
+                console.log(`✅ Added ${product.name}`);
+                successCount++;
+            }
+        }
+
+        showToast(`Added ${successCount} term insurance products! ${errorCount > 0 ? `(${errorCount} errors)` : ''}`, successCount > 0 ? 'green' : 'red');
+        renderRecommendations();
+    } catch (e) {
+        console.error('Error adding term insurance products:', e);
+        showToast('Failed to add products', 'red');
     }
 };
 
