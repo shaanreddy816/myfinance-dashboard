@@ -350,6 +350,64 @@
         @media (max-width: 1200px) {
             .reco-grid { grid-template-columns: 1fr; }
         }
+        
+        /* Collapsible section styles */
+        .collapsible-section {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .collapsible-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 18px;
+            cursor: pointer;
+            transition: background 0.2s;
+            user-select: none;
+        }
+        .collapsible-header:hover {
+            background: var(--bg3);
+        }
+        .collapsible-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .collapsible-icon {
+            font-size: 20px;
+        }
+        .collapsible-count {
+            font-size: 11px;
+            color: var(--text3);
+            background: var(--bg3);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+        .collapsible-arrow {
+            font-size: 14px;
+            color: var(--text3);
+            transition: transform 0.3s ease;
+        }
+        .collapsible-arrow.expanded {
+            transform: rotate(180deg);
+        }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .collapsible-content.expanded {
+            max-height: 5000px;
+        }
+        .collapsible-inner {
+            padding: 0 18px 18px 18px;
+        }
 
         .advisor-msg { background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); padding:16px; margin-bottom:12px; line-height:1.7; font-size:14px; color:var(--text2); }
         .advisor-msg h4 { color:var(--accent2); font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
@@ -3463,7 +3521,7 @@ async function renderRecommendations() {
         const { data: fd, error: fdErr } = await sb.from('fd_products').select('*').lte('min_age', age).gte('max_age', age).eq('is_active', true);
         if(fdErr) throw fdErr;
 
-        function renderProductSection(title, items, mapFn) {
+        function renderCollapsibleSection(id, icon, title, items, mapFn) {
             if(!items || items.length === 0) return '';
             const cards = items.map(mapFn).map(p => `
                 <div class="reco-card">
@@ -3477,54 +3535,110 @@ async function renderRecommendations() {
                     </a>
                 </div>
             `).join('');
-            return `<div class="card"><div class="card-title">${title}</div>${cards}</div>`;
+            
+            return `
+                <div class="collapsible-section">
+                    <div class="collapsible-header" onclick="toggleCollapsible('${id}')">
+                        <div class="collapsible-title">
+                            <span class="collapsible-icon">${icon}</span>
+                            <span>${title}</span>
+                            <span class="collapsible-count">${items.length} available</span>
+                        </div>
+                        <i class="fas fa-chevron-down collapsible-arrow" id="${id}-arrow"></i>
+                    </div>
+                    <div class="collapsible-content" id="${id}-content">
+                        <div class="collapsible-inner">
+                            ${cards}
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
-        const schemesHtml = renderProductSection('🏛️ Government Schemes', filteredSchemes, s => ({
-            name: s.name, description: s.description || '',
-            meta: [s.min_age ? `Age ${s.min_age}–${s.max_age}` : '', s.min_income ? `Income up to ₹${s.max_income}L` : '', `Verified: ${s.last_verified ? new Date(s.last_verified).toLocaleDateString('en-IN') : 'N/A'}`].filter(Boolean),
-            url: s.official_url
-        }));
+        const schemesHtml = renderCollapsibleSection(
+            'schemes',
+            '🏛️',
+            'Government Schemes',
+            filteredSchemes,
+            s => ({
+                name: s.name,
+                description: s.description || '',
+                meta: [
+                    s.min_age ? `Age ${s.min_age}–${s.max_age}` : '',
+                    s.min_income ? `Income up to ₹${s.max_income}L` : '',
+                    `Verified: ${s.last_verified ? new Date(s.last_verified).toLocaleDateString('en-IN') : 'N/A'}`
+                ].filter(Boolean),
+                url: s.official_url
+            })
+        );
 
-        const insuranceHtml = renderProductSection('🛡️ Insurance Plans', filteredInsurance, p => ({
-            name: `${p.name} (${p.provider})`, description: p.description,
-            meta: [`Cover: ₹${p.coverage_min}L–₹${p.coverage_max}L`, p.premium_estimate ? `Premium: ${p.premium_estimate}` : '', `Age ${p.min_age}–${p.max_age}`].filter(Boolean),
-            url: p.official_url
-        }));
+        const insuranceHtml = renderCollapsibleSection(
+            'insurance',
+            '🛡️',
+            'Insurance Plans',
+            filteredInsurance,
+            p => ({
+                name: `${p.name} (${p.provider})`,
+                description: p.description,
+                meta: [
+                    `Cover: ₹${p.coverage_min}L–₹${p.coverage_max}L`,
+                    p.premium_estimate ? `Premium: ${p.premium_estimate}` : '',
+                    `Age ${p.min_age}–${p.max_age}`
+                ].filter(Boolean),
+                url: p.official_url
+            })
+        );
 
-        const fdHtml = renderProductSection('🏦 Fixed Deposits', fd, f => ({
-            name: f.bank_name, description: f.description,
-            meta: [`Amount: ₹${f.min_amount}–₹${f.max_amount}`, `Tenure: ${f.tenure_months?.map(m=>m+'m').join('/')||'—'}`, `Rate: ${f.interest_rate}`, f.senior_citizen_rate ? `Senior: ${f.senior_citizen_rate}` : ''].filter(Boolean),
-            url: f.official_url
-        }));
+        const fdHtml = renderCollapsibleSection(
+            'fd',
+            '🏦',
+            'Fixed Deposits',
+            fd,
+            f => ({
+                name: f.bank_name,
+                description: f.description,
+                meta: [
+                    `Amount: ₹${f.min_amount}–₹${f.max_amount}`,
+                    `Tenure: ${f.tenure_months?.map(m=>m+'m').join('/')||'—'}`,
+                    `Rate: ${f.interest_rate}`,
+                    f.senior_citizen_rate ? `Senior: ${f.senior_citizen_rate}` : ''
+                ].filter(Boolean),
+                url: f.official_url
+            })
+        );
+
+        const portalCards = `
+            <div class="reco-card">
+                <h4>myScheme — Government of India</h4>
+                <p>Search 1000+ central & state schemes by eligibility.</p>
+                <a href="https://www.myscheme.gov.in/" target="_blank"><button class="primary-btn" style="margin-top:10px;">Open Portal →</button></a>
+            </div>
+            <div class="reco-card">
+                <h4>India.gov.in — All Schemes</h4>
+                <p>Official listing of all government welfare schemes.</p>
+                <a href="https://www.india.gov.in/my-government/schemes" target="_blank"><button class="primary-btn" style="margin-top:10px;">Open Portal →</button></a>
+            </div>
+        `;
 
         const portalHtml = `
-            <div class="card">
-                <div class="card-title"><span class="icon">🌐</span> Official Portals</div>
-                <div class="reco-card">
-                    <h4>myScheme — Government of India</h4>
-                    <p>Search 1000+ central & state schemes by eligibility.</p>
-                    <a href="https://www.myscheme.gov.in/" target="_blank"><button class="primary-btn" style="margin-top:10px;">Open Portal →</button></a>
+            <div class="collapsible-section">
+                <div class="collapsible-header" onclick="toggleCollapsible('portals')">
+                    <div class="collapsible-title">
+                        <span class="collapsible-icon">🌐</span>
+                        <span>Official Portals</span>
+                        <span class="collapsible-count">2 portals</span>
+                    </div>
+                    <i class="fas fa-chevron-down collapsible-arrow" id="portals-arrow"></i>
                 </div>
-                <div class="reco-card" style="margin-top:0;">
-                    <h4>India.gov.in — All Schemes</h4>
-                    <p>Official listing of all government welfare schemes.</p>
-                    <a href="https://www.india.gov.in/my-government/schemes" target="_blank"><button class="primary-btn" style="margin-top:10px;">Open Portal →</button></a>
+                <div class="collapsible-content" id="portals-content">
+                    <div class="collapsible-inner">
+                        ${portalCards}
+                    </div>
                 </div>
             </div>
         `;
 
-        // Use 2-column grid layout for better screen utilization
-        sh('page-recommendations', `
-            <div class="reco-grid">
-                ${schemesHtml}
-                ${insuranceHtml}
-            </div>
-            <div class="reco-grid">
-                ${fdHtml}
-                ${portalHtml}
-            </div>
-        `);
+        sh('page-recommendations', schemesHtml + insuranceHtml + fdHtml + portalHtml);
     } catch(e) {
         sh('page-recommendations', `
             <div class="card">
@@ -3534,6 +3648,17 @@ async function renderRecommendations() {
         `);
     }
 }
+
+window.toggleCollapsible = (id) => {
+    const content = document.getElementById(`${id}-content`);
+    const arrow = document.getElementById(`${id}-arrow`);
+    
+    if (content && arrow) {
+        const isExpanded = content.classList.contains('expanded');
+        content.classList.toggle('expanded', !isExpanded);
+        arrow.classList.toggle('expanded', !isExpanded);
+    }
+};
 
 window.enrollScheme = name => {
     if(!(userData.schemes||[]).find(s=>s.name===name)) {
