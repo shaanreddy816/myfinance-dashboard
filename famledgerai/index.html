@@ -517,6 +517,361 @@
             .scenario-grid { grid-template-columns:1fr; }
         }
         #auth, #app { display: none; }
+
+        /* ========== ONBOARDING WIZARD STYLES ========== */
+        #onboarding-wizard { display: none; }
+        .onboarding-container {
+            min-height: 100vh;
+            background: var(--bg);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .onboarding-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        /* Progress Indicator */
+        .progress-indicator {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+        .progress-step::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: var(--border2);
+            z-index: -1;
+        }
+        .progress-step:last-child::after {
+            display: none;
+        }
+        .progress-step.completed::after {
+            background: var(--green);
+        }
+        .progress-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg3);
+            border: 2px solid var(--border2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        .progress-step.completed .progress-circle {
+            background: var(--green);
+            border-color: var(--green);
+            color: white;
+        }
+        .progress-step.active .progress-circle {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+        .progress-label {
+            font-size: 11px;
+            color: var(--text3);
+            text-align: center;
+        }
+        .progress-step.active .progress-label {
+            color: var(--accent2);
+            font-weight: 600;
+        }
+        .progress-percentage {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--accent2);
+            font-family: var(--mono);
+            margin-left: 20px;
+        }
+        
+        /* Phase Content */
+        .phase-content {
+            display: none;
+        }
+        .phase-content.active {
+            display: block;
+        }
+        .onboarding-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .onboarding-card h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        .onboarding-card .subtitle {
+            font-size: 13px;
+            color: var(--text3);
+            margin-bottom: 20px;
+        }
+        
+        /* Form Fields */
+        .onboarding-input {
+            width: 100%;
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: var(--font);
+            outline: none;
+            transition: border-color 0.2s;
+            min-height: 44px;
+            margin-bottom: 12px;
+        }
+        .onboarding-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .onboarding-input.smart-default {
+            background: rgba(59, 126, 255, 0.05);
+            border-color: rgba(59, 126, 255, 0.3);
+        }
+        .onboarding-input.error {
+            border-color: var(--red);
+        }
+        .onboarding-input option {
+            background: var(--bg2);
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-label {
+            display: block;
+            font-size: 11px;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .form-label .required {
+            color: var(--red);
+        }
+        .form-help {
+            font-size: 11px;
+            color: var(--text3);
+            margin-top: 4px;
+        }
+        
+        .error-message {
+            color: var(--red);
+            font-size: 12px;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .warning-message {
+            background: var(--yellow-dim);
+            border: 1px solid var(--yellow);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            color: var(--yellow);
+            font-size: 13px;
+            margin-top: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .tip-message {
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            color: var(--accent2);
+            font-size: 13px;
+            margin-top: 12px;
+        }
+        
+        /* Navigation Buttons */
+        .phase-navigation {
+            display: flex;
+            gap: 12px;
+            justify-content: space-between;
+            margin-top: 24px;
+        }
+        .phase-navigation button {
+            flex: 1;
+        }
+        
+        /* Dynamic Form Groups */
+        .dynamic-group {
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .dynamic-group .remove-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: var(--red-dim);
+            border: 1px solid var(--red);
+            border-radius: var(--radius-sm);
+            padding: 6px 12px;
+            color: var(--red);
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .dynamic-group .remove-btn:hover {
+            background: var(--red);
+            color: white;
+        }
+        
+        /* Goal Template Buttons */
+        .goal-template-btn {
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            border-radius: var(--radius-sm);
+            padding: 8px 14px;
+            color: var(--text2);
+            font-size: 12px;
+            cursor: pointer;
+            font-family: var(--font);
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .goal-template-btn:hover {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent2);
+        }
+        
+        /* Goal Cards */
+        .goal-card {
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .goal-card .goal-category-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .goal-card .goal-category-badge.short {
+            background: var(--green-dim);
+            color: var(--green);
+        }
+        .goal-card .goal-category-badge.medium {
+            background: var(--yellow-dim);
+            color: var(--yellow);
+        }
+        .goal-card .goal-category-badge.long {
+            background: var(--purple-dim);
+            color: var(--purple);
+        }
+        
+        /* Expense Categories */
+        .expense-category {
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .expense-input {
+            margin-bottom: 0;
+        }
+        .category-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border2);
+        }
+        .category-total {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+            font-family: var(--mono);
+        }
+        .category-percent {
+            font-size: 13px;
+            color: var(--text3);
+        }
+        
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .onboarding-container {
+                padding: 16px;
+            }
+            .progress-indicator {
+                padding: 12px;
+            }
+            .progress-circle {
+                width: 32px;
+                height: 32px;
+                font-size: 12px;
+            }
+            .progress-label {
+                font-size: 9px;
+            }
+            .progress-percentage {
+                font-size: 18px;
+            }
+            .phase-navigation {
+                flex-direction: column;
+            }
+            .phase-navigation button {
+                width: 100%;
+            }
+        }
+        @media (max-width: 480px) {
+            .onboarding-input {
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+        }
     </style>
 </head>
 <body>
@@ -622,6 +977,644 @@
                 <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('r-pw2', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
             </div>
             <button class="abtn" id="regBtn" onclick="doReg()">Create Account →</button>
+        </div>
+    </div>
+</div>
+
+<!-- ONBOARDING WIZARD -->
+<div id="onboarding-wizard">
+    <div class="onboarding-container">
+        <div class="onboarding-content">
+            <!-- Progress Indicator -->
+            <div class="progress-indicator">
+                <div class="progress-steps">
+                    <div class="progress-step" data-phase="1">
+                        <div class="progress-circle">1</div>
+                        <div class="progress-label">Basic Info</div>
+                    </div>
+                    <div class="progress-step" data-phase="2">
+                        <div class="progress-circle">2</div>
+                        <div class="progress-label">Income</div>
+                    </div>
+                    <div class="progress-step" data-phase="3">
+                        <div class="progress-circle">3</div>
+                        <div class="progress-label">Expenses</div>
+                    </div>
+                    <div class="progress-step" data-phase="4">
+                        <div class="progress-circle">4</div>
+                        <div class="progress-label">Assets</div>
+                    </div>
+                </div>
+                <div class="progress-percentage" id="onb-progress-percent">0%</div>
+            </div>
+
+            <!-- Phase 1: Basic Information -->
+            <div class="phase-content" id="phase-1">
+                <div class="onboarding-card">
+                    <h2>👋 Welcome! Let's set up your financial profile</h2>
+                    <div class="subtitle">Tell us about yourself and your family</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Full Name <span class="required">*</span></label>
+                        <input type="text" class="onboarding-input" id="onb-name" placeholder="Enter your full name" required>
+                        <div class="error-message" id="error-onb-name" style="display:none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Age <span class="required">*</span></label>
+                        <input type="number" class="onboarding-input" id="onb-age" placeholder="Your age" min="18" max="100" required>
+                        <div class="error-message" id="error-onb-age" style="display:none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Gender <span class="required">*</span></label>
+                        <select class="onboarding-input" id="onb-gender" required>
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <div class="error-message" id="error-onb-gender" style="display:none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Marital Status <span class="required">*</span></label>
+                        <select class="onboarding-input" id="onb-marital" required>
+                            <option value="">Select Marital Status</option>
+                            <option value="single">Single</option>
+                            <option value="married">Married</option>
+                            <option value="divorced">Divorced</option>
+                            <option value="widowed">Widowed</option>
+                        </select>
+                        <div class="error-message" id="error-onb-marital" style="display:none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Occupation <span class="required">*</span></label>
+                        <input type="text" class="onboarding-input" id="onb-occupation" placeholder="e.g. Software Engineer" required>
+                        <div class="error-message" id="error-onb-occupation" style="display:none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">City <span class="required">*</span></label>
+                        <select class="onboarding-input" id="onb-city" required>
+                            <option value="">Select City</option>
+                            <optgroup label="Tier 1 Cities">
+                                <option value="mumbai">Mumbai</option>
+                                <option value="delhi">Delhi</option>
+                                <option value="bangalore">Bangalore</option>
+                                <option value="hyderabad">Hyderabad</option>
+                                <option value="chennai">Chennai</option>
+                                <option value="kolkata">Kolkata</option>
+                                <option value="pune">Pune</option>
+                                <option value="ahmedabad">Ahmedabad</option>
+                            </optgroup>
+                            <optgroup label="Tier 2 Cities">
+                                <option value="jaipur">Jaipur</option>
+                                <option value="lucknow">Lucknow</option>
+                                <option value="kanpur">Kanpur</option>
+                                <option value="nagpur">Nagpur</option>
+                                <option value="indore">Indore</option>
+                                <option value="thane">Thane</option>
+                                <option value="bhopal">Bhopal</option>
+                                <option value="visakhapatnam">Visakhapatnam</option>
+                                <option value="pimpri-chinchwad">Pimpri-Chinchwad</option>
+                                <option value="patna">Patna</option>
+                            </optgroup>
+                            <optgroup label="Other Cities">
+                                <option value="other">Other</option>
+                            </optgroup>
+                        </select>
+                        <div class="error-message" id="error-onb-city" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Spouse Section (conditional) -->
+                    <div id="spouse-section" style="display:none;">
+                        <h3 style="font-size:16px; margin:24px 0 16px; color:var(--text);">💑 Spouse Information</h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Spouse Name</label>
+                            <input type="text" class="onboarding-input" id="onb-spouse-name" placeholder="Spouse's full name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Spouse Age</label>
+                            <input type="number" class="onboarding-input" id="onb-spouse-age" placeholder="Spouse's age" min="18" max="100">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Spouse Occupation</label>
+                            <input type="text" class="onboarding-input" id="onb-spouse-occupation" placeholder="e.g. Teacher">
+                        </div>
+                    </div>
+                    
+                    <!-- Children Section -->
+                    <div id="children-section">
+                        <h3 style="font-size:16px; margin:24px 0 16px; color:var(--text);">👶 Children (Optional)</h3>
+                        <div id="children-list"></div>
+                        <button type="button" class="secondary-btn" onclick="addChild()" style="width:100%;">+ Add Child</button>
+                    </div>
+                    
+                    <!-- Parents Section -->
+                    <div id="parents-section">
+                        <h3 style="font-size:16px; margin:24px 0 16px; color:var(--text);">👴 Dependent Parents (Optional)</h3>
+                        <div id="parents-list"></div>
+                        <button type="button" class="secondary-btn" onclick="addParent()" style="width:100%;">+ Add Dependent Parent</button>
+                    </div>
+                    
+                    <!-- Financial Goals Section -->
+                    <div id="goals-section">
+                        <h3 style="font-size:16px; margin:24px 0 16px; color:var(--text);">🎯 Financial Goals <span class="required">*</span></h3>
+                        <p style="font-size:12px; color:var(--text3); margin-bottom:16px;">Add at least one financial goal to help us plan your journey to financial freedom</p>
+                        
+                        <!-- Goal Templates -->
+                        <div style="margin-bottom:16px;">
+                            <label class="form-label">Quick Add (Optional)</label>
+                            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                                <button type="button" class="goal-template-btn" onclick="addGoalFromTemplate('home')">🏠 Home Purchase</button>
+                                <button type="button" class="goal-template-btn" onclick="addGoalFromTemplate('car')">🚗 Car Purchase</button>
+                                <button type="button" class="goal-template-btn" onclick="addGoalFromTemplate('education')">🎓 Children Education</button>
+                                <button type="button" class="goal-template-btn" onclick="addGoalFromTemplate('retirement')">🏖️ Retirement</button>
+                                <button type="button" class="goal-template-btn" onclick="addGoalFromTemplate('emergency')">🛡️ Emergency Fund</button>
+                                <button type="button" class="goal-template-btn" onclick="addGoalFromTemplate('vacation')">✈️ Vacation</button>
+                            </div>
+                        </div>
+                        
+                        <div id="goals-list"></div>
+                        <button type="button" class="secondary-btn" onclick="addGoal()" style="width:100%;">+ Add Custom Goal</button>
+                        <div class="error-message" id="error-goals" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Income Sources -->
+            <div class="phase-content" id="phase-2">
+                <div class="onboarding-card">
+                    <h2>💰 Income Sources</h2>
+                    <div class="subtitle">Tell us about your monthly income</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Monthly Salary <span class="required">*</span></label>
+                        <input type="number" class="onboarding-input" id="onb-salary" placeholder="Enter monthly salary" min="0" required>
+                        <div class="error-message" id="error-onb-salary" style="display:none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Annual Bonus (Optional)</label>
+                        <input type="number" class="onboarding-input" id="onb-bonus" placeholder="Annual bonus amount" min="0">
+                        <div class="form-help">Will be divided by 12 for monthly calculation</div>
+                    </div>
+                    
+                    <h3 style="font-size:16px; margin:24px 0 16px; color:var(--text);">Additional Income Sources</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Rental Income</label>
+                        <input type="number" class="onboarding-input" id="onb-rental" placeholder="Monthly rental income" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Business Income</label>
+                        <input type="number" class="onboarding-input" id="onb-business" placeholder="Monthly business income" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Freelancing Income</label>
+                        <input type="number" class="onboarding-input" id="onb-freelancing" placeholder="Monthly freelancing income" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Investment Returns</label>
+                        <input type="number" class="onboarding-input" id="onb-investment-returns" placeholder="Monthly investment returns" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Other Income</label>
+                        <input type="number" class="onboarding-input" id="onb-other-income" placeholder="Any other monthly income" min="0">
+                    </div>
+                    
+                    <!-- Spouse Income (conditional) -->
+                    <div id="spouse-income-section" style="display:none;">
+                        <h3 style="font-size:16px; margin:24px 0 16px; color:var(--text);">💼 Spouse Income</h3>
+                        <div class="form-group">
+                            <label class="form-label">Spouse Monthly Income</label>
+                            <input type="number" class="onboarding-input" id="onb-spouse-income" placeholder="Spouse's monthly income" min="0">
+                        </div>
+                    </div>
+                    
+                    <!-- Total Income Display -->
+                    <div style="background:var(--green-dim); border:1px solid var(--green); border-radius:var(--radius-sm); padding:16px; margin-top:20px;">
+                        <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Total Monthly Household Income</div>
+                        <div style="font-size:28px; font-weight:800; font-family:var(--mono); color:var(--green);" id="total-income-display">₹0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 3: Monthly Expenses -->
+            <div class="phase-content" id="phase-3">
+                <div class="onboarding-card">
+                    <h2>📊 Monthly Expenses</h2>
+                    <div class="subtitle">Help us understand your spending patterns</div>
+                    <p style="font-size:12px; color:var(--text3); margin-bottom:20px;">We'll provide smart defaults based on your city and family size. You can adjust them as needed.</p>
+                    
+                    <!-- Housing Expenses -->
+                    <div class="expense-category" id="cat-housing">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            🏠 Housing
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 25-40% of income)</span>
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Housing Type</label>
+                            <div style="display:flex; gap:12px; margin-bottom:12px;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                    <input type="radio" name="housing-type" value="emi" onchange="toggleHousingType()"> Home EMI
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                    <input type="radio" name="housing-type" value="rent" onchange="toggleHousingType()"> Rent
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" id="housing-emi-group" style="display:none;">
+                            <label class="form-label">Monthly EMI</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="housing" id="exp-housing-emi" placeholder="Monthly home loan EMI" min="0">
+                        </div>
+                        
+                        <div class="form-group" id="housing-rent-group" style="display:none;">
+                            <label class="form-label">Monthly Rent</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="housing" id="exp-housing-rent" placeholder="Monthly rent" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Property Tax (Monthly)</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="housing" id="exp-property-tax" placeholder="Property tax per month" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Maintenance Charges</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="housing" id="exp-maintenance" placeholder="Monthly maintenance" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Home Insurance (Monthly)</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="housing" id="exp-home-insurance" placeholder="Home insurance per month" min="0">
+                        </div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="housing-total">₹0</span></div>
+                            <div class="category-percent">(<span id="housing-percent">0%</span> of income)</div>
+                        </div>
+                        <div class="warning-message" id="housing-warning" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Transportation Expenses -->
+                    <div class="expense-category" id="cat-transportation">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            🚗 Transportation
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 10-20% of income)</span>
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Car EMI</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="transportation" id="exp-car-emi" placeholder="Monthly car loan EMI" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Petrol/Diesel</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="transportation" id="exp-petrol" placeholder="Monthly fuel cost" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Car Insurance (Monthly)</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="transportation" id="exp-car-insurance" placeholder="Car insurance per month" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Car Maintenance</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="transportation" id="exp-car-maintenance" placeholder="Monthly maintenance" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Public Transport</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="transportation" id="exp-public-transport" placeholder="Bus, metro, auto" min="0">
+                        </div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="transportation-total">₹0</span></div>
+                            <div class="category-percent">(<span id="transportation-percent">0%</span> of income)</div>
+                        </div>
+                        <div class="warning-message" id="transportation-warning" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Insurance Expenses -->
+                    <div class="expense-category" id="cat-insurance">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            🛡️ Insurance
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 5-10% of income)</span>
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Health Insurance (Annual)</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="insurance" data-annual="true" id="exp-health-insurance" placeholder="Annual premium" min="0">
+                            <div class="form-help">Will be divided by 12 for monthly calculation</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Term Insurance (Annual)</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="insurance" data-annual="true" id="exp-term-insurance" placeholder="Annual premium" min="0">
+                            <div class="form-help">Will be divided by 12 for monthly calculation</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Personal Accident Insurance (Annual)</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="insurance" data-annual="true" id="exp-personal-accident" placeholder="Annual premium" min="0">
+                        </div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="insurance-total">₹0</span></div>
+                            <div class="category-percent">(<span id="insurance-percent">0%</span> of income)</div>
+                        </div>
+                        <div class="warning-message" id="insurance-warning" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Utilities Expenses -->
+                    <div class="expense-category" id="cat-utilities">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            ⚡ Utilities
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 5-10% of income)</span>
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Electricity Bill</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="utilities" id="exp-electricity" placeholder="Monthly electricity" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Water Bill</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="utilities" id="exp-water" placeholder="Monthly water" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Gas/LPG</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="utilities" id="exp-gas" placeholder="Monthly gas" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Internet/Broadband</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="utilities" id="exp-internet" placeholder="Monthly internet" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Mobile Bills</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="utilities" id="exp-mobile" placeholder="Monthly mobile bills" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">DTH/OTT Subscriptions</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="utilities" id="exp-ott" placeholder="Netflix, Prime, etc." min="0">
+                        </div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="utilities-total">₹0</span></div>
+                            <div class="category-percent">(<span id="utilities-percent">0%</span> of income)</div>
+                        </div>
+                        <div class="warning-message" id="utilities-warning" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Food & Groceries -->
+                    <div class="expense-category" id="cat-food">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            🍽️ Food & Groceries
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 15-25% of income)</span>
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Monthly Groceries</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="food" id="exp-groceries" placeholder="Groceries & staples" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Vegetables & Fruits</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="food" id="exp-vegetables" placeholder="Fresh produce" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Restaurant/Dining Out</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="food" id="exp-dining" placeholder="Eating out" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Food Delivery</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="food" id="exp-delivery" placeholder="Swiggy, Zomato, etc." min="0">
+                        </div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="food-total">₹0</span></div>
+                            <div class="category-percent">(<span id="food-percent">0%</span> of income)</div>
+                        </div>
+                        <div class="warning-message" id="food-warning" style="display:none;"></div>
+                        <div class="tip-message" id="food-tip" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Children's Expenses -->
+                    <div class="expense-category" id="cat-children">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            👶 Children's Expenses
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 10-25% of income)</span>
+                        </h3>
+                        
+                        <div id="children-expenses-list"></div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="children-total">₹0</span></div>
+                            <div class="category-percent">(<span id="children-percent">0%</span> of income)</div>
+                        </div>
+                        <div class="warning-message" id="children-warning" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Healthcare -->
+                    <div class="expense-category" id="cat-healthcare">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            🏥 Healthcare
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 5-15% of income)</span>
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Regular Medicines</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="healthcare" id="exp-medicines" placeholder="Monthly medicines" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Doctor Consultations</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="healthcare" id="exp-consultations" placeholder="Monthly consultations" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Gym Membership</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="healthcare" id="exp-gym" placeholder="Monthly gym fees" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Health Supplements</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="healthcare" id="exp-supplements" placeholder="Vitamins, protein, etc." min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Emergency Medical Fund</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="healthcare" id="exp-emergency-fund" placeholder="Monthly savings for emergencies" min="0">
+                        </div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="healthcare-total">₹0</span></div>
+                            <div class="category-percent">(<span id="healthcare-percent">0%</span> of income)</div>
+                        </div>
+                        <div class="warning-message" id="healthcare-warning" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Lifestyle & Entertainment -->
+                    <div class="expense-category" id="cat-lifestyle">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            🎭 Lifestyle & Entertainment
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 5-15% of income)</span>
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Monthly Outings/Trips</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="lifestyle" id="exp-outings" placeholder="Family outings, trips" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Movies & Entertainment</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="lifestyle" id="exp-entertainment" placeholder="Movies, events, etc." min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Shopping</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="lifestyle" id="exp-shopping" placeholder="Clothes, accessories, etc." min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Hobbies</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="lifestyle" id="exp-hobbies" placeholder="Books, music, etc." min="0">
+                        </div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="lifestyle-total">₹0</span></div>
+                            <div class="category-percent">(<span id="lifestyle-percent">0%</span> of income)</div>
+                        </div>
+                        <div class="tip-message" id="lifestyle-tip" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Investments & Savings -->
+                    <div class="expense-category" id="cat-investments">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            📈 Investments & Savings
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 20-30% of income)</span>
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">SIP (Mutual Funds)</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="investments" id="exp-sip" placeholder="Monthly SIP amount" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">PPF/EPF</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="investments" id="exp-ppf" placeholder="Monthly PPF/EPF" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Stocks</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="investments" id="exp-stocks" placeholder="Monthly stock investments" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Children's Education Fund</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="investments" id="exp-education-fund" placeholder="Monthly education savings" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Retirement Fund</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="investments" id="exp-retirement-fund" placeholder="Monthly retirement savings" min="0">
+                        </div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="investments-total">₹0</span></div>
+                            <div class="category-percent">(<span id="investments-percent">0%</span> of income)</div>
+                        </div>
+                        <div class="tip-message" id="investments-tip" style="display:none;"></div>
+                    </div>
+                    
+                    <!-- Miscellaneous -->
+                    <div class="expense-category" id="cat-miscellaneous">
+                        <h3 style="font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+                            📦 Miscellaneous
+                            <span style="font-size:11px; color:var(--text3); font-weight:400;">(Typical: 5-10% of income)</span>
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Domestic Help</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="miscellaneous" id="exp-domestic-help" placeholder="Maid, cook, etc." min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Pet Expenses</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="miscellaneous" id="exp-pets" placeholder="Pet food, vet, etc." min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Religious/Charity</label>
+                            <input type="number" class="onboarding-input expense-input" data-category="miscellaneous" id="exp-charity" placeholder="Donations, charity" min="0">
+                        </div>
+                        
+                        <div class="category-summary">
+                            <div class="category-total">Total: <span id="miscellaneous-total">₹0</span></div>
+                            <div class="category-percent">(<span id="miscellaneous-percent">0%</span> of income)</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Total Expenses Summary -->
+                    <div style="background:var(--bg3); border:2px solid var(--border2); border-radius:var(--radius); padding:20px; margin-top:24px;">
+                        <h3 style="font-size:18px; margin-bottom:16px; color:var(--text);">💰 Monthly Budget Summary</h3>
+                        
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                            <div>
+                                <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Total Income</div>
+                                <div style="font-size:24px; font-weight:800; font-family:var(--mono); color:var(--green);" id="summary-income">₹0</div>
+                            </div>
+                            <div>
+                                <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Total Expenses</div>
+                                <div style="font-size:24px; font-weight:800; font-family:var(--mono); color:var(--red);" id="summary-expenses">₹0</div>
+                            </div>
+                        </div>
+                        
+                        <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:16px;">
+                            <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Remaining / Savings</div>
+                            <div style="font-size:28px; font-weight:800; font-family:var(--mono);" id="summary-remaining">₹0</div>
+                            <div style="font-size:13px; margin-top:6px;" id="summary-savings-rate"></div>
+                        </div>
+                        
+                        <div class="warning-message" id="budget-warning" style="display:none; margin-top:16px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 4: Assets & Liabilities -->
+            <div class="phase-content" id="phase-4">
+                <div class="onboarding-card">
+                    <h2>💎 Assets & Liabilities</h2>
+                    <div class="subtitle">Let's calculate your net worth</div>
+                    
+                    <!-- Assets and Liabilities will be added here -->
+                    <div id="assets-liabilities-container"></div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="phase-navigation">
+                <button class="secondary-btn" id="back-btn" onclick="previousPhase()" style="display:none;">← Back</button>
+                <button class="secondary-btn" onclick="saveAndExit()">Save & Exit</button>
+                <button class="primary-btn" id="next-btn" onclick="nextPhase()">Next →</button>
+            </div>
         </div>
     </div>
 </div>
@@ -3194,7 +4187,12 @@ window.doReg = async () => {
         showCongratulationsModal(name);
         
         setTimeout(() => {
-            showApp(); 
+            // Check if onboarding is required
+            if (checkOnboardingRequired()) {
+                showOnboarding();
+            } else {
+                showApp();
+            }
             resetInactivity();
         }, 3000);
     } catch(e) {
@@ -6717,6 +7715,1164 @@ window.addEventListener('beforeinstallprompt', (e) => {
     // Show install button/banner if you want
     console.log('PWA install prompt available');
 });
+
+// ========== ONBOARDING WIZARD ==========
+const ONBOARDING_STORAGE_KEY = 'famledger_onboarding_progress';
+let onboardingState = {
+    currentPhase: 1,
+    completedPhases: [],
+    startTime: Date.now(),
+    data: {
+        basicInfo: {},
+        goals: [],
+        income: {},
+        expenses: {},
+        assets: {},
+        liabilities: []
+    }
+};
+
+// OnboardingWizard Class
+class OnboardingWizard {
+    constructor() {
+        this.currentPhase = 1;
+        this.totalPhases = 4;
+    }
+
+    init() {
+        // Load saved progress
+        const saved = this.loadProgress();
+        if (saved) {
+            onboardingState = saved;
+            this.currentPhase = saved.currentPhase;
+            this.restoreData();
+        }
+        
+        // Setup event listeners
+        this.setupEventListeners();
+        
+        // Render current phase
+        this.renderPhase(this.currentPhase);
+        
+        // Update progress indicator
+        this.updateProgressIndicator();
+    }
+
+    setupEventListeners() {
+        // Marital status change
+        const maritalSelect = document.getElementById('onb-marital');
+        if (maritalSelect) {
+            maritalSelect.addEventListener('change', (e) => {
+                const spouseSection = document.getElementById('spouse-section');
+                const spouseIncomeSection = document.getElementById('spouse-income-section');
+                const isMarried = e.target.value === 'married';
+                if (spouseSection) spouseSection.style.display = isMarried ? 'block' : 'none';
+                if (spouseIncomeSection) spouseIncomeSection.style.display = isMarried ? 'block' : 'none';
+            });
+        }
+
+        // City change - load smart defaults
+        const citySelect = document.getElementById('onb-city');
+        if (citySelect) {
+            citySelect.addEventListener('change', (e) => {
+                this.loadSmartDefaults(e.target.value);
+            });
+        }
+
+        // Income inputs - update total
+        const incomeInputs = ['onb-salary', 'onb-bonus', 'onb-rental', 'onb-business', 
+                             'onb-freelancing', 'onb-investment-returns', 'onb-other-income', 'onb-spouse-income'];
+        incomeInputs.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.addEventListener('input', () => this.calculateTotalIncome());
+            }
+        });
+    }
+
+    renderPhase(phaseNumber) {
+        // Hide all phases
+        document.querySelectorAll('.phase-content').forEach(phase => {
+            phase.classList.remove('active');
+        });
+
+        // Show current phase
+        const currentPhaseEl = document.getElementById(`phase-${phaseNumber}`);
+        if (currentPhaseEl) {
+            currentPhaseEl.classList.add('active');
+        }
+        
+        // Phase-specific initialization
+        if (phaseNumber === 3) {
+            // Render children expenses based on Phase 1 data
+            this.renderChildrenExpenses();
+            
+            // Setup expense input listeners
+            document.querySelectorAll('.expense-input').forEach(input => {
+                input.addEventListener('input', () => this.updateExpenseCalculations());
+            });
+            
+            // Initial calculation
+            this.updateExpenseCalculations();
+        }
+
+        // Update navigation buttons
+        const backBtn = document.getElementById('back-btn');
+        const nextBtn = document.getElementById('next-btn');
+        
+        if (backBtn) {
+            backBtn.style.display = phaseNumber > 1 ? 'block' : 'none';
+        }
+        
+        if (nextBtn) {
+            nextBtn.textContent = phaseNumber === this.totalPhases ? 'Complete Setup →' : 'Next →';
+        }
+
+        // Update progress indicator
+        this.updateProgressIndicator();
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    updateProgressIndicator() {
+        // Update step indicators
+        document.querySelectorAll('.progress-step').forEach((step, index) => {
+            const phaseNum = index + 1;
+            step.classList.remove('active', 'completed');
+            
+            if (phaseNum < this.currentPhase) {
+                step.classList.add('completed');
+                const circle = step.querySelector('.progress-circle');
+                if (circle) circle.innerHTML = '✓';
+            } else if (phaseNum === this.currentPhase) {
+                step.classList.add('active');
+                const circle = step.querySelector('.progress-circle');
+                if (circle) circle.innerHTML = phaseNum;
+            } else {
+                const circle = step.querySelector('.progress-circle');
+                if (circle) circle.innerHTML = phaseNum;
+            }
+        });
+
+        // Update percentage
+        const percentage = Math.round((this.currentPhase / this.totalPhases) * 100);
+        const percentEl = document.getElementById('onb-progress-percent');
+        if (percentEl) percentEl.textContent = percentage + '%';
+    }
+
+    validateCurrentPhase() {
+        const errors = [];
+        
+        if (this.currentPhase === 1) {
+            // Phase 1: Basic Information
+            const name = document.getElementById('onb-name')?.value?.trim();
+            const age = parseInt(document.getElementById('onb-age')?.value);
+            const gender = document.getElementById('onb-gender')?.value;
+            const marital = document.getElementById('onb-marital')?.value;
+            const occupation = document.getElementById('onb-occupation')?.value?.trim();
+            const city = document.getElementById('onb-city')?.value;
+
+            if (!name) errors.push({ field: 'onb-name', message: 'This field is required' });
+            if (!age || age < 18) errors.push({ field: 'onb-age', message: 'Must be 18 or older' });
+            if (!gender) errors.push({ field: 'onb-gender', message: 'This field is required' });
+            if (!marital) errors.push({ field: 'onb-marital', message: 'This field is required' });
+            if (!occupation) errors.push({ field: 'onb-occupation', message: 'This field is required' });
+            if (!city) errors.push({ field: 'onb-city', message: 'This field is required' });
+
+            // Validate spouse if married
+            if (marital === 'married') {
+                const spouseName = document.getElementById('onb-spouse-name')?.value?.trim();
+                if (!spouseName) errors.push({ field: 'onb-spouse-name', message: 'Spouse name is required when married' });
+            }
+            
+            // Validate goals - at least one required
+            const goals = this.collectGoals();
+            if (goals.length === 0) {
+                errors.push({ field: 'goals', message: 'Please add at least one financial goal' });
+            } else {
+                // Validate each goal
+                goals.forEach((goal, index) => {
+                    if (!goal.name) {
+                        errors.push({ field: 'goals', message: `Goal ${index + 1}: Name is required` });
+                    }
+                    if (!goal.amount || goal.amount < 1000) {
+                        errors.push({ field: 'goals', message: `Goal ${index + 1}: Amount must be at least ₹1,000` });
+                    }
+                    if (!goal.timeline || goal.timeline < 1) {
+                        errors.push({ field: 'goals', message: `Goal ${index + 1}: Timeline must be at least 1 year` });
+                    }
+                });
+            }
+        } else if (this.currentPhase === 2) {
+            // Phase 2: Income
+            const salary = parseFloat(document.getElementById('onb-salary')?.value);
+            if (!salary || salary <= 0) errors.push({ field: 'onb-salary', message: 'Monthly salary is required' });
+        }
+
+        // Display errors
+        this.clearAllErrors();
+        errors.forEach(error => {
+            this.displayError(error.field, error.message);
+        });
+
+        return errors.length === 0;
+    }
+
+    displayError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const errorEl = document.getElementById(`error-${fieldId}`);
+        
+        if (field) field.classList.add('error');
+        if (errorEl) {
+            errorEl.textContent = '⚠️ ' + message;
+            errorEl.style.display = 'flex';
+        }
+    }
+
+    clearAllErrors() {
+        document.querySelectorAll('.onboarding-input').forEach(input => {
+            input.classList.remove('error');
+        });
+        document.querySelectorAll('.error-message').forEach(error => {
+            error.style.display = 'none';
+        });
+    }
+
+    collectCurrentPhaseData() {
+        if (this.currentPhase === 1) {
+            // Collect basic info
+            onboardingState.data.basicInfo = {
+                name: document.getElementById('onb-name')?.value?.trim(),
+                age: parseInt(document.getElementById('onb-age')?.value),
+                gender: document.getElementById('onb-gender')?.value,
+                maritalStatus: document.getElementById('onb-marital')?.value,
+                occupation: document.getElementById('onb-occupation')?.value?.trim(),
+                city: document.getElementById('onb-city')?.value,
+                cityTier: this.getCityTier(document.getElementById('onb-city')?.value),
+                spouse: {
+                    name: document.getElementById('onb-spouse-name')?.value?.trim(),
+                    age: parseInt(document.getElementById('onb-spouse-age')?.value) || null,
+                    occupation: document.getElementById('onb-spouse-occupation')?.value?.trim()
+                },
+                children: this.collectChildren(),
+                parents: this.collectParents()
+            };
+            
+            // Collect goals
+            onboardingState.data.goals = this.collectGoals();
+        } else if (this.currentPhase === 2) {
+            // Collect income
+            onboardingState.data.income = {
+                salary: parseFloat(document.getElementById('onb-salary')?.value) || 0,
+                bonus: parseFloat(document.getElementById('onb-bonus')?.value) || 0,
+                rental: parseFloat(document.getElementById('onb-rental')?.value) || 0,
+                business: parseFloat(document.getElementById('onb-business')?.value) || 0,
+                freelancing: parseFloat(document.getElementById('onb-freelancing')?.value) || 0,
+                investmentReturns: parseFloat(document.getElementById('onb-investment-returns')?.value) || 0,
+                other: parseFloat(document.getElementById('onb-other-income')?.value) || 0,
+                spouseIncome: parseFloat(document.getElementById('onb-spouse-income')?.value) || 0
+            };
+        } else if (this.currentPhase === 3) {
+            // Collect expenses
+            onboardingState.data.expenses = this.collectExpenses();
+        }
+    }
+
+    collectChildren() {
+        const children = [];
+        document.querySelectorAll('#children-list .dynamic-group').forEach(group => {
+            const name = group.querySelector('[data-field="name"]')?.value?.trim();
+            const age = parseInt(group.querySelector('[data-field="age"]')?.value);
+            const grade = group.querySelector('[data-field="grade"]')?.value?.trim();
+            if (name) children.push({ name, age, grade });
+        });
+        return children;
+    }
+
+    collectParents() {
+        const parents = [];
+        document.querySelectorAll('#parents-list .dynamic-group').forEach(group => {
+            const name = group.querySelector('[data-field="name"]')?.value?.trim();
+            const age = parseInt(group.querySelector('[data-field="age"]')?.value);
+            const health = group.querySelector('[data-field="health"]')?.value;
+            if (name) parents.push({ name, age, healthStatus: health });
+        });
+        return parents;
+    }
+    
+    collectGoals() {
+        const goals = [];
+        document.querySelectorAll('#goals-list .goal-card').forEach(card => {
+            const name = card.querySelector('[data-field="name"]')?.value?.trim();
+            const amount = parseFloat(card.querySelector('[data-field="amount"]')?.value);
+            const timeline = parseInt(card.querySelector('[data-field="timeline"]')?.value);
+            const priority = card.querySelector('[data-field="priority"]')?.value;
+            const category = card.querySelector('.goal-category-badge')?.getAttribute('data-category') || 'medium';
+            
+            if (name && amount && timeline) {
+                goals.push({
+                    id: card.getAttribute('data-id'),
+                    name,
+                    targetAmount: amount,
+                    timeline,
+                    priority,
+                    category
+                });
+            }
+        });
+        return goals;
+    }
+    
+    collectExpenses() {
+        const expenses = {
+            housing: {
+                type: document.querySelector('input[name="housing-type"]:checked')?.value || '',
+                emi: parseFloat(document.getElementById('exp-housing-emi')?.value) || 0,
+                rent: parseFloat(document.getElementById('exp-housing-rent')?.value) || 0,
+                propertyTax: parseFloat(document.getElementById('exp-property-tax')?.value) || 0,
+                maintenance: parseFloat(document.getElementById('exp-maintenance')?.value) || 0,
+                insurance: parseFloat(document.getElementById('exp-home-insurance')?.value) || 0
+            },
+            transportation: {
+                carEMI: parseFloat(document.getElementById('exp-car-emi')?.value) || 0,
+                petrol: parseFloat(document.getElementById('exp-petrol')?.value) || 0,
+                insurance: parseFloat(document.getElementById('exp-car-insurance')?.value) || 0,
+                maintenance: parseFloat(document.getElementById('exp-car-maintenance')?.value) || 0,
+                publicTransport: parseFloat(document.getElementById('exp-public-transport')?.value) || 0
+            },
+            insurance: {
+                health: parseFloat(document.getElementById('exp-health-insurance')?.value) || 0,
+                term: parseFloat(document.getElementById('exp-term-insurance')?.value) || 0,
+                personalAccident: parseFloat(document.getElementById('exp-personal-accident')?.value) || 0
+            },
+            utilities: {
+                electricity: parseFloat(document.getElementById('exp-electricity')?.value) || 0,
+                water: parseFloat(document.getElementById('exp-water')?.value) || 0,
+                gas: parseFloat(document.getElementById('exp-gas')?.value) || 0,
+                internet: parseFloat(document.getElementById('exp-internet')?.value) || 0,
+                mobile: parseFloat(document.getElementById('exp-mobile')?.value) || 0,
+                ott: parseFloat(document.getElementById('exp-ott')?.value) || 0
+            },
+            food: {
+                groceries: parseFloat(document.getElementById('exp-groceries')?.value) || 0,
+                vegetables: parseFloat(document.getElementById('exp-vegetables')?.value) || 0,
+                dining: parseFloat(document.getElementById('exp-dining')?.value) || 0,
+                delivery: parseFloat(document.getElementById('exp-delivery')?.value) || 0
+            },
+            children: this.collectChildrenExpenses(),
+            healthcare: {
+                medicines: parseFloat(document.getElementById('exp-medicines')?.value) || 0,
+                consultations: parseFloat(document.getElementById('exp-consultations')?.value) || 0,
+                gym: parseFloat(document.getElementById('exp-gym')?.value) || 0,
+                supplements: parseFloat(document.getElementById('exp-supplements')?.value) || 0,
+                emergencyFund: parseFloat(document.getElementById('exp-emergency-fund')?.value) || 0
+            },
+            lifestyle: {
+                outings: parseFloat(document.getElementById('exp-outings')?.value) || 0,
+                entertainment: parseFloat(document.getElementById('exp-entertainment')?.value) || 0,
+                shopping: parseFloat(document.getElementById('exp-shopping')?.value) || 0,
+                hobbies: parseFloat(document.getElementById('exp-hobbies')?.value) || 0
+            },
+            investments: {
+                sip: parseFloat(document.getElementById('exp-sip')?.value) || 0,
+                ppf: parseFloat(document.getElementById('exp-ppf')?.value) || 0,
+                stocks: parseFloat(document.getElementById('exp-stocks')?.value) || 0,
+                educationFund: parseFloat(document.getElementById('exp-education-fund')?.value) || 0,
+                retirementFund: parseFloat(document.getElementById('exp-retirement-fund')?.value) || 0
+            },
+            miscellaneous: {
+                domesticHelp: parseFloat(document.getElementById('exp-domestic-help')?.value) || 0,
+                pets: parseFloat(document.getElementById('exp-pets')?.value) || 0,
+                charity: parseFloat(document.getElementById('exp-charity')?.value) || 0
+            }
+        };
+        
+        return expenses;
+    }
+    
+    collectChildrenExpenses() {
+        const children = onboardingState.data.basicInfo?.children || [];
+        const childrenExpenses = [];
+        
+        children.forEach((child, index) => {
+            childrenExpenses.push({
+                childName: child.name,
+                schoolFees: parseFloat(document.getElementById(`exp-child-${index}-school`)?.value) || 0,
+                tuition: parseFloat(document.getElementById(`exp-child-${index}-tuition`)?.value) || 0,
+                sports: parseFloat(document.getElementById(`exp-child-${index}-sports`)?.value) || 0,
+                transport: parseFloat(document.getElementById(`exp-child-${index}-transport`)?.value) || 0,
+                books: parseFloat(document.getElementById(`exp-child-${index}-books`)?.value) || 0
+            });
+        });
+        
+        return childrenExpenses;
+    }
+    
+    getCityTier(city) {
+        if (!city) return 3;
+        
+        const tier1 = ['mumbai', 'delhi', 'bangalore', 'hyderabad', 'chennai', 'kolkata', 'pune', 'ahmedabad'];
+        const tier2 = ['jaipur', 'lucknow', 'kanpur', 'nagpur', 'indore', 'thane', 'bhopal', 'visakhapatnam', 'pimpri-chinchwad', 'patna'];
+        
+        const cityLower = city.toLowerCase();
+        if (tier1.includes(cityLower)) return 1;
+        if (tier2.includes(cityLower)) return 2;
+        return 3;
+    }
+
+    restoreData() {
+        // Restore Phase 1 data
+        if (onboardingState.data.basicInfo) {
+            const bi = onboardingState.data.basicInfo;
+            if (bi.name) document.getElementById('onb-name').value = bi.name;
+            if (bi.age) document.getElementById('onb-age').value = bi.age;
+            if (bi.gender) document.getElementById('onb-gender').value = bi.gender;
+            if (bi.maritalStatus) {
+                document.getElementById('onb-marital').value = bi.maritalStatus;
+                // Trigger change event to show/hide spouse section
+                const event = new Event('change');
+                document.getElementById('onb-marital').dispatchEvent(event);
+            }
+            if (bi.occupation) document.getElementById('onb-occupation').value = bi.occupation;
+            if (bi.city) document.getElementById('onb-city').value = bi.city;
+            
+            if (bi.spouse?.name) {
+                document.getElementById('onb-spouse-name').value = bi.spouse.name;
+                if (bi.spouse.age) document.getElementById('onb-spouse-age').value = bi.spouse.age;
+                if (bi.spouse.occupation) document.getElementById('onb-spouse-occupation').value = bi.spouse.occupation;
+            }
+            
+            // Restore children
+            if (bi.children && bi.children.length > 0) {
+                bi.children.forEach(child => {
+                    addChild();
+                    const lastChild = document.querySelector('#children-list .dynamic-group:last-child');
+                    if (lastChild) {
+                        lastChild.querySelector('[data-field="name"]').value = child.name || '';
+                        if (child.age) lastChild.querySelector('[data-field="age"]').value = child.age;
+                        if (child.grade) lastChild.querySelector('[data-field="grade"]').value = child.grade;
+                    }
+                });
+            }
+            
+            // Restore parents
+            if (bi.parents && bi.parents.length > 0) {
+                bi.parents.forEach(parent => {
+                    addParent();
+                    const lastParent = document.querySelector('#parents-list .dynamic-group:last-child');
+                    if (lastParent) {
+                        lastParent.querySelector('[data-field="name"]').value = parent.name || '';
+                        if (parent.age) lastParent.querySelector('[data-field="age"]').value = parent.age;
+                        if (parent.healthStatus) lastParent.querySelector('[data-field="health"]').value = parent.healthStatus;
+                    }
+                });
+            }
+        }
+        
+        // Restore goals
+        if (onboardingState.data.goals && onboardingState.data.goals.length > 0) {
+            onboardingState.data.goals.forEach(goal => {
+                addGoal({
+                    name: goal.name,
+                    amount: goal.targetAmount,
+                    timeline: goal.timeline,
+                    priority: goal.priority
+                });
+            });
+        }
+
+        // Restore Phase 2 data
+        if (onboardingState.data.income) {
+            const inc = onboardingState.data.income;
+            if (inc.salary) document.getElementById('onb-salary').value = inc.salary;
+            if (inc.bonus) document.getElementById('onb-bonus').value = inc.bonus;
+            if (inc.rental) document.getElementById('onb-rental').value = inc.rental;
+            if (inc.business) document.getElementById('onb-business').value = inc.business;
+            if (inc.freelancing) document.getElementById('onb-freelancing').value = inc.freelancing;
+            if (inc.investmentReturns) document.getElementById('onb-investment-returns').value = inc.investmentReturns;
+            if (inc.other) document.getElementById('onb-other-income').value = inc.other;
+            if (inc.spouseIncome) document.getElementById('onb-spouse-income').value = inc.spouseIncome;
+            
+            this.calculateTotalIncome();
+        }
+        
+        // Restore Phase 3 data (expenses)
+        if (onboardingState.data.expenses) {
+            const exp = onboardingState.data.expenses;
+            
+            // Housing
+            if (exp.housing) {
+                if (exp.housing.type) {
+                    const radio = document.querySelector(`input[name="housing-type"][value="${exp.housing.type}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                        toggleHousingType();
+                    }
+                }
+                if (exp.housing.emi) document.getElementById('exp-housing-emi').value = exp.housing.emi;
+                if (exp.housing.rent) document.getElementById('exp-housing-rent').value = exp.housing.rent;
+                if (exp.housing.propertyTax) document.getElementById('exp-property-tax').value = exp.housing.propertyTax;
+                if (exp.housing.maintenance) document.getElementById('exp-maintenance').value = exp.housing.maintenance;
+                if (exp.housing.insurance) document.getElementById('exp-home-insurance').value = exp.housing.insurance;
+            }
+            
+            // Transportation
+            if (exp.transportation) {
+                if (exp.transportation.carEMI) document.getElementById('exp-car-emi').value = exp.transportation.carEMI;
+                if (exp.transportation.petrol) document.getElementById('exp-petrol').value = exp.transportation.petrol;
+                if (exp.transportation.insurance) document.getElementById('exp-car-insurance').value = exp.transportation.insurance;
+                if (exp.transportation.maintenance) document.getElementById('exp-car-maintenance').value = exp.transportation.maintenance;
+                if (exp.transportation.publicTransport) document.getElementById('exp-public-transport').value = exp.transportation.publicTransport;
+            }
+            
+            // Insurance
+            if (exp.insurance) {
+                if (exp.insurance.health) document.getElementById('exp-health-insurance').value = exp.insurance.health;
+                if (exp.insurance.term) document.getElementById('exp-term-insurance').value = exp.insurance.term;
+                if (exp.insurance.personalAccident) document.getElementById('exp-personal-accident').value = exp.insurance.personalAccident;
+            }
+            
+            // Utilities
+            if (exp.utilities) {
+                if (exp.utilities.electricity) document.getElementById('exp-electricity').value = exp.utilities.electricity;
+                if (exp.utilities.water) document.getElementById('exp-water').value = exp.utilities.water;
+                if (exp.utilities.gas) document.getElementById('exp-gas').value = exp.utilities.gas;
+                if (exp.utilities.internet) document.getElementById('exp-internet').value = exp.utilities.internet;
+                if (exp.utilities.mobile) document.getElementById('exp-mobile').value = exp.utilities.mobile;
+                if (exp.utilities.ott) document.getElementById('exp-ott').value = exp.utilities.ott;
+            }
+            
+            // Food
+            if (exp.food) {
+                if (exp.food.groceries) document.getElementById('exp-groceries').value = exp.food.groceries;
+                if (exp.food.vegetables) document.getElementById('exp-vegetables').value = exp.food.vegetables;
+                if (exp.food.dining) document.getElementById('exp-dining').value = exp.food.dining;
+                if (exp.food.delivery) document.getElementById('exp-delivery').value = exp.food.delivery;
+            }
+            
+            // Children expenses
+            if (exp.children && exp.children.length > 0) {
+                exp.children.forEach((childExp, index) => {
+                    if (childExp.schoolFees) document.getElementById(`exp-child-${index}-school`).value = childExp.schoolFees;
+                    if (childExp.tuition) document.getElementById(`exp-child-${index}-tuition`).value = childExp.tuition;
+                    if (childExp.sports) document.getElementById(`exp-child-${index}-sports`).value = childExp.sports;
+                    if (childExp.transport) document.getElementById(`exp-child-${index}-transport`).value = childExp.transport;
+                    if (childExp.books) document.getElementById(`exp-child-${index}-books`).value = childExp.books;
+                });
+            }
+            
+            // Healthcare
+            if (exp.healthcare) {
+                if (exp.healthcare.medicines) document.getElementById('exp-medicines').value = exp.healthcare.medicines;
+                if (exp.healthcare.consultations) document.getElementById('exp-consultations').value = exp.healthcare.consultations;
+                if (exp.healthcare.gym) document.getElementById('exp-gym').value = exp.healthcare.gym;
+                if (exp.healthcare.supplements) document.getElementById('exp-supplements').value = exp.healthcare.supplements;
+                if (exp.healthcare.emergencyFund) document.getElementById('exp-emergency-fund').value = exp.healthcare.emergencyFund;
+            }
+            
+            // Lifestyle
+            if (exp.lifestyle) {
+                if (exp.lifestyle.outings) document.getElementById('exp-outings').value = exp.lifestyle.outings;
+                if (exp.lifestyle.entertainment) document.getElementById('exp-entertainment').value = exp.lifestyle.entertainment;
+                if (exp.lifestyle.shopping) document.getElementById('exp-shopping').value = exp.lifestyle.shopping;
+                if (exp.lifestyle.hobbies) document.getElementById('exp-hobbies').value = exp.lifestyle.hobbies;
+            }
+            
+            // Investments
+            if (exp.investments) {
+                if (exp.investments.sip) document.getElementById('exp-sip').value = exp.investments.sip;
+                if (exp.investments.ppf) document.getElementById('exp-ppf').value = exp.investments.ppf;
+                if (exp.investments.stocks) document.getElementById('exp-stocks').value = exp.investments.stocks;
+                if (exp.investments.educationFund) document.getElementById('exp-education-fund').value = exp.investments.educationFund;
+                if (exp.investments.retirementFund) document.getElementById('exp-retirement-fund').value = exp.investments.retirementFund;
+            }
+            
+            // Miscellaneous
+            if (exp.miscellaneous) {
+                if (exp.miscellaneous.domesticHelp) document.getElementById('exp-domestic-help').value = exp.miscellaneous.domesticHelp;
+                if (exp.miscellaneous.pets) document.getElementById('exp-pets').value = exp.miscellaneous.pets;
+                if (exp.miscellaneous.charity) document.getElementById('exp-charity').value = exp.miscellaneous.charity;
+            }
+            
+            // Trigger calculations
+            setTimeout(() => {
+                if (this.currentPhase === 3) {
+                    this.updateExpenseCalculations();
+                }
+            }, 100);
+        }
+    }
+
+    calculateTotalIncome() {
+        const salary = parseFloat(document.getElementById('onb-salary')?.value) || 0;
+        const bonus = (parseFloat(document.getElementById('onb-bonus')?.value) || 0) / 12;
+        const rental = parseFloat(document.getElementById('onb-rental')?.value) || 0;
+        const business = parseFloat(document.getElementById('onb-business')?.value) || 0;
+        const freelancing = parseFloat(document.getElementById('onb-freelancing')?.value) || 0;
+        const investmentReturns = parseFloat(document.getElementById('onb-investment-returns')?.value) || 0;
+        const other = parseFloat(document.getElementById('onb-other-income')?.value) || 0;
+        const spouse = parseFloat(document.getElementById('onb-spouse-income')?.value) || 0;
+
+        const total = salary + bonus + rental + business + freelancing + investmentReturns + other + spouse;
+
+        const displayEl = document.getElementById('total-income-display');
+        if (displayEl) {
+            displayEl.textContent = '₹' + Math.round(total).toLocaleString('en-IN');
+        }
+
+        return total;
+    }
+
+    updateExpenseCalculations() {
+        const totalIncome = this.calculateTotalIncome();
+        
+        // Calculate each category
+        const categories = ['housing', 'transportation', 'insurance', 'utilities', 'food', 'children', 'healthcare', 'lifestyle', 'investments', 'miscellaneous'];
+        
+        let totalExpenses = 0;
+        
+        categories.forEach(category => {
+            const categoryTotal = this.calculateCategoryTotal(category);
+            totalExpenses += categoryTotal;
+            
+            // Update display
+            const totalEl = document.getElementById(`${category}-total`);
+            const percentEl = document.getElementById(`${category}-percent`);
+            
+            if (totalEl) {
+                totalEl.textContent = '₹' + Math.round(categoryTotal).toLocaleString('en-IN');
+            }
+            
+            if (percentEl && totalIncome > 0) {
+                const percent = (categoryTotal / totalIncome * 100).toFixed(1);
+                percentEl.textContent = percent + '%';
+            }
+            
+            // Check warnings
+            this.checkCategoryWarnings(category, categoryTotal, totalIncome);
+        });
+        
+        // Update summary
+        const summaryIncome = document.getElementById('summary-income');
+        const summaryExpenses = document.getElementById('summary-expenses');
+        const summaryRemaining = document.getElementById('summary-remaining');
+        const summarySavingsRate = document.getElementById('summary-savings-rate');
+        const budgetWarning = document.getElementById('budget-warning');
+        
+        if (summaryIncome) summaryIncome.textContent = '₹' + Math.round(totalIncome).toLocaleString('en-IN');
+        if (summaryExpenses) summaryExpenses.textContent = '₹' + Math.round(totalExpenses).toLocaleString('en-IN');
+        
+        const remaining = totalIncome - totalExpenses;
+        if (summaryRemaining) {
+            summaryRemaining.textContent = '₹' + Math.round(remaining).toLocaleString('en-IN');
+            summaryRemaining.style.color = remaining >= 0 ? 'var(--green)' : 'var(--red)';
+        }
+        
+        if (summarySavingsRate && totalIncome > 0) {
+            const savingsRate = (remaining / totalIncome * 100).toFixed(1);
+            summarySavingsRate.textContent = `Savings Rate: ${savingsRate}%`;
+            summarySavingsRate.style.color = savingsRate >= 20 ? 'var(--green)' : savingsRate >= 10 ? 'var(--yellow)' : 'var(--red)';
+        }
+        
+        // Budget warning
+        if (budgetWarning) {
+            if (remaining < 0) {
+                budgetWarning.textContent = '⚠️ Your expenses exceed your income by ₹' + Math.round(Math.abs(remaining)).toLocaleString('en-IN') + '. Please review your budget.';
+                budgetWarning.style.display = 'flex';
+            } else if (remaining < totalIncome * 0.1) {
+                budgetWarning.textContent = '⚠️ Your savings rate is below 10%. Consider reducing expenses or increasing income.';
+                budgetWarning.style.display = 'flex';
+            } else {
+                budgetWarning.style.display = 'none';
+            }
+        }
+    }
+
+    calculateCategoryTotal(category) {
+        let total = 0;
+        
+        if (category === 'children') {
+            // Sum all children expenses
+            document.querySelectorAll('#children-expenses-list .expense-input').forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+        } else {
+            // Sum all inputs for this category
+            document.querySelectorAll(`.expense-input[data-category="${category}"]`).forEach(input => {
+                let value = parseFloat(input.value) || 0;
+                
+                // Convert annual to monthly
+                if (input.getAttribute('data-annual') === 'true') {
+                    value = value / 12;
+                }
+                
+                total += value;
+            });
+        }
+        
+        return total;
+    }
+
+    checkCategoryWarnings(category, categoryTotal, totalIncome) {
+        if (totalIncome === 0) return;
+        
+        const percent = categoryTotal / totalIncome;
+        const warningEl = document.getElementById(`${category}-warning`);
+        const tipEl = document.getElementById(`${category}-tip`);
+        
+        // Clear previous warnings/tips
+        if (warningEl) warningEl.style.display = 'none';
+        if (tipEl) tipEl.style.display = 'none';
+        
+        // Category-specific thresholds and messages
+        const thresholds = {
+            housing: { threshold: 0.40, message: '⚠️ Housing costs are high (>40% of income). Consider reviewing your housing expenses.' },
+            transportation: { threshold: 0.20, message: '⚠️ Transportation costs are high (>20% of income). Consider carpooling or public transport.' },
+            insurance: { threshold: 0.10, message: '⚠️ Insurance costs are high (>10% of income). Review your policies.' },
+            utilities: { threshold: 0.10, message: '⚠️ Utility costs are high (>10% of income). Consider energy-saving measures.' },
+            food: { threshold: 0.25, message: '⚠️ Food costs are high (>25% of income). Consider meal planning and cooking at home.' },
+            children: { threshold: 0.25, message: '⚠️ Children\'s expenses are high (>25% of income). Review education and activity costs.' },
+            healthcare: { threshold: 0.15, message: '⚠️ Healthcare costs are high (>15% of income). Ensure you have adequate insurance.' },
+            lifestyle: { threshold: 0.15, message: '💡 Lifestyle expenses are high (>15% of income). Consider reducing discretionary spending.' },
+            investments: { threshold: 0.10, tip: true, message: '💡 Aim to save at least 20% of your income for long-term wealth building.' },
+            miscellaneous: { threshold: 0.10, message: '⚠️ Miscellaneous expenses are high (>10% of income). Review and categorize better.' }
+        };
+        
+        const config = thresholds[category];
+        if (!config) return;
+        
+        if (category === 'investments') {
+            // Special case: show tip if investments are LOW
+            if (percent < 0.20 && tipEl) {
+                tipEl.textContent = config.message;
+                tipEl.style.display = 'flex';
+            }
+        } else if (category === 'food') {
+            // Check restaurant percentage
+            const groceries = parseFloat(document.getElementById('exp-groceries')?.value) || 0;
+            const vegetables = parseFloat(document.getElementById('exp-vegetables')?.value) || 0;
+            const dining = parseFloat(document.getElementById('exp-dining')?.value) || 0;
+            const delivery = parseFloat(document.getElementById('exp-delivery')?.value) || 0;
+            
+            const totalFood = groceries + vegetables + dining + delivery;
+            const restaurantPercent = totalFood > 0 ? (dining + delivery) / totalFood : 0;
+            
+            if (percent > config.threshold && warningEl) {
+                warningEl.textContent = config.message;
+                warningEl.style.display = 'flex';
+            } else if (restaurantPercent > 0.30 && tipEl) {
+                tipEl.textContent = '💡 Restaurant expenses are >30% of food budget. Cooking at home can save money.';
+                tipEl.style.display = 'flex';
+            }
+        } else {
+            // Standard threshold check
+            if (percent > config.threshold && warningEl) {
+                warningEl.textContent = config.message;
+                warningEl.style.display = 'flex';
+            }
+        }
+    }
+
+    renderChildrenExpenses() {
+        const childrenList = document.getElementById('children-expenses-list');
+        if (!childrenList) return;
+        
+        const children = onboardingState.data.basicInfo?.children || [];
+        
+        if (children.length === 0) {
+            childrenList.innerHTML = '<p style="font-size:13px; color:var(--text3); padding:10px 0;">No children added in Phase 1. Children\'s expenses will be skipped.</p>';
+            return;
+        }
+        
+        childrenList.innerHTML = '';
+        
+        children.forEach((child, index) => {
+            const html = `
+                <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:16px; margin-bottom:12px;">
+                    <h4 style="font-size:14px; margin-bottom:12px; color:var(--text);">${child.name || `Child ${index + 1}`}</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">School Fees</label>
+                        <input type="number" class="onboarding-input expense-input" data-category="children" id="exp-child-${index}-school" placeholder="Monthly school fees" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Tuition/Coaching</label>
+                        <input type="number" class="onboarding-input expense-input" data-category="children" id="exp-child-${index}-tuition" placeholder="Monthly tuition" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Sports/Extracurricular</label>
+                        <input type="number" class="onboarding-input expense-input" data-category="children" id="exp-child-${index}-sports" placeholder="Sports, music, etc." min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">School Transport</label>
+                        <input type="number" class="onboarding-input expense-input" data-category="children" id="exp-child-${index}-transport" placeholder="Monthly transport" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Books & Stationery</label>
+                        <input type="number" class="onboarding-input expense-input" data-category="children" id="exp-child-${index}-books" placeholder="Monthly books/stationery" min="0">
+                    </div>
+                </div>
+            `;
+            childrenList.insertAdjacentHTML('beforeend', html);
+        });
+        
+        // Add event listeners
+        document.querySelectorAll('#children-expenses-list .expense-input').forEach(input => {
+            input.addEventListener('input', () => this.updateExpenseCalculations());
+        });
+    }
+
+    loadSmartDefaults(city) {
+        // Smart defaults will be implemented in later tasks
+        console.log('Loading smart defaults for city:', city);
+    }
+
+    saveProgress() {
+        onboardingState.currentPhase = this.currentPhase;
+        onboardingState.lastSaved = Date.now();
+        
+        try {
+            localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(onboardingState));
+            return true;
+        } catch (e) {
+            console.error('Error saving onboarding progress:', e);
+            if (e.name === 'QuotaExceededError') {
+                showToast('Storage full. Please complete onboarding.', 'yellow');
+            }
+            return false;
+        }
+    }
+
+    loadProgress() {
+        try {
+            const data = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+            return data ? JSON.parse(data) : null;
+        } catch (e) {
+            console.error('Error loading onboarding progress:', e);
+            return null;
+        }
+    }
+
+    clearProgress() {
+        localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+        onboardingState = {
+            currentPhase: 1,
+            completedPhases: [],
+            startTime: Date.now(),
+            data: { basicInfo: {}, goals: [], income: {}, expenses: {}, assets: {}, liabilities: [] }
+        };
+    }
+}
+
+// Global onboarding wizard instance
+let onboardingWizard = null;
+
+// Navigation functions
+window.nextPhase = () => {
+    if (!onboardingWizard) return;
+    
+    // Validate current phase
+    if (!onboardingWizard.validateCurrentPhase()) {
+        showToast('Please fix the errors before continuing', 'red');
+        return;
+    }
+
+    // Collect data
+    onboardingWizard.collectCurrentPhaseData();
+
+    // Save progress
+    onboardingWizard.saveProgress();
+
+    // Move to next phase or complete
+    if (onboardingWizard.currentPhase < onboardingWizard.totalPhases) {
+        onboardingWizard.currentPhase++;
+        onboardingWizard.renderPhase(onboardingWizard.currentPhase);
+    } else {
+        completeOnboarding();
+    }
+};
+
+window.previousPhase = () => {
+    if (!onboardingWizard || onboardingWizard.currentPhase <= 1) return;
+    
+    // Collect current data (no validation)
+    onboardingWizard.collectCurrentPhaseData();
+    onboardingWizard.saveProgress();
+
+    // Move to previous phase
+    onboardingWizard.currentPhase--;
+    onboardingWizard.renderPhase(onboardingWizard.currentPhase);
+};
+
+window.saveAndExit = () => {
+    if (!onboardingWizard) return;
+    
+    onboardingWizard.collectCurrentPhaseData();
+    onboardingWizard.saveProgress();
+    
+    showToast('Progress saved! You can continue later.');
+    
+    // Return to dashboard or auth
+    setTimeout(() => {
+        document.getElementById('onboarding-wizard').style.display = 'none';
+        if (currentUserEmail) {
+            showApp();
+        } else {
+            showAuth();
+        }
+    }, 1500);
+};
+
+// Dynamic form functions
+window.addChild = () => {
+    const childId = 'child-' + Date.now();
+    const count = document.querySelectorAll('#children-list .dynamic-group').length + 1;
+    
+    const html = `
+        <div class="dynamic-group" data-id="${childId}">
+            <button type="button" class="remove-btn" onclick="removeChild('${childId}')">Remove</button>
+            <div class="form-group">
+                <label class="form-label">Child ${count} Name</label>
+                <input type="text" class="onboarding-input" data-field="name" placeholder="Child's name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Age</label>
+                <input type="number" class="onboarding-input" data-field="age" placeholder="Age" min="0" max="25">
+            </div>
+            <div class="form-group">
+                <label class="form-label">School Grade</label>
+                <input type="text" class="onboarding-input" data-field="grade" placeholder="e.g. 5th Grade">
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('children-list').insertAdjacentHTML('beforeend', html);
+};
+
+window.removeChild = (childId) => {
+    const element = document.querySelector(`[data-id="${childId}"]`);
+    if (element) element.remove();
+};
+
+window.addParent = () => {
+    const parentId = 'parent-' + Date.now();
+    const count = document.querySelectorAll('#parents-list .dynamic-group').length + 1;
+    
+    const html = `
+        <div class="dynamic-group" data-id="${parentId}">
+            <button type="button" class="remove-btn" onclick="removeParent('${parentId}')">Remove</button>
+            <div class="form-group">
+                <label class="form-label">Parent ${count} Name</label>
+                <input type="text" class="onboarding-input" data-field="name" placeholder="Parent's name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Age</label>
+                <input type="number" class="onboarding-input" data-field="age" placeholder="Age" min="40" max="100">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Health Status</label>
+                <select class="onboarding-input" data-field="health">
+                    <option value="">Select health status</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                </select>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('parents-list').insertAdjacentHTML('beforeend', html);
+};
+
+window.removeParent = (parentId) => {
+    const element = document.querySelector(`[data-id="${parentId}"]`);
+    if (element) element.remove();
+};
+
+// Goal management functions
+window.addGoal = (goalData = null) => {
+    const goalId = 'goal-' + Date.now();
+    const count = document.querySelectorAll('#goals-list .goal-card').length + 1;
+    
+    const name = goalData?.name || '';
+    const amount = goalData?.amount || '';
+    const timeline = goalData?.timeline || '';
+    const priority = goalData?.priority || 'medium';
+    
+    const html = `
+        <div class="goal-card" data-id="${goalId}">
+            <button type="button" class="remove-btn" onclick="removeGoal('${goalId}')">Remove</button>
+            <div class="goal-category-badge" data-category="medium">Medium-term</div>
+            <div class="form-group">
+                <label class="form-label">Goal Name</label>
+                <input type="text" class="onboarding-input" data-field="name" placeholder="e.g. Buy a house" value="${name}" onchange="updateGoalCategory('${goalId}')">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Target Amount (₹)</label>
+                <input type="number" class="onboarding-input" data-field="amount" placeholder="e.g. 5000000" min="1000" value="${amount}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Timeline (Years)</label>
+                <input type="number" class="onboarding-input" data-field="timeline" placeholder="e.g. 5" min="1" max="30" value="${timeline}" onchange="updateGoalCategory('${goalId}')">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Priority</label>
+                <select class="onboarding-input" data-field="priority">
+                    <option value="high" ${priority === 'high' ? 'selected' : ''}>High</option>
+                    <option value="medium" ${priority === 'medium' ? 'selected' : ''}>Medium</option>
+                    <option value="low" ${priority === 'low' ? 'selected' : ''}>Low</option>
+                </select>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('goals-list').insertAdjacentHTML('beforeend', html);
+    
+    // Update category if timeline is provided
+    if (timeline) {
+        updateGoalCategory(goalId);
+    }
+};
+
+window.removeGoal = (goalId) => {
+    const element = document.querySelector(`[data-id="${goalId}"]`);
+    if (element) element.remove();
+};
+
+window.updateGoalCategory = (goalId) => {
+    const goalCard = document.querySelector(`[data-id="${goalId}"]`);
+    if (!goalCard) return;
+    
+    const timelineInput = goalCard.querySelector('[data-field="timeline"]');
+    const timeline = parseInt(timelineInput?.value);
+    const badge = goalCard.querySelector('.goal-category-badge');
+    
+    if (!timeline || !badge) return;
+    
+    // Categorize: Short < 3, Medium 3-7, Long > 7
+    let category, text;
+    if (timeline < 3) {
+        category = 'short';
+        text = 'Short-term';
+    } else if (timeline <= 7) {
+        category = 'medium';
+        text = 'Medium-term';
+    } else {
+        category = 'long';
+        text = 'Long-term';
+    }
+    
+    badge.className = 'goal-category-badge ' + category;
+    badge.setAttribute('data-category', category);
+    badge.textContent = text;
+};
+
+window.addGoalFromTemplate = (template) => {
+    const templates = {
+        home: {
+            name: 'Home Purchase',
+            amount: 5000000,
+            timeline: 7,
+            priority: 'high'
+        },
+        car: {
+            name: 'Car Purchase',
+            amount: 1000000,
+            timeline: 3,
+            priority: 'medium'
+        },
+        education: {
+            name: 'Children Education',
+            amount: 2000000,
+            timeline: 10,
+            priority: 'high'
+        },
+        retirement: {
+            name: 'Retirement Fund',
+            amount: 10000000,
+            timeline: 20,
+            priority: 'high'
+        },
+        emergency: {
+            name: 'Emergency Fund',
+            amount: 500000,
+            timeline: 1,
+            priority: 'high'
+        },
+        vacation: {
+            name: 'Dream Vacation',
+            amount: 300000,
+            timeline: 2,
+            priority: 'low'
+        }
+    };
+    
+    const goalData = templates[template];
+    if (goalData) {
+        addGoal(goalData);
+    }
+};
+
+// Expense management functions
+window.toggleHousingType = () => {
+    const emiRadio = document.querySelector('input[name="housing-type"][value="emi"]');
+    const rentRadio = document.querySelector('input[name="housing-type"][value="rent"]');
+    const emiGroup = document.getElementById('housing-emi-group');
+    const rentGroup = document.getElementById('housing-rent-group');
+    
+    if (emiRadio?.checked) {
+        emiGroup.style.display = 'block';
+        rentGroup.style.display = 'none';
+        document.getElementById('exp-housing-rent').value = '';
+    } else if (rentRadio?.checked) {
+        emiGroup.style.display = 'none';
+        rentGroup.style.display = 'block';
+        document.getElementById('exp-housing-emi').value = '';
+    }
+    
+    if (onboardingWizard) {
+        onboardingWizard.updateExpenseCalculations();
+    }
+};
+
+// Complete onboarding
+async function completeOnboarding() {
+    showToast('Completing your profile...');
+    
+    // For now, just transition to the app
+    // Full implementation will be in later tasks
+    setTimeout(() => {
+        document.getElementById('onboarding-wizard').style.display = 'none';
+        showApp();
+        showToast('Welcome to FamLedger AI!');
+    }, 1500);
+}
+
+// Check if onboarding is required
+function checkOnboardingRequired() {
+    // Check if user has completed onboarding
+    const hasCompletedOnboarding = localStorage.getItem('onboarding_completed');
+    return !hasCompletedOnboarding;
+}
+
+// Show onboarding wizard
+function showOnboarding() {
+    document.getElementById('auth').style.display = 'none';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('onboarding-wizard').style.display = 'block';
+    
+    // Initialize wizard
+    if (!onboardingWizard) {
+        onboardingWizard = new OnboardingWizard();
+    }
+    onboardingWizard.init();
+}
+
 </script>
 </body>
 </html>
