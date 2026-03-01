@@ -651,7 +651,7 @@ async function handleLoanParseStatement(req, res) {
 Document text:
 ${pdfText.substring(0, 10000)}
 
-Extract and return ONLY a valid JSON object with these keys:
+Extract and return ONLY a valid JSON object with these keys (no markdown, no code blocks, just pure JSON):
 {
   "label": "Loan type and lender (e.g. HDFC Home Loan, SBI Personal Loan)",
   "lender": "Bank/NBFC name",
@@ -680,15 +680,61 @@ Rules:
 - All monetary values must be numbers in INR (not strings)
 - Dates in YYYY-MM-DD format
 - rate is annual percentage (e.g. 8.5 not 0.085)
-- If a field is not found, use null
-- Return ONLY the JSON, no markdown, no explanation`;
+- If a field is not found, use null or 0 for numbers
+- Return ONLY the JSON, no markdown, no explanation, no code blocks
+- CRITICAL: Start your response with { and end with }`;
 
   try {
-    const result = await callAIWithFallback(prompt, 'loan_parse');
-    return res.status(200).json(result);
+    let result = await callAIWithFallback(prompt, 'loan_parse');
+    
+    // If result is a string (markdown-wrapped JSON), try to extract JSON
+    if (typeof result === 'string') {
+      // Remove markdown code blocks if present
+      result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      try {
+        result = JSON.parse(result);
+      } catch (parseError) {
+        console.error('Failed to parse AI response as JSON:', result);
+        return res.status(500).json({ 
+          error: 'AI returned invalid JSON', 
+          detail: 'The AI response could not be parsed. Please try again or add the loan manually.' 
+        });
+      }
+    }
+    
+    // Ensure all required fields exist with defaults
+    const loanData = {
+      label: result.label || 'Loan',
+      lender: result.lender || '',
+      loanType: result.loanType || 'other',
+      principal: Number(result.principal) || 0,
+      outstanding: Number(result.outstanding) || 0,
+      emi: Number(result.emi) || 0,
+      rate: Number(result.rate) || 0,
+      tenureMonths: Number(result.tenureMonths) || 0,
+      paidMonths: Number(result.paidMonths) || 0,
+      totalInterestPaid: Number(result.totalInterestPaid) || 0,
+      totalPrincipalPaid: Number(result.totalPrincipalPaid) || 0,
+      disbursementDate: result.disbursementDate || '',
+      maturityDate: result.maturityDate || '',
+      nextEmiDate: result.nextEmiDate || '',
+      interestType: result.interestType || '',
+      processingFee: Number(result.processingFee) || 0,
+      prepaymentCharges: result.prepaymentCharges || '',
+      collateral: result.collateral || '',
+      coApplicant: result.coApplicant || '',
+      accountNumber: result.accountNumber || '',
+      additionalDetails: result.additionalDetails || ''
+    };
+    
+    return res.status(200).json(loanData);
   } catch (e) {
     console.error('Loan parse error:', e);
-    return res.status(500).json({ error: 'Failed to parse loan statement' });
+    return res.status(500).json({ 
+      error: 'Failed to parse loan statement', 
+      detail: e.message,
+      suggestion: 'Please try adding the loan manually using the "Add Manually" button'
+    });
   }
 }
 
