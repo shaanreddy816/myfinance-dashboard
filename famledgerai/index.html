@@ -3628,6 +3628,15 @@ async function renderRecommendations() {
         const { data: fd, error: fdErr } = await sb.from('fd_products').select('*').lte('min_age', age).gte('max_age', age).eq('is_active', true);
         if(fdErr) throw fdErr;
 
+        // Fetch health insurance products
+        const { data: healthIns, error: healthErr } = await sb.from('health_insurance_products').select('*').lte('min_age', age).gte('max_age', age).eq('is_active', true);
+        if(healthErr) console.warn('Health insurance fetch error:', healthErr);
+
+        const filteredHealthIns = (healthIns || []).filter(p =>
+            (!p.min_income || p.min_income <= userMaxIncome) &&
+            (!p.max_income || p.max_income >= userMinIncome)
+        );
+
         function renderCollapsibleSection(id, icon, title, items, mapFn) {
             if(!items || items.length === 0) return '';
             const cards = items.map(mapFn).map(p => `
@@ -3714,6 +3723,23 @@ async function renderRecommendations() {
             })
         );
 
+        const healthInsHtml = renderCollapsibleSection(
+            'health',
+            '🏥',
+            'Health Insurance',
+            filteredHealthIns,
+            p => ({
+                name: `${p.name} (${p.provider})`,
+                description: p.description,
+                meta: [
+                    `Cover: ₹${p.coverage_min}L–₹${p.coverage_max}L`,
+                    p.premium_estimate ? `Premium: ${p.premium_estimate}` : '',
+                    `Age ${p.min_age}–${p.max_age}`
+                ].filter(Boolean),
+                url: p.official_url
+            })
+        );
+
         const portalCards = `
             <div class="reco-card">
                 <h4>myScheme — Government of India</h4>
@@ -3745,7 +3771,7 @@ async function renderRecommendations() {
             </div>
         `;
 
-        sh('page-recommendations', schemesHtml + insuranceHtml + fdHtml + portalHtml);
+        sh('page-recommendations', schemesHtml + insuranceHtml + healthInsHtml + fdHtml + portalHtml);
     } catch(e) {
         sh('page-recommendations', `
             <div class="card">
@@ -3962,6 +3988,157 @@ window.addTermInsuranceProducts = async () => {
         renderRecommendations();
     } catch (e) {
         console.error('Error adding term insurance products:', e);
+        showToast('Failed to add products', 'red');
+    }
+};
+
+// Add best health insurance products in India (run once to populate database)
+window.addHealthInsuranceProducts = async () => {
+    try {
+        const healthInsuranceProducts = [
+            {
+                name: 'Star Health Comprehensive Insurance',
+                provider: 'Star Health',
+                description: 'India\'s largest standalone health insurer. Covers hospitalization, pre & post hospitalization, daycare procedures, and ambulance charges. Cashless at 14,000+ hospitals.',
+                coverage_min: 5,
+                coverage_max: 2500,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹8,500/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/star-health-insurance/',
+                is_active: true
+            },
+            {
+                name: 'Care Supreme',
+                provider: 'Care Health',
+                description: 'Comprehensive health plan with unlimited restoration of sum insured. Covers 156 daycare procedures, modern treatments, and worldwide emergency cover.',
+                coverage_min: 5,
+                coverage_max: 600,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹7,800/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/care-health-insurance/care-supreme/',
+                is_active: true
+            },
+            {
+                name: 'HDFC ERGO Optima Secure',
+                provider: 'HDFC ERGO',
+                description: 'Comprehensive health insurance with no room rent capping. Covers pre-existing diseases after 2 years, maternity, and newborn baby expenses.',
+                coverage_min: 5,
+                coverage_max: 5000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹9,200/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/hdfc-ergo-health-insurance/hdfc-ergo-optima-secure/',
+                is_active: true
+            },
+            {
+                name: 'Niva Bupa Reassure 2.0',
+                provider: 'Niva Bupa',
+                description: 'Unlimited automatic restoration of sum insured. Covers 1,000+ daycare procedures, organ donor expenses, and alternative treatments (AYUSH).',
+                coverage_min: 5,
+                coverage_max: 10000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹8,900/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/niva-bupa-health-insurance/niva-bupa-reassure/',
+                is_active: true
+            },
+            {
+                name: 'ICICI Lombard Health AdvantEdge',
+                provider: 'ICICI Lombard',
+                description: 'Comprehensive health plan with automatic sum insured reload. Covers modern treatments, robotic surgery, and international second opinion.',
+                coverage_min: 5,
+                coverage_max: 10000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹9,500/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/icici-lombard-health-insurance/',
+                is_active: true
+            },
+            {
+                name: 'Aditya Birla Activ Health Platinum Enhanced',
+                provider: 'Aditya Birla',
+                description: 'Rewards healthy lifestyle with premium discounts. Covers unlimited restoration, global coverage, and wellness benefits up to ₹10,000.',
+                coverage_min: 5,
+                coverage_max: 10000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹8,200/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/aditya-birla-health-insurance/',
+                is_active: true
+            },
+            {
+                name: 'Bajaj Allianz Health Guard',
+                provider: 'Bajaj Allianz',
+                description: 'Comprehensive family floater with unlimited restoration. Covers pre & post hospitalization, daycare, and alternative treatments.',
+                coverage_min: 5,
+                coverage_max: 5000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹8,700/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/bajaj-allianz-health-insurance/',
+                is_active: true
+            },
+            {
+                name: 'Manipal Cigna Prime Advantage',
+                provider: 'Manipal Cigna',
+                description: 'Comprehensive health plan with worldwide coverage. Covers pre-existing diseases, maternity, and newborn baby from day one.',
+                coverage_min: 5,
+                coverage_max: 5000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹9,800/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/manipal-cigna-health-insurance/',
+                is_active: true
+            },
+            {
+                name: 'Tata AIG Medicare Premier',
+                provider: 'Tata AIG',
+                description: 'Comprehensive health insurance with no sub-limits. Covers unlimited restoration, modern treatments, and international treatment.',
+                coverage_min: 5,
+                coverage_max: 5000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹8,400/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/tata-aig-health-insurance/',
+                is_active: true
+            },
+            {
+                name: 'Digit Health Insurance',
+                provider: 'Go Digit',
+                description: 'Modern health insurance with instant claim settlement. Covers unlimited automatic restoration, no room rent capping, and 100% digital process.',
+                coverage_min: 5,
+                coverage_max: 10000,
+                min_age: 18,
+                max_age: 65,
+                premium_estimate: '₹7,500/year for ₹10L cover (30yr individual)',
+                official_url: 'https://www.policybazaar.com/health-insurance/digit-health-insurance/',
+                is_active: true
+            }
+        ];
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const product of healthInsuranceProducts) {
+            const { error } = await sb
+                .from('health_insurance_products')
+                .upsert(product, { onConflict: 'name,provider' });
+            
+            if (error) {
+                console.error(`Error adding ${product.name}:`, error);
+                errorCount++;
+            } else {
+                console.log(`✅ Added ${product.name}`);
+                successCount++;
+            }
+        }
+
+        showToast(`Added ${successCount} health insurance products! ${errorCount > 0 ? `(${errorCount} errors)` : ''}`, successCount > 0 ? 'green' : 'red');
+        renderRecommendations();
+    } catch (e) {
+        console.error('Error adding health insurance products:', e);
         showToast('Failed to add products', 'red');
     }
 };
