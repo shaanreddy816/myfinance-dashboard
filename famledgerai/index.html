@@ -10352,6 +10352,18 @@ function renderSettings() {
         familyHtml += `</div>
             <button type="button" class="add-btn" onclick="addSettingsKidField()" style="margin-top:0;">➕ Add Kid</button>`;
 
+        // Parse existing WhatsApp number
+        const existingWhatsApp = p.whatsapp_number || '';
+        let countryCode = '+91';
+        let phoneNumber = '';
+        if (existingWhatsApp) {
+            const match = existingWhatsApp.match(/^(\+\d+)(\d+)$/);
+            if (match) {
+                countryCode = match[1];
+                phoneNumber = match[2];
+            }
+        }
+
         sh('page-settings', `
             <div class="grid-2">
                 <div class="card">
@@ -10362,6 +10374,33 @@ function renderSettings() {
                     <input class="modal-inp" value="${email}" disabled style="opacity:0.5;">
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Age</label>
                     <input id="s-age" type="number" class="modal-inp" value="${p.age||''}">
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">WhatsApp Number</label>
+                    <div style="display:flex; gap:8px;">
+                        <select id="s-whatsapp-country" class="modal-inp" style="flex:0 0 120px;">
+                            <option value="+1" ${countryCode==='+1'?'selected':''}>🇺🇸 +1</option>
+                            <option value="+91" ${countryCode==='+91'?'selected':''}>🇮🇳 +91</option>
+                            <option value="+44" ${countryCode==='+44'?'selected':''}>🇬🇧 +44</option>
+                            <option value="+61" ${countryCode==='+61'?'selected':''}>🇦🇺 +61</option>
+                            <option value="+971" ${countryCode==='+971'?'selected':''}>🇦🇪 +971</option>
+                            <option value="+65" ${countryCode==='+65'?'selected':''}>🇸🇬 +65</option>
+                            <option value="+86" ${countryCode==='+86'?'selected':''}>🇨🇳 +86</option>
+                            <option value="+81" ${countryCode==='+81'?'selected':''}>🇯🇵 +81</option>
+                            <option value="+82" ${countryCode==='+82'?'selected':''}>🇰🇷 +82</option>
+                            <option value="+49" ${countryCode==='+49'?'selected':''}>🇩🇪 +49</option>
+                            <option value="+33" ${countryCode==='+33'?'selected':''}>🇫🇷 +33</option>
+                            <option value="+39" ${countryCode==='+39'?'selected':''}>🇮🇹 +39</option>
+                            <option value="+34" ${countryCode==='+34'?'selected':''}>🇪🇸 +34</option>
+                            <option value="+7" ${countryCode==='+7'?'selected':''}>🇷🇺 +7</option>
+                            <option value="+55" ${countryCode==='+55'?'selected':''}>🇧🇷 +55</option>
+                            <option value="+52" ${countryCode==='+52'?'selected':''}>🇲🇽 +52</option>
+                            <option value="+27" ${countryCode==='+27'?'selected':''}>🇿🇦 +27</option>
+                            <option value="+234" ${countryCode==='+234'?'selected':''}>🇳🇬 +234</option>
+                            <option value="+20" ${countryCode==='+20'?'selected':''}>🇪🇬 +20</option>
+                            <option value="+966" ${countryCode==='+966'?'selected':''}>🇸🇦 +966</option>
+                        </select>
+                        <input id="s-whatsapp-number" type="tel" class="modal-inp" style="flex:1;" value="${phoneNumber}" placeholder="Phone number">
+                    </div>
+                    <p style="font-size:11px; color:var(--text3); margin-top:4px;">💡 Used for WhatsApp payment reminders</p>
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Occupation</label>
                     <select id="s-occupation" class="modal-inp">${occupationOpts}</select>
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">Annual Income Range</label>
@@ -10470,6 +10509,15 @@ window.saveProfile = async () => {
     userData.liquidSavings       = num($('s-liquid').value);
     userData.termCover           = num($('s-term').value);
 
+    // Save WhatsApp number with country code
+    const countryCode = $('s-whatsapp-country')?.value || '+91';
+    const phoneNumber = $('s-whatsapp-number')?.value?.trim() || '';
+    if (phoneNumber) {
+        userData.profile.whatsapp_number = countryCode + phoneNumber;
+    } else {
+        userData.profile.whatsapp_number = '';
+    }
+
     // Save family members
     const spouseName = $('s-spouse')?.value?.trim() || '';
     const kidInputs = document.querySelectorAll('.s-kid-input');
@@ -10486,6 +10534,15 @@ window.saveProfile = async () => {
 
     const { data: { session } } = await sb.auth.getSession();
     if(session) {
+        // Also update user metadata
+        await sb.auth.updateUser({
+            data: {
+                name: userData.profile.name,
+                age: userData.profile.age,
+                occupation: userData.profile.occupation,
+                whatsapp_number: userData.profile.whatsapp_number
+            }
+        });
         await saveUserData(session.user.email);
         populateProfileSelector();
         showToast('Profile saved successfully!');
