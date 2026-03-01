@@ -447,7 +447,7 @@
         .atabs { display:flex; gap:4px; background:var(--bg3); border-radius:10px; padding:4px; margin-bottom:20px; }
         .atab { flex:1; padding:9px; border:none; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font); background:transparent; color:var(--text3); transition:all 0.2s; }
         .atab.on { background:var(--accent); color:white; box-shadow:0 0 14px var(--accent-glow); }
-        .ainp { width:100%; background:transparent; border:1px solid var(--border2); border-radius:var(--radius-sm); padding:11px 14px; color:var(--text); font-size:13px; outline:none; font-family:var(--font); margin-bottom:10px; transition:border-color 0.2s; }
+        .ainp { width:100%; background:transparent !important; border:1px solid var(--border2); border-radius:var(--radius-sm); padding:11px 14px; color:var(--text); font-size:13px; outline:none; font-family:var(--font); margin-bottom:10px; transition:border-color 0.2s; }
         .ainp:focus { border-color:var(--accent); }
         .ainp option { background:var(--bg2); }
         .abtn { width:100%; background:linear-gradient(135deg,var(--accent),#5b21b6); border:none; border-radius:var(--radius-sm); padding:13px; color:white; font-size:14px; font-weight:700; cursor:pointer; font-family:var(--font); transition:all 0.2s; box-shadow:0 0 20px var(--accent-glow); }
@@ -1054,7 +1054,7 @@
                             </label>
                             <div style="display:flex; gap:8px;">
                                 <input type="text" id="reg-country-code" value="+91"
-                                       style="width:60px; padding:12px 16px; background:transparent; border:1px solid var(--border2); border-radius:var(--radius-sm); color:var(--text); font-size:14px; text-align:center;">
+                                       style="width:60px; padding:12px 16px; background:transparent !important; border:1px solid var(--border2); border-radius:var(--radius-sm); color:var(--text); font-size:14px; text-align:center;">
                                 <input type="tel" id="reg-whatsapp" pattern="[0-9]{10}" class="ainp"
                                        style="flex:1; margin-bottom:0;"
                                        placeholder="10-digit number">
