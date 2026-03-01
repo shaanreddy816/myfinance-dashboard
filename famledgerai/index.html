@@ -917,6 +917,7 @@
                 <button onclick="openCredsModal()" style="background:none;border:none;color:var(--accent2);font-size:12px;cursor:pointer;font-family:var(--font);text-decoration:underline;">click here to configure</button>.
             </div>
             <input id="l-em" class="ainp" type="email" placeholder="Email address" autocomplete="email">
+            <div id="l-em-error" style="display:none; color:var(--red); font-size:12px; margin:-8px 0 12px 4px; padding:8px 12px; background:var(--red-dim); border-left:3px solid var(--red); border-radius:4px;"></div>
             <div style="position:relative;">
                 <input id="l-pw" class="ainp" type="password" placeholder="Password" autocomplete="current-password" style="padding-right:45px;">
                 <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('l-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
@@ -933,6 +934,7 @@
                 </div>
             </div>
             <input id="r-em" class="ainp" type="email" placeholder="Email address" autocomplete="email">
+            <div id="r-em-error" style="display:none; color:var(--red); font-size:12px; margin:-8px 0 12px 4px; padding:8px 12px; background:var(--red-dim); border-left:3px solid var(--red); border-radius:4px;"></div>
             <input id="r-age" class="ainp" type="number" placeholder="Age" min="18" max="100">
             <select id="r-occupation" class="ainp">
                 <option value="">Select Occupation</option>
@@ -4125,18 +4127,76 @@ window.switchAuth = mode => {
 window.doLogin = async () => {
     const email = $('l-em').value.trim();
     const pass  = $('l-pw').value;
-    if(!email||!pass) { alert('Please enter email and password.'); return; }
+    
+    // Clear any previous error
+    const errorDiv = $('l-em-error');
+    if(errorDiv) {
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+    }
+    
+    if(!email||!pass) {
+        if(errorDiv) {
+            errorDiv.textContent = '❌ Please enter both email and password.';
+            errorDiv.style.display = 'block';
+        }
+        return;
+    }
+    
     const btn = $('loginBtn'); btn.textContent='Signing in…'; btn.disabled=true;
     try {
         const { data, error } = await sb.auth.signInWithPassword({ email, password:pass });
-        if(error) { alert('Login failed: ' + error.message); btn.textContent='Sign In →'; btn.disabled=false; return; }
+        if(error) {
+            // Show user-friendly error message below email field
+            let errorMessage = 'Unable to sign in. ';
+            
+            if(error.message.includes('Invalid login credentials') || error.message.includes('invalid') || error.message.includes('credentials')) {
+                errorMessage = '❌ Invalid email or password. Please check and try again.';
+            } else if(error.message.includes('Email not confirmed')) {
+                errorMessage = '📧 Please verify your email address before signing in.';
+            } else if(error.message.includes('rate limit')) {
+                errorMessage = '⏱️ Too many login attempts. Please wait a few minutes and try again.';
+            } else {
+                errorMessage = '❌ ' + error.message;
+            }
+            
+            if(errorDiv) {
+                errorDiv.textContent = errorMessage;
+                errorDiv.style.display = 'block';
+                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            btn.textContent='Sign In →'; 
+            btn.disabled=false; 
+            return; 
+        }
         currentUserEmail = data.user.email;
         await loadUserData(currentUserEmail);
         showApp(); resetInactivity();
     } catch(e) {
         console.error('Login error:', e);
-        alert('Login failed: ' + (e.message || 'Network error. Check your connection.'));
-        btn.textContent='Sign In →'; btn.disabled=false;
+        
+        // Show user-friendly error message
+        let errorMessage = '🌐 Network error. Please check your internet connection and try again.';
+        
+        if(e.message) {
+            if(e.message.includes('fetch')) {
+                errorMessage = '🌐 Unable to connect. Please check your internet connection.';
+            } else if(e.message.includes('timeout')) {
+                errorMessage = '⏱️ Request timed out. Please try again.';
+            } else {
+                errorMessage = '❌ ' + e.message;
+            }
+        }
+        
+        if(errorDiv) {
+            errorDiv.textContent = errorMessage;
+            errorDiv.style.display = 'block';
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        btn.textContent='Sign In →'; 
+        btn.disabled=false;
     }
 };
 
@@ -4175,9 +4235,43 @@ window.doReg = async () => {
     kids.forEach((k,i) => familyMembers.push({ id:'kid-'+(i+1), name:k, role:'kid' }));
 
     const btn=$('regBtn'); btn.textContent='Creating…'; btn.disabled=true;
+    
+    // Clear any previous error
+    const errorDiv = $('r-em-error');
+    if(errorDiv) {
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+    }
+    
     try {
         const { data, error } = await sb.auth.signUp({ email, password:pass, options:{ data:{ name, age, occupation, incomeRange, goals, risk } } });
-        if(error) { alert('Registration error: '+error.message); btn.textContent='Create Account →'; btn.disabled=false; return; }
+        if(error) {
+            // Show user-friendly error message below email field
+            let errorMessage = 'Unable to create account. ';
+            
+            if(error.message.includes('rate limit')) {
+                errorMessage = '⏱️ Too many registration attempts. Please wait a few minutes and try again.';
+            } else if(error.message.includes('already registered') || error.message.includes('already exists')) {
+                errorMessage = '📧 This email is already registered. Please sign in instead.';
+            } else if(error.message.includes('invalid email')) {
+                errorMessage = '❌ Please enter a valid email address.';
+            } else if(error.message.includes('weak password')) {
+                errorMessage = '🔒 Password is too weak. Use at least 6 characters with letters and numbers.';
+            } else {
+                errorMessage = '❌ ' + error.message;
+            }
+            
+            if(errorDiv) {
+                errorDiv.textContent = errorMessage;
+                errorDiv.style.display = 'block';
+                // Scroll to error
+                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            btn.textContent='Create Account →'; 
+            btn.disabled=false; 
+            return; 
+        }
 
         userData = { profile:{ name, age, occupation, incomeRange, goals, risk, spouseName, kids, familyMembers }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
         currentUserEmail = email;
@@ -4249,8 +4343,29 @@ window.doReg = async () => {
         }, 3000);
     } catch(e) {
         console.error('Registration error:', e);
-        alert('Registration failed: ' + (e.message || 'Network error. Check your connection.'));
-        btn.textContent='Create Account →'; btn.disabled=false;
+        
+        // Show user-friendly error message
+        const errorDiv = $('r-em-error');
+        let errorMessage = '🌐 Network error. Please check your internet connection and try again.';
+        
+        if(e.message) {
+            if(e.message.includes('fetch')) {
+                errorMessage = '🌐 Unable to connect. Please check your internet connection.';
+            } else if(e.message.includes('timeout')) {
+                errorMessage = '⏱️ Request timed out. Please try again.';
+            } else {
+                errorMessage = '❌ ' + e.message;
+            }
+        }
+        
+        if(errorDiv) {
+            errorDiv.textContent = errorMessage;
+            errorDiv.style.display = 'block';
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        btn.textContent='Create Account →'; 
+        btn.disabled=false;
     }
 };
 
