@@ -685,6 +685,7 @@
             <div class="nav-section-label">Advanced</div>
             <div class="nav-item" data-page="nri"><i class="fas fa-globe"></i> <span>NRI Planner</span></div>
             <div class="nav-item" data-page="plan"><i class="fas fa-robot"></i> <span>Autopilot</span></div>
+            <div class="nav-item" data-page="education"><i class="fas fa-graduation-cap"></i> <span>Financial Education</span></div>
             <div class="nav-item" data-page="family"><i class="fas fa-users"></i> <span>Family</span></div>
             <div class="nav-section-label">Account</div>
             <div class="nav-item" data-page="accounts"><i class="fas fa-university"></i> <span>Bank Accounts</span></div>
@@ -734,6 +735,7 @@
         <div id="page-settings"        class="page"></div>
         <div id="page-nri"             class="page"></div>
         <div id="page-plan"            class="page"></div>
+        <div id="page-education"       class="page"></div>
         <div id="page-family"          class="page"></div>
         <div id="page-accounts"        class="page"></div>
     </div>
@@ -2278,6 +2280,335 @@ window.switchAutopilotScenario = async (scenario) => {
     }
 };
 
+// ========== FINANCIAL EDUCATION PAGE ==========
+function renderEducation() {
+    const html = `
+        <div class="container-fluid p-4">
+            <!-- Emergency Fund Education -->
+            <div class="card mb-4">
+                <div class="card-header" style="background:var(--accent-glow); border-bottom:1px solid var(--border);">
+                    <h4 style="margin:0;"><i class="fas fa-shield-alt" style="color:var(--green);"></i> What is an Emergency Fund?</h4>
+                </div>
+                <div class="card-body">
+                    ${renderEmergencyFundEducation()}
+                </div>
+            </div>
+            
+            <!-- Emergency Fund Calculator -->
+            <div class="card mb-4">
+                <div class="card-header" style="background:var(--accent-glow); border-bottom:1px solid var(--border);">
+                    <h4 style="margin:0;"><i class="fas fa-calculator" style="color:var(--accent);"></i> Inflation-Adjusted Emergency Fund Calculator</h4>
+                </div>
+                <div class="card-body">
+                    ${renderEmergencyFundCalculator()}
+                </div>
+            </div>
+            
+            <!-- SIP Recommendations -->
+            <div class="card mb-4">
+                <div class="card-header" style="background:var(--accent-glow); border-bottom:1px solid var(--border);">
+                    <h4 style="margin:0;"><i class="fas fa-chart-line" style="color:var(--purple);"></i> Age-Based SIP Recommendations</h4>
+                </div>
+                <div class="card-body">
+                    ${renderSIPRecommendations()}
+                </div>
+            </div>
+            
+            <!-- SWP Calculator -->
+            <div class="card mb-4">
+                <div class="card-header" style="background:var(--accent-glow); border-bottom:1px solid var(--border);">
+                    <h4 style="margin:0;"><i class="fas fa-money-bill-wave" style="color:var(--green);"></i> Systematic Withdrawal Plan (SWP) Calculator</h4>
+                </div>
+                <div class="card-body">
+                    ${renderSWPCalculator()}
+                </div>
+            </div>
+            
+            <!-- Smart Investment Ideas -->
+            <div class="card mb-4">
+                <div class="card-header" style="background:var(--accent-glow); border-bottom:1px solid var(--border);">
+                    <h4 style="margin:0;"><i class="fas fa-lightbulb" style="color:var(--yellow);"></i> Smart Investment Ideas for Passive Income</h4>
+                </div>
+                <div class="card-body">
+                    ${renderSmartInvestmentGuide()}
+                </div>
+            </div>
+            
+            <!-- Saved Calculations -->
+            <div class="card mb-4">
+                <div class="card-header" style="background:var(--accent-glow); border-bottom:1px solid var(--border);">
+                    <h4 style="margin:0;"><i class="fas fa-bookmark" style="color:var(--accent2);"></i> My Saved Calculations</h4>
+                </div>
+                <div class="card-body" id="savedCalculationsContainer">
+                    ${renderSavedCalculations()}
+                </div>
+            </div>
+        </div>
+    `;
+    sh('page-education', html);
+}
+
+function renderEmergencyFundEducation() {
+    return `
+        <div class="alert" style="background:var(--accent-glow); border:1px solid var(--accent); border-radius:var(--radius-sm); padding:16px; margin-bottom:20px;">
+            <strong style="color:var(--accent2);">Quick Summary:</strong> An emergency fund is money set aside specifically for unexpected expenses like job loss, medical emergencies, or urgent repairs. It should cover 6-12 months of essential expenses and be kept in liquid, easily accessible accounts.
+        </div>
+        
+        <h5 style="color:var(--text); margin-top:20px;">What is an Emergency Fund?</h5>
+        <p style="color:var(--text2); line-height:1.6;">An emergency fund is a financial safety net designed to cover unexpected expenses or income loss. Unlike regular savings meant for planned purchases or goals, an emergency fund is reserved exclusively for genuine emergencies.</p>
+        
+        <h5 style="color:var(--text); margin-top:20px;">Purpose of Emergency Fund</h5>
+        <ul style="color:var(--text2); line-height:1.8;">
+            <li><strong style="color:var(--text);">Financial Security:</strong> Provides peace of mind knowing you can handle unexpected situations</li>
+            <li><strong style="color:var(--text);">Avoid Debt:</strong> Prevents need to take high-interest loans during emergencies</li>
+            <li><strong style="color:var(--text);">Income Protection:</strong> Covers expenses during job loss or income reduction</li>
+            <li><strong style="color:var(--text);">Medical Coverage:</strong> Handles medical emergencies not covered by insurance</li>
+        </ul>
+        
+        <div style="margin-top:20px;">
+            <button class="secondary-btn" onclick="toggleSection('whenToUse')" style="width:100%; text-align:left; margin-bottom:8px;">
+                <i class="fas fa-check-circle" style="color:var(--green);"></i> When to Use Emergency Fund
+            </button>
+            <div id="whenToUse" style="display:none; padding:16px; background:var(--bg3); border-radius:var(--radius-sm); margin-bottom:12px;">
+                <ul style="color:var(--text2); line-height:1.8;">
+                    <li>Job loss or unexpected unemployment</li>
+                    <li>Medical emergencies not covered by insurance</li>
+                    <li>Urgent home or vehicle repairs</li>
+                    <li>Family emergencies requiring immediate travel</li>
+                    <li>Unexpected legal expenses</li>
+                </ul>
+            </div>
+            
+            <button class="secondary-btn" onclick="toggleSection('whenNotToUse')" style="width:100%; text-align:left; margin-bottom:8px;">
+                <i class="fas fa-times-circle" style="color:var(--red);"></i> When NOT to Use Emergency Fund
+            </button>
+            <div id="whenNotToUse" style="display:none; padding:16px; background:var(--bg3); border-radius:var(--radius-sm); margin-bottom:12px;">
+                <ul style="color:var(--text2); line-height:1.8;">
+                    <li>Planned purchases (car, gadgets, furniture)</li>
+                    <li>Vacations or leisure travel</li>
+                    <li>Lifestyle upgrades</li>
+                    <li>Investment opportunities</li>
+                    <li>Regular monthly expenses</li>
+                </ul>
+            </div>
+            
+            <button class="secondary-btn" onclick="toggleSection('bestPractices')" style="width:100%; text-align:left;">
+                <i class="fas fa-star" style="color:var(--yellow);"></i> Best Practices
+            </button>
+            <div id="bestPractices" style="display:none; padding:16px; background:var(--bg3); border-radius:var(--radius-sm); margin-top:8px;">
+                <ul style="color:var(--text2); line-height:1.8;">
+                    <li><strong style="color:var(--text);">Keep it liquid:</strong> Store in savings account or liquid funds for easy access</li>
+                    <li><strong style="color:var(--text);">Separate account:</strong> Maintain in a separate account to avoid temptation</li>
+                    <li><strong style="color:var(--text);">6-12 months coverage:</strong> Aim for 6 months minimum, 12 months ideal</li>
+                    <li><strong style="color:var(--text);">Review annually:</strong> Adjust for inflation and lifestyle changes</li>
+                    <li><strong style="color:var(--text);">Replenish after use:</strong> Rebuild the fund as soon as possible after withdrawal</li>
+                </ul>
+            </div>
+        </div>
+    `;
+}
+
+function renderEmergencyFundCalculator() {
+    return `
+        <form onsubmit="event.preventDefault(); calculateEmergencyFund();">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:16px; margin-bottom:20px;">
+                <div>
+                    <label style="display:block; color:var(--text3); font-size:12px; margin-bottom:6px;">Monthly Expenses (excluding medical) *</label>
+                    <input type="number" id="efMonthlyExpenses" placeholder="e.g., 50000" style="width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:10px; color:var(--text); font-size:14px;" required>
+                </div>
+                <div>
+                    <label style="display:block; color:var(--text3); font-size:12px; margin-bottom:6px;">Monthly Medical Expenses *</label>
+                    <input type="number" id="efMedicalExpenses" placeholder="e.g., 10000" style="width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:10px; color:var(--text); font-size:14px;" required>
+                </div>
+                <div>
+                    <label style="display:block; color:var(--text3); font-size:12px; margin-bottom:6px;">Duration (months) *</label>
+                    <select id="efDuration" style="width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:10px; color:var(--text); font-size:14px;">
+                        <option value="6">6 months</option>
+                        <option value="9">9 months</option>
+                        <option value="12">12 months</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; color:var(--text3); font-size:12px; margin-bottom:6px;">General Inflation Rate (%)</label>
+                    <input type="number" id="efGeneralInflation" value="8" step="0.1" style="width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:10px; color:var(--text); font-size:14px;">
+                </div>
+                <div>
+                    <label style="display:block; color:var(--text3); font-size:12px; margin-bottom:6px;">Medical Inflation Rate (%)</label>
+                    <input type="number" id="efMedicalInflation" value="12" step="0.1" style="width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:10px; color:var(--text); font-size:14px;">
+                </div>
+            </div>
+            <button type="submit" class="primary-btn">
+                <i class="fas fa-calculator"></i> Calculate Emergency Fund
+            </button>
+        </form>
+        <div id="efResults"></div>
+    `;
+}
+
+function renderSIPRecommendations() {
+    return `
+        <div style="margin-bottom:20px;">
+            <p style="color:var(--text2); line-height:1.6; margin-bottom:16px;">Select your age group to get personalized SIP investment recommendations based on your life stage and risk appetite.</p>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:20px;">
+                <button class="secondary-btn" onclick="showSIPRecommendation('20s')" style="padding:16px;">
+                    <div style="font-size:24px; margin-bottom:4px;">🚀</div>
+                    <div style="font-weight:600;">20s</div>
+                    <div style="font-size:11px; color:var(--text3);">Aggressive Growth</div>
+                </button>
+                <button class="secondary-btn" onclick="showSIPRecommendation('30s')" style="padding:16px;">
+                    <div style="font-size:24px; margin-bottom:4px;">🎯</div>
+                    <div style="font-weight:600;">30s</div>
+                    <div style="font-size:11px; color:var(--text3);">Balanced Approach</div>
+                </button>
+                <button class="secondary-btn" onclick="showSIPRecommendation('40s')" style="padding:16px;">
+                    <div style="font-size:24px; margin-bottom:4px;">🏡</div>
+                    <div style="font-weight:600;">40s</div>
+                    <div style="font-size:11px; color:var(--text3);">Moderate Risk</div>
+                </button>
+                <button class="secondary-btn" onclick="showSIPRecommendation('50s+')" style="padding:16px;">
+                    <div style="font-size:24px; margin-bottom:4px;">🛡️</div>
+                    <div style="font-weight:600;">50s+</div>
+                    <div style="font-size:11px; color:var(--text3);">Conservative</div>
+                </button>
+            </div>
+        </div>
+        <div id="sipResults"></div>
+    `;
+}
+
+function renderSWPCalculator() {
+    return `
+        <p style="color:var(--text2); line-height:1.6; margin-bottom:16px;">Calculate how much corpus you need to generate a regular monthly income through Systematic Withdrawal Plan (SWP). Perfect for retirement planning or passive income goals.</p>
+        <form onsubmit="event.preventDefault(); calculateSWP();">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:16px; margin-bottom:20px;">
+                <div>
+                    <label style="display:block; color:var(--text3); font-size:12px; margin-bottom:6px;">Desired Monthly Withdrawal *</label>
+                    <input type="number" id="swpMonthlyWithdrawal" placeholder="e.g., 50000" style="width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:10px; color:var(--text); font-size:14px;" required>
+                </div>
+                <div>
+                    <label style="display:block; color:var(--text3); font-size:12px; margin-bottom:6px;">Expected Annual Return Rate (%) *</label>
+                    <input type="number" id="swpReturnRate" value="5" step="0.1" min="1" max="20" style="width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:10px; color:var(--text); font-size:14px;" required>
+                </div>
+                <div>
+                    <label style="display:block; color:var(--text3); font-size:12px; margin-bottom:6px;">Duration (years) *</label>
+                    <input type="number" id="swpDuration" value="10" min="1" max="50" style="width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:10px; color:var(--text); font-size:14px;" required>
+                </div>
+            </div>
+            <button type="submit" class="primary-btn">
+                <i class="fas fa-calculator"></i> Calculate Required Corpus
+            </button>
+        </form>
+        <div id="swpResults"></div>
+    `;
+}
+
+function renderSmartInvestmentGuide() {
+    const investments = [
+        { name: 'REITs (Real Estate Investment Trusts)', returns: '7-10%', risk: 'Medium', liquidity: 'High', tax: 'Dividend taxed as per slab, capital gains taxed', icon: '🏢', desc: 'Invest in commercial real estate without buying property. Listed on stock exchanges for easy trading.' },
+        { name: 'Dividend-Paying Stocks', returns: '4-6% yield', risk: 'Medium-High', liquidity: 'High', tax: 'Dividend taxed as per slab, LTCG 10% above ₹1L', icon: '📈', desc: 'Blue-chip companies that regularly distribute profits to shareholders. Provides regular income plus capital appreciation.' },
+        { name: 'Debt Mutual Funds', returns: '6-8%', risk: 'Low-Medium', liquidity: 'High', tax: 'As per slab for gains, indexation benefit removed', icon: '📊', desc: 'Invest in bonds and fixed-income securities. Lower risk than equity with better returns than FDs.' },
+        { name: 'Fixed Deposits (FDs)', returns: '5-7%', risk: 'Very Low', liquidity: 'Medium', tax: 'Interest taxed as per slab, TDS applicable', icon: '🏦', desc: 'Guaranteed returns with capital protection. Ideal for risk-averse investors and short-term goals.' },
+        { name: 'National Pension System (NPS)', returns: '8-10%', risk: 'Low-Medium', liquidity: 'Low', tax: 'Tax deduction up to ₹2L under 80CCD, 60% tax-free at maturity', icon: '🎯', desc: 'Government-backed retirement savings with tax benefits. Long-term wealth creation with low costs.' },
+        { name: 'Rental Income from Real Estate', returns: '2-4% yield', risk: 'Medium', liquidity: 'Very Low', tax: 'Rental income taxed as per slab, deductions available', icon: '🏠', desc: 'Buy property and earn monthly rent. Provides steady income plus property appreciation over time.' },
+        { name: 'Corporate Bonds & Debentures', returns: '7-9%', risk: 'Low-Medium', liquidity: 'Medium', tax: 'Interest taxed as per slab, capital gains taxed', icon: '💼', desc: 'Lend money to companies and earn fixed interest. Higher returns than FDs with moderate risk.' }
+    ];
+    
+    return `
+        <p style="color:var(--text2); line-height:1.6; margin-bottom:20px;">Diversify your income sources beyond mutual funds. Here are smart investment options for generating passive income in India:</p>
+        <div style="display:grid; gap:16px;">
+            ${investments.map(inv => `
+                <div style="background:var(--bg3); padding:20px; border-radius:var(--radius); border:1px solid var(--border);">
+                    <div style="display:flex; align-items:start; gap:16px; margin-bottom:12px;">
+                        <div style="font-size:32px;">${inv.icon}</div>
+                        <div style="flex:1;">
+                            <h5 style="color:var(--text); margin-bottom:8px;">${inv.name}</h5>
+                            <p style="color:var(--text2); font-size:14px; line-height:1.6;">${inv.desc}</p>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:12px; margin-top:16px;">
+                        <div style="background:var(--bg2); padding:12px; border-radius:var(--radius-sm);">
+                            <div style="color:var(--text3); font-size:11px; margin-bottom:4px;">Expected Returns</div>
+                            <div style="color:var(--green); font-weight:600;">${inv.returns}</div>
+                        </div>
+                        <div style="background:var(--bg2); padding:12px; border-radius:var(--radius-sm);">
+                            <div style="color:var(--text3); font-size:11px; margin-bottom:4px;">Risk Level</div>
+                            <div style="color:${inv.risk.includes('Low') ? 'var(--green)' : inv.risk.includes('High') ? 'var(--red)' : 'var(--yellow)'}; font-weight:600;">${inv.risk}</div>
+                        </div>
+                        <div style="background:var(--bg2); padding:12px; border-radius:var(--radius-sm);">
+                            <div style="color:var(--text3); font-size:11px; margin-bottom:4px;">Liquidity</div>
+                            <div style="color:${inv.liquidity.includes('High') ? 'var(--green)' : inv.liquidity.includes('Low') ? 'var(--red)' : 'var(--yellow)'}; font-weight:600;">${inv.liquidity}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:12px; padding:12px; background:var(--bg2); border-radius:var(--radius-sm); border-left:3px solid var(--accent);">
+                        <div style="color:var(--text3); font-size:11px; margin-bottom:4px;">Tax Implications</div>
+                        <div style="color:var(--text2); font-size:13px; line-height:1.5;">${inv.tax}</div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div style="background:var(--accent-glow); padding:20px; border-radius:var(--radius); border:1px solid var(--accent); margin-top:20px;">
+            <h5 style="color:var(--accent2); margin-bottom:12px;">💡 Investment Tips</h5>
+            <ul style="color:var(--text2); line-height:1.8;">
+                <li>Diversify across multiple investment types to reduce risk</li>
+                <li>Consider your age, risk appetite, and financial goals before investing</li>
+                <li>Maintain an emergency fund before investing in illiquid assets</li>
+                <li>Review and rebalance your portfolio annually</li>
+                <li>Consult a SEBI-registered financial advisor for personalized advice</li>
+                <li>Understand tax implications and plan for tax-efficient investing</li>
+            </ul>
+        </div>
+    `;
+}
+
+function renderSavedCalculations() {
+    const saved = loadSavedCalculations();
+    
+    if (saved.length === 0) {
+        return `
+            <div style="text-align:center; padding:40px; color:var(--text3);">
+                <i class="fas fa-bookmark" style="font-size:48px; margin-bottom:16px; opacity:0.3;"></i>
+                <p>No saved calculations yet. Calculate and save your results to access them later.</p>
+            </div>
+        `;
+    }
+    
+    return `
+        <div style="display:grid; gap:16px;">
+            ${saved.reverse().map(calc => {
+                const date = new Date(calc.timestamp).toLocaleString('en-IN');
+                const typeLabel = calc.type === 'emergency-fund' ? '🛡️ Emergency Fund' : calc.type === 'swp' ? '💰 SWP' : '📈 SIP';
+                
+                return `
+                    <div style="background:var(--bg3); padding:16px; border-radius:var(--radius); border:1px solid var(--border);">
+                        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:12px;">
+                            <div>
+                                <div style="color:var(--accent); font-weight:600; margin-bottom:4px;">${typeLabel}</div>
+                                <div style="color:var(--text3); font-size:12px;">${date}</div>
+                            </div>
+                            <button class="secondary-btn" onclick="deleteCalculation('${calc.id}')" style="padding:6px 12px; font-size:12px;">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                        <div style="color:var(--text2); font-size:13px; line-height:1.6;">
+                            ${calc.type === 'emergency-fund' ? `
+                                Monthly Expenses: ${formatCurrency(calc.inputs.monthlyExpenses)}<br>
+                                Medical Expenses: ${formatCurrency(calc.inputs.medicalExpenses)}<br>
+                                Duration: ${calc.inputs.duration} months<br>
+                                <strong style="color:var(--accent);">Required: ${formatCurrency(calc.results.futureValue)}</strong>
+                            ` : calc.type === 'swp' ? `
+                                Monthly Withdrawal: ${formatCurrency(calc.inputs.monthlyWithdrawal)}<br>
+                                Return Rate: ${calc.inputs.annualReturnRate}%<br>
+                                Duration: ${calc.inputs.durationYears} years<br>
+                                <strong style="color:var(--accent);">Required Corpus: ${formatCurrency(calc.results.requiredCorpus)}</strong>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
 async function renderFamily() {
     sh('page-family', `<div class="loading-state"><div class="spinner"></div><p>Loading family insights…</p></div>`);
 
@@ -2846,8 +3177,8 @@ if (!document.getElementById('congrats-animations')) {
 }
 
 // ========== NAVIGATION ==========
-const pageTitles    = { overview:'Overview', income:'Income', expenses:'Expenses', investments:'Investments', loans:'Loans', insurance:'Insurance', schemes:'Gov. Schemes', recommendations:'Recommendations', advisor:'AI Advisor', settings:'Settings', nri:'NRI Planner', plan:'Autopilot', family:'Family', accounts: 'Bank Accounts'  };
-const pageSubtitles = { overview:'Financial health at a glance', income:'Your income sources', expenses:'Track your spending', investments:'Your investment portfolio', loans:'Active loans & EMIs', insurance:'Coverage & protection', schemes:'Government benefit schemes', recommendations:'Personalised for you', advisor:'AI-powered coaching', settings:'Your profile & preferences', nri:'Plan your return to India', plan:'Full financial autopilot', family:'Family finance insights', accounts: 'Manage your linked accounts' };
+const pageTitles    = { overview:'Overview', income:'Income', expenses:'Expenses', investments:'Investments', loans:'Loans', insurance:'Insurance', schemes:'Gov. Schemes', recommendations:'Recommendations', advisor:'AI Advisor', settings:'Settings', nri:'NRI Planner', plan:'Autopilot', education:'Financial Education', family:'Family', accounts: 'Bank Accounts'  };
+const pageSubtitles = { overview:'Financial health at a glance', income:'Your income sources', expenses:'Track your spending', investments:'Your investment portfolio', loans:'Active loans & EMIs', insurance:'Coverage & protection', schemes:'Government benefit schemes', recommendations:'Personalised for you', advisor:'AI-powered coaching', settings:'Your profile & preferences', nri:'Plan your return to India', plan:'Full financial autopilot', education:'Learn & calculate smart finances', family:'Family finance insights', accounts: 'Manage your linked accounts' };
 
 document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', function() {
@@ -2897,6 +3228,7 @@ async function renderCurrentPage() {
         case 'settings':        renderSettings();            break;
         case 'nri':             await renderNriPlanner();    break;
         case 'plan':            await renderAutopilot();     break;
+        case 'education':       renderEducation();           break;
         case 'family':          await renderFamily();        break;
         case 'accounts':        await renderAccounts();      break;
         default:                renderOverview(); // fallback
@@ -5775,6 +6107,308 @@ function showToast(msg, type='green') {
     document.body.appendChild(t);
     setTimeout(()=>t.remove(), 3000);
 }
+
+// ========== FINANCIAL EDUCATION HELPERS ==========
+window.toggleSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+};
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+    }).format(amount);
+}
+
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+function calculateInflationAdjustedEmergencyFund(monthlyExpenses, medicalExpenses, duration, generalInflation = 0.08, medicalInflation = 0.12) {
+    const currentRequirement = (monthlyExpenses + medicalExpenses) * duration;
+    const durationYears = duration / 12;
+    const generalExpensesPortion = monthlyExpenses * duration * Math.pow(1 + generalInflation, durationYears);
+    const medicalExpensesPortion = medicalExpenses * duration * Math.pow(1 + medicalInflation, durationYears);
+    const futureValue = generalExpensesPortion + medicalExpensesPortion;
+    
+    return {
+        currentRequirement,
+        futureValue,
+        generalExpensesPortion,
+        medicalExpensesPortion,
+        inflationImpact: futureValue - currentRequirement
+    };
+}
+
+function calculateSWPCorpus(monthlyWithdrawal, annualReturnRate, durationYears) {
+    const annualWithdrawal = monthlyWithdrawal * 12;
+    const totalWithdrawals = annualWithdrawal * durationYears;
+    const requiredCorpus = annualWithdrawal * ((1 - Math.pow(1 + annualReturnRate, -durationYears)) / annualReturnRate);
+    
+    const yearByYear = [];
+    let balance = requiredCorpus;
+    let corpusDepletionWarning = false;
+    
+    for (let year = 1; year <= durationYears; year++) {
+        const openingBalance = balance;
+        const withdrawal = annualWithdrawal;
+        const returns = openingBalance * annualReturnRate;
+        const closingBalance = openingBalance + returns - withdrawal;
+        
+        yearByYear.push({
+            year,
+            openingBalance,
+            withdrawal,
+            returns,
+            closingBalance
+        });
+        
+        balance = closingBalance;
+        if (closingBalance < 0) corpusDepletionWarning = true;
+    }
+    
+    return {
+        requiredCorpus,
+        totalWithdrawals,
+        yearByYear,
+        corpusDepletionWarning
+    };
+}
+
+function getSIPRecommendation(ageGroup) {
+    const recommendations = {
+        '20s': {
+            allocation: { equity: 85, debt: 15 },
+            strategy: 'Aggressive wealth creation with long-term focus',
+            horizon: '15-25 years',
+            fundCategories: ['Large Cap Equity Funds', 'Mid Cap Equity Funds', 'Small Cap Equity Funds', 'Index Funds (Nifty 50, Nifty Next 50)', 'Sectoral Funds (Technology, Healthcare)'],
+            exampleAmounts: [5000, 10000, 25000, 50000],
+            tips: ['Start early to benefit from compounding', 'Can take higher risks for higher returns', 'Focus on equity for long-term growth', 'Review portfolio annually']
+        },
+        '30s': {
+            allocation: { equity: 75, debt: 25 },
+            strategy: 'Balanced approach with goal-based investing',
+            horizon: '10-20 years',
+            fundCategories: ['Large Cap Equity Funds', 'Balanced Advantage Funds', 'Multi-Cap Funds', 'Debt Funds for short-term goals', 'ELSS for tax saving'],
+            exampleAmounts: [10000, 20000, 35000, 75000],
+            tips: ['Align SIPs with specific goals (home, education)', 'Maintain emergency fund before investing', 'Diversify across fund categories', 'Increase SIP amount with salary hikes']
+        },
+        '40s': {
+            allocation: { equity: 55, debt: 45 },
+            strategy: 'Moderate risk with retirement planning focus',
+            horizon: '10-15 years',
+            fundCategories: ['Large Cap Equity Funds', 'Hybrid Funds (Aggressive/Conservative)', 'Debt Funds', 'Corporate Bond Funds', 'NPS for retirement'],
+            exampleAmounts: [15000, 30000, 50000, 100000],
+            tips: ['Prioritize retirement corpus building', 'Gradually shift to debt for stability', 'Maximize tax-saving investments', 'Review and rebalance portfolio quarterly']
+        },
+        '50s+': {
+            allocation: { equity: 35, debt: 65 },
+            strategy: 'Conservative approach with capital preservation',
+            horizon: '5-10 years',
+            fundCategories: ['Large Cap Equity Funds (limited exposure)', 'Conservative Hybrid Funds', 'Debt Funds', 'Fixed Maturity Plans', 'Senior Citizen Savings Scheme'],
+            exampleAmounts: [20000, 40000, 75000, 150000],
+            tips: ['Focus on capital preservation', 'Generate regular income through SWP', 'Minimize equity exposure', 'Consider annuity plans for guaranteed income']
+        }
+    };
+    return recommendations[ageGroup] || null;
+}
+
+function loadSavedCalculations() {
+    return JSON.parse(localStorage.getItem('savedCalculations') || '[]');
+}
+
+function saveCalculation(type, inputs, results, notes = '') {
+    const calculation = {
+        id: generateUUID(),
+        type,
+        timestamp: Date.now(),
+        inputs,
+        results,
+        notes
+    };
+    const saved = loadSavedCalculations();
+    saved.push(calculation);
+    localStorage.setItem('savedCalculations', JSON.stringify(saved));
+    showToast('Calculation saved successfully', 'green');
+    document.getElementById('savedCalculationsContainer').innerHTML = renderSavedCalculations();
+}
+
+function deleteCalculation(id) {
+    const saved = loadSavedCalculations();
+    const filtered = saved.filter(calc => calc.id !== id);
+    localStorage.setItem('savedCalculations', JSON.stringify(filtered));
+    showToast('Calculation deleted', 'yellow');
+    document.getElementById('savedCalculationsContainer').innerHTML = renderSavedCalculations();
+}
+
+window.calculateEmergencyFund = () => {
+    const monthlyExpenses = parseFloat(document.getElementById('efMonthlyExpenses').value) || 0;
+    const medicalExpenses = parseFloat(document.getElementById('efMedicalExpenses').value) || 0;
+    const duration = parseInt(document.getElementById('efDuration').value) || 6;
+    const generalInflation = parseFloat(document.getElementById('efGeneralInflation').value) / 100 || 0.08;
+    const medicalInflation = parseFloat(document.getElementById('efMedicalInflation').value) / 100 || 0.12;
+    
+    if (monthlyExpenses <= 0) {
+        showToast('Please enter valid monthly expenses', 'red');
+        return;
+    }
+    
+    const result = calculateInflationAdjustedEmergencyFund(monthlyExpenses, medicalExpenses, duration, generalInflation, medicalInflation);
+    
+    document.getElementById('efResults').innerHTML = `
+        <div style="background:var(--bg3); padding:20px; border-radius:var(--radius); margin-top:20px;">
+            <h5 style="color:var(--green); margin-bottom:16px;">📊 Emergency Fund Calculation Results</h5>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                <div style="background:var(--bg2); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+                    <div style="color:var(--text3); font-size:12px; margin-bottom:4px;">Current Requirement</div>
+                    <div style="color:var(--text); font-size:24px; font-weight:700;">${formatCurrency(result.currentRequirement)}</div>
+                </div>
+                <div style="background:var(--bg2); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+                    <div style="color:var(--text3); font-size:12px; margin-bottom:4px;">Inflation-Adjusted (Future)</div>
+                    <div style="color:var(--accent); font-size:24px; font-weight:700;">${formatCurrency(result.futureValue)}</div>
+                </div>
+                <div style="background:var(--bg2); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+                    <div style="color:var(--text3); font-size:12px; margin-bottom:4px;">Inflation Impact</div>
+                    <div style="color:var(--yellow); font-size:24px; font-weight:700;">${formatCurrency(result.inflationImpact)}</div>
+                </div>
+            </div>
+            <div style="margin-top:20px; padding:16px; background:var(--bg2); border-radius:var(--radius-sm); border:1px solid var(--border);">
+                <h6 style="color:var(--text); margin-bottom:12px;">Breakdown:</h6>
+                <div style="color:var(--text2); line-height:1.8;">
+                    <div>General Expenses (${duration} months): ${formatCurrency(result.generalExpensesPortion)}</div>
+                    <div>Medical Expenses (${duration} months): ${formatCurrency(result.medicalExpensesPortion)}</div>
+                </div>
+            </div>
+            <button class="primary-btn" onclick="saveCalculation('emergency-fund', {monthlyExpenses:${monthlyExpenses}, medicalExpenses:${medicalExpenses}, duration:${duration}, generalInflation:${generalInflation*100}, medicalInflation:${medicalInflation*100}}, ${JSON.stringify(result).replace(/"/g, '&quot;')})" style="margin-top:16px;">
+                <i class="fas fa-save"></i> Save Calculation
+            </button>
+        </div>
+    `;
+};
+
+window.calculateSWP = () => {
+    const monthlyWithdrawal = parseFloat(document.getElementById('swpMonthlyWithdrawal').value) || 0;
+    const annualReturnRate = parseFloat(document.getElementById('swpReturnRate').value) / 100 || 0.05;
+    const durationYears = parseInt(document.getElementById('swpDuration').value) || 10;
+    
+    if (monthlyWithdrawal <= 0) {
+        showToast('Please enter valid monthly withdrawal amount', 'red');
+        return;
+    }
+    if (annualReturnRate < 0.01 || annualReturnRate > 0.20) {
+        showToast('Return rate must be between 1% and 20%', 'red');
+        return;
+    }
+    
+    const result = calculateSWPCorpus(monthlyWithdrawal, annualReturnRate, durationYears);
+    
+    let tableRows = '';
+    result.yearByYear.slice(0, 10).forEach(row => {
+        tableRows += `
+            <tr>
+                <td>${row.year}</td>
+                <td>${formatCurrency(row.openingBalance)}</td>
+                <td>${formatCurrency(row.withdrawal)}</td>
+                <td>${formatCurrency(row.returns)}</td>
+                <td style="color:${row.closingBalance < 0 ? 'var(--red)' : 'var(--green)'};">${formatCurrency(row.closingBalance)}</td>
+            </tr>
+        `;
+    });
+    
+    document.getElementById('swpResults').innerHTML = `
+        <div style="background:var(--bg3); padding:20px; border-radius:var(--radius); margin-top:20px;">
+            <h5 style="color:var(--green); margin-bottom:16px;">📊 SWP Calculation Results</h5>
+            ${result.corpusDepletionWarning ? `<div style="background:var(--red-dim); border:1px solid var(--red); padding:12px; border-radius:var(--radius-sm); margin-bottom:16px; color:var(--red);">⚠️ Warning: Corpus will deplete before the end of duration. Consider increasing corpus or reducing withdrawal.</div>` : ''}
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+                <div style="background:var(--bg2); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+                    <div style="color:var(--text3); font-size:12px; margin-bottom:4px;">Required Corpus</div>
+                    <div style="color:var(--accent); font-size:24px; font-weight:700;">${formatCurrency(result.requiredCorpus)}</div>
+                </div>
+                <div style="background:var(--bg2); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+                    <div style="color:var(--text3); font-size:12px; margin-bottom:4px;">Total Withdrawals</div>
+                    <div style="color:var(--text); font-size:24px; font-weight:700;">${formatCurrency(result.totalWithdrawals)}</div>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; background:var(--bg2); border-radius:var(--radius-sm);">
+                    <thead>
+                        <tr style="background:var(--bg3); border-bottom:1px solid var(--border);">
+                            <th style="padding:12px; text-align:left; color:var(--text);">Year</th>
+                            <th style="padding:12px; text-align:left; color:var(--text);">Opening Balance</th>
+                            <th style="padding:12px; text-align:left; color:var(--text);">Withdrawal</th>
+                            <th style="padding:12px; text-align:left; color:var(--text);">Returns</th>
+                            <th style="padding:12px; text-align:left; color:var(--text);">Closing Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+                ${result.yearByYear.length > 10 ? `<div style="color:var(--text3); font-size:12px; margin-top:8px; text-align:center;">Showing first 10 years of ${result.yearByYear.length} years</div>` : ''}
+            </div>
+            <button class="primary-btn" onclick="saveCalculation('swp', {monthlyWithdrawal:${monthlyWithdrawal}, annualReturnRate:${annualReturnRate*100}, durationYears:${durationYears}}, ${JSON.stringify(result).replace(/"/g, '&quot;')})" style="margin-top:16px;">
+                <i class="fas fa-save"></i> Save Calculation
+            </button>
+        </div>
+    `;
+};
+
+window.showSIPRecommendation = (ageGroup) => {
+    const rec = getSIPRecommendation(ageGroup);
+    if (!rec) return;
+    
+    document.getElementById('sipResults').innerHTML = `
+        <div style="background:var(--bg3); padding:20px; border-radius:var(--radius); margin-top:20px;">
+            <h5 style="color:var(--purple); margin-bottom:16px;">📈 SIP Recommendation for ${ageGroup}</h5>
+            <div style="background:var(--bg2); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border); margin-bottom:16px;">
+                <h6 style="color:var(--text); margin-bottom:12px;">Asset Allocation</h6>
+                <div style="display:flex; gap:16px; margin-bottom:12px;">
+                    <div style="flex:${rec.allocation.equity}; background:var(--purple-dim); padding:12px; border-radius:var(--radius-sm); text-align:center;">
+                        <div style="color:var(--purple); font-size:24px; font-weight:700;">${rec.allocation.equity}%</div>
+                        <div style="color:var(--text3); font-size:12px;">Equity</div>
+                    </div>
+                    <div style="flex:${rec.allocation.debt}; background:var(--green-dim); padding:12px; border-radius:var(--radius-sm); text-align:center;">
+                        <div style="color:var(--green); font-size:24px; font-weight:700;">${rec.allocation.debt}%</div>
+                        <div style="color:var(--text3); font-size:12px;">Debt</div>
+                    </div>
+                </div>
+                <div style="color:var(--text2); line-height:1.6;">
+                    <div><strong style="color:var(--text);">Strategy:</strong> ${rec.strategy}</div>
+                    <div><strong style="color:var(--text);">Investment Horizon:</strong> ${rec.horizon}</div>
+                </div>
+            </div>
+            <div style="background:var(--bg2); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border); margin-bottom:16px;">
+                <h6 style="color:var(--text); margin-bottom:12px;">Recommended Fund Categories</h6>
+                <ul style="color:var(--text2); line-height:1.8;">
+                    ${rec.fundCategories.map(cat => `<li>${cat}</li>`).join('')}
+                </ul>
+            </div>
+            <div style="background:var(--bg2); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border); margin-bottom:16px;">
+                <h6 style="color:var(--text); margin-bottom:12px;">Example SIP Amounts</h6>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:12px;">
+                    ${rec.exampleAmounts.map(amt => `
+                        <div style="background:var(--bg3); padding:12px; border-radius:var(--radius-sm); text-align:center;">
+                            <div style="color:var(--accent); font-size:18px; font-weight:700;">${formatCurrency(amt)}</div>
+                            <div style="color:var(--text3); font-size:11px;">per month</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div style="background:var(--accent-glow); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--accent);">
+                <h6 style="color:var(--accent2); margin-bottom:12px;">💡 Tips for ${ageGroup}</h6>
+                <ul style="color:var(--text2); line-height:1.8;">
+                    ${rec.tips.map(tip => `<li>${tip}</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+    `;
+};
 
 // ========== VALIDATION HELPERS ==========
 function validateAmount(amount, fieldName = 'Amount') {
