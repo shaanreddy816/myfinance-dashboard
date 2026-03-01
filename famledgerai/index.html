@@ -2333,6 +2333,10 @@ const SUPABASE_ANON_KEY = localStorage.getItem('sb_key') || 'eyJhbGciOiJIUzI1NiI
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Expose supabase client globally for use in other scripts
+window.supabase = sb;
+window.sb = sb;
+
 // Hide the creds notice since we have hardcoded credentials
 const credsNotice = document.getElementById('creds-notice-login');
 if(credsNotice) credsNotice.style.display = 'none';
