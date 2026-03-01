@@ -6814,6 +6814,18 @@ window.doReg = async () => {
             return; 
         }
 
+        // If signup successful and user is confirmed (auto-confirm enabled), they're already logged in
+        // If email confirmation required, user needs to verify email first
+        console.log('Registration successful:', data);
+        
+        // Check if user session exists (auto-confirm enabled in Supabase)
+        const { data: sessionData } = await sb.auth.getSession();
+        if (sessionData?.session) {
+            console.log('User auto-logged in after registration');
+        } else {
+            console.log('Email verification required - user will need to log in after verification');
+        }
+
         userData = { profile:{ name, age, occupation, incomeRange, goals, risk, spouseName, kids, familyMembers }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
         currentUserEmail = email;
         await saveUserData(email);
