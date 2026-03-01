@@ -2071,14 +2071,21 @@ async function renderAutopilot() {
         const currentInvestments = computeTotalInvestments();
         const totalLoans = (userData.loans || []).reduce((sum, loan) => sum + (loan.outstanding || 0), 0);
         
-        // Calculate emergency fund target (6 months of expenses)
-        const emergencyFundTarget = monthlyExpenses * 6;
-        const currentLiquid = userData.profile.liquidSavings || 0;
-        const emergencyFundNeeded = Math.max(emergencyFundTarget - currentLiquid, 0);
+        // Inflation rates
+        const generalInflation = 0.08; // 8% annual
+        const medicalInflation = 0.12; // 12% annual
         
-        // Calculate optimal SIP amount (30-40% of savings for equity)
-        const optimalSIP = Math.round(monthlySavings * 0.35);
-        const minSIP = Math.max(5000, Math.round(monthlySavings * 0.2));
+        // Calculate emergency fund target (6 months of expenses) with inflation
+        const emergencyFundTarget = monthlyExpenses * 6;
+        const inflationYears = 1; // Plan for 1 year ahead
+        const inflatedEmergencyFund = emergencyFundTarget * Math.pow(1 + generalInflation, inflationYears);
+        const currentLiquid = userData.profile.liquidSavings || 0;
+        const emergencyFundNeeded = Math.max(inflatedEmergencyFund - currentLiquid, 0);
+        
+        // Calculate optimal SIP amount (35% of savings for equity - realistic allocation)
+        const sipPercentage = age < 35 ? 0.40 : age < 45 ? 0.35 : age < 55 ? 0.30 : 0.25;
+        const optimalSIP = Math.round(monthlySavings * sipPercentage);
+        const minSIP = Math.max(5000, Math.round(monthlySavings * 0.20));
         const recommendedSIP = Math.max(optimalSIP, minSIP);
         
         // Calculate term insurance need (10-15x annual income)
@@ -2087,22 +2094,89 @@ async function renderAutopilot() {
         const insuranceGap = Math.max(recommendedTermCover - currentTermCover, 0);
         
         // Retirement corpus projection with realistic assumptions
-        // Assuming 12% equity returns, 8% debt returns, 60:40 allocation
+        // Age-based equity allocation: 100 - age rule
+        const equityAllocation = Math.min(Math.max(100 - age, 30), 80) / 100;
+        const debtAllocation = 1 - equityAllocation;
+        const equityReturn = 0.12; // 12% annual
+        const debtReturn = 0.07; // 7% annual
+        const blendedReturn = (equityReturn * equityAllocation) + (debtReturn * debtAllocation);
+        const monthlyReturn = blendedReturn / 12;
         const monthsToRetire = yearsToRetire * 12;
-        const monthlyReturn = 0.01; // 12% annual = ~1% monthly
-        const futureValueSIP = recommendedSIP * ((Math.pow(1 + monthlyReturn, monthsToRetire) - 1) / monthlyReturn);
-        const futureValueExisting = currentInvestments * Math.pow(1 + monthlyReturn, monthsToRetire);
+        
+        // Future value of SIP
+        const futureValueSIP = recommendedSIP * ((Math.pow(1 + monthlyReturn, monthsToRetire) - 1) / monthlyReturn) * (1 + monthlyReturn);
+        // Future value of existing investments
+        const futureValueExisting = currentInvestments * Math.pow(1 + blendedReturn, yearsToRetire);
         const retirementCorpus = Math.round(futureValueSIP + futureValueExisting);
+        
+        // Calculate inflation-adjusted retirement expenses
+        const retirementMonthlyExpenses = monthlyExpenses * Math.pow(1 + generalInflation, yearsToRetire);
+        const requiredCorpusFor25Years = retirementMonthlyExpenses * 12 * 25; // 25 years post-retirement
+        
+        // Check if user is on track
+        const isOnTrack = retirementCorpus >= requiredCorpusFor25Years * 0.8; // 80% threshold
+        const hasEmergencyFund = currentLiquid >= emergencyFundTarget * 0.9; // 90% threshold
+        const hasSufficientInsurance = currentTermCover >= recommendedTermCover * 0.8;
+        const isInvestingWell = recommendedSIP > 0 && monthlySavings > 0;
+        
+        // Calculate financial health score
+        const healthScore = Math.round(
+            (hasEmergencyFund ? 25 : (currentLiquid / emergencyFundTarget) * 25) +
+            (hasSufficientInsurance ? 25 : (currentTermCover / recommendedTermCover) * 25) +
+            (monthlySavings > 0 ? 25 : 0) +
+            (isOnTrack ? 25 : (retirementCorpus / requiredCorpusFor25Years) * 25)
+        );
+        
+        // Show encouragement if doing well
+        let encouragementMsg = '';
+        if (healthScore >= 80) {
+            encouragementMsg = `
+                <div class="card" style="background:linear-gradient(135deg, var(--green-dim), var(--cyan-dim)); border:2px solid var(--green); margin-bottom:16px; animation:fadeIn 0.5s;">
+                    <div style="text-align:center; padding:20px;">
+                        <div style="font-size:48px; margin-bottom:12px;">🎉</div>
+                        <h3 style="color:var(--green); margin-bottom:8px;">Excellent Financial Health!</h3>
+                        <p style="color:var(--text); font-size:14px; line-height:1.6;">
+                            You're doing great! Your financial health score is <strong>${healthScore}/100</strong>. 
+                            ${hasEmergencyFund ? '✓ Emergency fund ready. ' : ''}
+                            ${hasSufficientInsurance ? '✓ Well insured. ' : ''}
+                            ${isOnTrack ? '✓ On track for retirement. ' : ''}
+                            Keep up the good work!
+                        </p>
+                    </div>
+                </div>
+            `;
+            showToast('🎉 Excellent! You\'re on the right track!', 'green');
+        } else if (healthScore >= 60) {
+            encouragementMsg = `
+                <div class="card" style="background:var(--yellow-dim); border:1px solid var(--yellow); margin-bottom:16px;">
+                    <div style="text-align:center; padding:16px;">
+                        <div style="font-size:36px; margin-bottom:8px;">👍</div>
+                        <h4 style="color:var(--yellow); margin-bottom:6px;">Good Progress!</h4>
+                        <p style="color:var(--text2); font-size:13px;">
+                            Financial health score: <strong>${healthScore}/100</strong>. You're making progress. Follow the recommendations below to improve further.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
         
         // Generate smart actions based on actual data
         const actions = [];
         
         // Priority 1: Emergency Fund (if needed)
         if (emergencyFundNeeded > 0) {
+            const monthsToComplete = Math.ceil(emergencyFundNeeded / (monthlySavings * 0.5));
             actions.push({
-                step: 'Build Emergency Fund',
-                reason: `Target ${fl(emergencyFundTarget)} (6 months expenses). Currently have ${fl(currentLiquid)}. Build ${fl(emergencyFundNeeded)} more.`,
-                amount: emergencyFundTarget,
+                step: 'Build Emergency Fund for 6 Months',
+                reason: `Target: ${fl(inflatedEmergencyFund)} (6 months expenses + ${Math.round(generalInflation*100)}% inflation). Current: ${fl(currentLiquid)}. Need: ${fl(emergencyFundNeeded)}. Save ${fl(Math.round(emergencyFundNeeded/Math.max(monthsToComplete,1)))}/month for ${monthsToComplete} months.`,
+                amount: inflatedEmergencyFund,
+                priority: 1
+            });
+        } else {
+            actions.push({
+                step: '✓ Emergency Fund Complete',
+                reason: `Great! You have ${fl(currentLiquid)} in liquid savings, covering ${Math.round(currentLiquid/monthlyExpenses)} months of expenses.`,
+                amount: currentLiquid,
                 priority: 1
             });
         }
@@ -2112,9 +2186,10 @@ async function renderAutopilot() {
             const highInterestLoans = (userData.loans || []).filter(l => (l.rate || 0) > 10);
             if (highInterestLoans.length > 0) {
                 const totalHighInterest = highInterestLoans.reduce((sum, l) => sum + (l.outstanding || 0), 0);
+                const avgRate = highInterestLoans.reduce((sum, l) => sum + (l.rate || 0), 0) / highInterestLoans.length;
                 actions.push({
-                    step: 'Pay Off High-Interest Debt',
-                    reason: `${highInterestLoans.length} loan(s) with >10% interest. Prioritize paying these off to save on interest.`,
+                    step: 'Pay Off High-Interest Debt First',
+                    reason: `${highInterestLoans.length} loan(s) with avg ${avgRate.toFixed(1)}% interest. Total: ${fl(totalHighInterest)}. Paying these off saves more than investing. Allocate extra ${fl(Math.round(monthlySavings * 0.3))}/month.`,
                     amount: totalHighInterest,
                     priority: 2
                 });
@@ -2123,95 +2198,138 @@ async function renderAutopilot() {
         
         // Priority 3: Term Insurance (if gap exists)
         if (insuranceGap > 50000) {
+            const estimatedPremium = Math.round((recommendedTermCover / 1000) * 0.5); // Rough estimate: ₹0.5 per ₹1000 cover
             actions.push({
-                step: 'Increase Term Insurance',
-                reason: `Current cover: ${fl(currentTermCover)}. Recommended: ${fl(recommendedTermCover)} (12x annual income). Gap: ${fl(insuranceGap)}.`,
+                step: 'Get Adequate Term Insurance',
+                reason: `Current: ${fl(currentTermCover)}. Recommended: ${fl(recommendedTermCover)} (12x annual income). Gap: ${fl(insuranceGap)}. Estimated premium: ~${fl(estimatedPremium)}/month for ₹${fl(recommendedTermCover)} cover.`,
                 amount: recommendedTermCover,
+                priority: 3
+            });
+        } else if (currentTermCover > 0) {
+            actions.push({
+                step: '✓ Term Insurance Adequate',
+                reason: `Good! You have ${fl(currentTermCover)} term cover, which is ${Math.round((currentTermCover/(monthlyIncome*12))*10)/10}x your annual income.`,
+                amount: currentTermCover,
                 priority: 3
             });
         }
         
-        // Priority 4: Start/Increase SIP
+        // Priority 4: Start/Increase SIP with age-based allocation
         if (monthlySavings > 0) {
+            const sipPercent = Math.round(sipPercentage * 100);
             actions.push({
-                step: `Start ₹${fl(recommendedSIP)}/month SIP`,
-                reason: `Invest ${Math.round((recommendedSIP/monthlySavings)*100)}% of monthly savings (₹${fl(monthlySavings)}) in diversified equity funds for long-term wealth creation.`,
+                step: `Invest ${fl(recommendedSIP)}/month in SIP`,
+                reason: `Invest ${sipPercent}% of savings (${fl(monthlySavings)}) in ${Math.round(equityAllocation*100)}% equity + ${Math.round(debtAllocation*100)}% debt (age-appropriate). Expected return: ${(blendedReturn*100).toFixed(1)}%/year. This builds ${fl(retirementCorpus)} by age 60.`,
                 amount: recommendedSIP,
                 priority: 4
             });
         }
         
         // Priority 5: Tax-saving investments
+        const taxSavingNeeded = 150000; // 80C limit
+        const estimatedTaxSaved = Math.round(taxSavingNeeded * 0.312); // 31.2% for 30% bracket + cess
         actions.push({
-            step: 'Maximize Tax Savings',
-            reason: 'Invest ₹1.5L/year in ELSS, PPF, or NPS to save up to ₹46,800 in taxes under Section 80C.',
-            amount: 150000,
+            step: 'Maximize Tax Savings (80C)',
+            reason: `Invest ₹1.5L/year in ELSS/PPF/NPS to save up to ${fl(estimatedTaxSaved)} in taxes. That's ${fl(Math.round(taxSavingNeeded/12))}/month. Consider ELSS for equity exposure + tax benefit.`,
+            amount: taxSavingNeeded,
             priority: 5
         });
         
-        // Sort by priority and take top 3
-        const topActions = actions.sort((a, b) => a.priority - b.priority).slice(0, 3);
+        // Sort by priority and take top actions
+        const topActions = actions.sort((a, b) => a.priority - b.priority).slice(0, 4);
         
-        // Generate 12-month schedule
+        // Generate 12-month schedule with inflation consideration
         const schedule = [];
+        let currentMonth = 1;
+        
         if (emergencyFundNeeded > 0) {
-            const monthlyEmergency = Math.min(emergencyFundNeeded / 6, monthlySavings * 0.5);
-            for (let i = 0; i < 6; i++) {
+            const monthlyEmergency = Math.min(Math.round(emergencyFundNeeded / 6), monthlySavings * 0.5);
+            const monthsNeeded = Math.min(6, Math.ceil(emergencyFundNeeded / monthlyEmergency));
+            for (let i = 0; i < monthsNeeded; i++) {
                 schedule.push({
-                    month: i + 1,
-                    action: `Transfer ₹${fl(monthlyEmergency)} to emergency fund`,
+                    month: currentMonth++,
+                    action: `Transfer ${fl(monthlyEmergency)} to emergency fund`,
                     amount: monthlyEmergency
                 });
             }
         }
-        if (recommendedSIP > 0) {
+        
+        if (recommendedSIP > 0 && currentMonth <= 12) {
             schedule.push({
-                month: schedule.length + 1,
-                action: `Start SIP of ₹${fl(recommendedSIP)} in Nifty 50 Index Fund`,
+                month: currentMonth++,
+                action: `Start SIP: ${fl(recommendedSIP)}/month in Nifty 50 Index Fund`,
                 amount: recommendedSIP
             });
         }
-        if (insuranceGap > 0) {
+        
+        if (insuranceGap > 50000 && currentMonth <= 12) {
             schedule.push({
-                month: schedule.length + 1,
-                action: `Get term insurance quotes for ₹${fl(recommendedTermCover)} cover`,
+                month: currentMonth++,
+                action: `Get term insurance quotes for ${fl(recommendedTermCover)} cover`,
                 amount: 0
             });
         }
         
-        // Fill remaining months with SIP continuation
-        while (schedule.length < 12) {
+        if (currentMonth <= 12) {
             schedule.push({
-                month: schedule.length + 1,
-                action: `Continue SIP + review portfolio`,
-                amount: recommendedSIP
+                month: currentMonth++,
+                action: `Open ELSS fund for tax saving (80C benefit)`,
+                amount: 12500
             });
+        }
+        
+        // Fill remaining months with SIP continuation and reviews
+        const reviewMonths = [3, 6, 9, 12];
+        while (currentMonth <= 12) {
+            if (reviewMonths.includes(currentMonth)) {
+                schedule.push({
+                    month: currentMonth++,
+                    action: `Quarterly review: Rebalance portfolio, check progress`,
+                    amount: 0
+                });
+            } else {
+                schedule.push({
+                    month: currentMonth++,
+                    action: `Continue SIP + track expenses`,
+                    amount: recommendedSIP
+                });
+            }
         }
         
         sh('page-plan', `
             <div class="card" style="background:var(--bg2); border:1px solid var(--yellow); padding:16px; margin-bottom:16px;">
                 <p style="color:var(--yellow); font-size:13px;">
-                    ℹ️ Using intelligent client-side analysis. For AI-powered scenario planning, deploy the <code>/api/autopilot/plan</code> endpoint.
+                    ℹ️ Using intelligent client-side analysis with inflation adjustment (${Math.round(generalInflation*100)}% general, ${Math.round(medicalInflation*100)}% medical). 
+                    For AI-powered scenario planning, deploy the <code>/api/autopilot/plan</code> endpoint.
                 </p>
             </div>
             
+            ${encouragementMsg}
+            
             <div class="card" style="background:linear-gradient(135deg, var(--bg2), var(--bg3)); border-color:var(--accent); margin-bottom:18px;">
-                <div class="card-title"><span class="icon">🤖</span> Autopilot — Retirement Scenario</div>
+                <div class="card-title">
+                    <span class="icon">🤖</span> Autopilot — Retirement Scenario
+                    <span style="float:right; font-size:12px; color:var(--text3);">Health Score: <strong style="color:${healthScore >= 80 ? 'var(--green)' : healthScore >= 60 ? 'var(--yellow)' : 'var(--red)'};">${healthScore}/100</strong></span>
+                </div>
                 <div class="advisor-msg">
                     <p style="font-size:14px; line-height:1.7;">
                         Based on your profile (Age: ${age}, Income: ${fl(monthlyIncome)}/month, Expenses: ${fl(monthlyExpenses)}/month), 
                         you can build a retirement corpus of <strong>${fl(retirementCorpus)}</strong> by age 60. 
-                        This assumes investing ₹${fl(recommendedSIP)}/month with 12% annual returns over ${yearsToRetire} years.
+                        This assumes investing ₹${fl(recommendedSIP)}/month with ${(blendedReturn*100).toFixed(1)}% annual returns 
+                        (${Math.round(equityAllocation*100)}% equity + ${Math.round(debtAllocation*100)}% debt) over ${yearsToRetire} years.
+                        <br><br>
+                        <strong>Inflation-adjusted:</strong> At retirement, you'll need ${fl(retirementMonthlyExpenses)}/month 
+                        (today's ${fl(monthlyExpenses)} adjusted for ${Math.round(generalInflation*100)}% inflation).
                     </p>
                 </div>
                 <div class="grid-4" style="margin-top:16px;">
                     <div class="kpi-card green"><div class="kpi-label">Projected Corpus</div><div class="kpi-value">${fl(retirementCorpus)}</div><div class="kpi-sub">At retirement (age 60)</div></div>
                     <div class="kpi-card"><div class="kpi-label">Years to Retire</div><div class="kpi-value">${yearsToRetire}</div><div class="kpi-sub">Time remaining</div></div>
                     <div class="kpi-card ${monthlySavings >= 0 ? 'green' : 'red'}"><div class="kpi-label">Monthly Savings</div><div class="kpi-value">${fl(monthlySavings)}</div><div class="kpi-sub">Available to invest</div></div>
-                    <div class="kpi-card cyan"><div class="kpi-label">Recommended SIP</div><div class="kpi-value">${fl(recommendedSIP)}</div><div class="kpi-sub">35% of savings</div></div>
+                    <div class="kpi-card cyan"><div class="kpi-label">Recommended SIP</div><div class="kpi-value">${fl(recommendedSIP)}</div><div class="kpi-sub">${Math.round(sipPercentage*100)}% of savings</div></div>
                 </div>
                 <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
-                    <button class="secondary-btn" style="border-color:var(--accent); color:var(--accent2);">
+                    <button class="secondary-btn" style="border-color:var(--accent); color:var(--accent2); background:var(--accent-glow);">
                         🏖️ Retirement
                     </button>
                     <button class="secondary-btn" disabled style="opacity:0.5;">
@@ -2229,17 +2347,17 @@ async function renderAutopilot() {
                     ${topActions.map(a => `
                         <div class="reco-card">
                             <h4 style="color:var(--accent2); font-size:13px; margin-bottom:4px;">${a.step}</h4>
-                            <p style="font-size:12px; line-height:1.5;">${a.reason}</p>
-                            ${a.amount > 0 ? `<div class="row-value" style="margin-top:8px; color:var(--green);">${fl(a.amount)}</div>` : ''}
+                            <p style="font-size:12px; line-height:1.5; color:var(--text2);">${a.reason}</p>
+                            ${a.amount > 0 && !a.step.includes('✓') ? `<div class="row-value" style="margin-top:8px; color:var(--green);">Target: ${fl(a.amount)}</div>` : ''}
                         </div>
                     `).join('')}
                 </div>
                 <div class="card">
                     <div class="card-title"><span class="icon">📅</span> 12-Month Action Plan</div>
                     ${schedule.map(s => `
-                        <div class="row-flex" style="margin-bottom:8px;">
-                            <span class="row-label" style="font-size:12px;">Month ${s.month}: ${s.action}</span>
-                            ${s.amount > 0 ? `<span class="row-value" style="font-size:12px;">${fl(s.amount)}</span>` : ''}
+                        <div class="row-flex" style="margin-bottom:8px; padding:8px; background:var(--bg3); border-radius:6px;">
+                            <span class="row-label" style="font-size:12px;"><strong>Month ${s.month}:</strong> ${s.action}</span>
+                            ${s.amount > 0 ? `<span class="row-value" style="font-size:12px; color:var(--green);">${fl(s.amount)}</span>` : ''}
                         </div>
                     `).join('')}
                 </div>
@@ -2248,11 +2366,13 @@ async function renderAutopilot() {
             <div class="card" style="background:var(--cyan-dim); border:1px solid var(--cyan); margin-top:16px;">
                 <div style="font-size:12px; color:var(--text); line-height:1.7;">
                     <strong>💡 How this plan works:</strong><br>
-                    • Emergency fund first (${emergencyFundNeeded > 0 ? 'build ₹' + fl(emergencyFundNeeded) : 'already sufficient ✓'})<br>
-                    • Then invest ₹${fl(recommendedSIP)}/month in equity (Nifty 50 Index Fund recommended)<br>
-                    • Assumes 12% annual returns (historical average for Indian equity)<br>
-                    • Review and rebalance quarterly<br>
-                    • Increase SIP by 10% annually with salary hikes
+                    • <strong>Emergency fund first:</strong> ${emergencyFundNeeded > 0 ? 'Build ₹' + fl(inflatedEmergencyFund) + ' (inflation-adjusted)' : 'Already sufficient ✓'}<br>
+                    • <strong>Age-appropriate allocation:</strong> ${Math.round(equityAllocation*100)}% equity + ${Math.round(debtAllocation*100)}% debt (based on age ${age})<br>
+                    • <strong>Expected returns:</strong> ${(blendedReturn*100).toFixed(1)}% annually (blended)<br>
+                    • <strong>Inflation considered:</strong> ${Math.round(generalInflation*100)}% general, ${Math.round(medicalInflation*100)}% medical<br>
+                    • <strong>Review quarterly:</strong> Rebalance portfolio every 3 months<br>
+                    • <strong>Increase SIP:</strong> Raise by 10% annually with salary hikes<br>
+                    • <strong>Tax optimization:</strong> Use ELSS for 80C benefit + equity exposure
                 </div>
             </div>
             
