@@ -8058,16 +8058,20 @@ class OnboardingWizard {
             if (goals.length === 0) {
                 errors.push({ field: 'goals', message: 'Please add at least one financial goal' });
             } else {
-                // Validate each goal
-                goals.forEach((goal, index) => {
-                    if (!goal.name) {
-                        errors.push({ field: 'goals', message: `Goal ${index + 1}: Name is required` });
-                    }
-                    if (!goal.amount || goal.amount < 1000) {
-                        errors.push({ field: 'goals', message: `Goal ${index + 1}: Amount must be at least ₹1,000` });
-                    }
-                    if (!goal.timeline || goal.timeline < 1) {
-                        errors.push({ field: 'goals', message: `Goal ${index + 1}: Timeline must be at least 1 year` });
+                // Validate each goal card that has been started (has a name)
+                document.querySelectorAll('#goals-list .goal-card').forEach((card, index) => {
+                    const name = card.querySelector('[data-field="name"]')?.value?.trim();
+                    const amount = parseFloat(card.querySelector('[data-field="amount"]')?.value);
+                    const timeline = parseInt(card.querySelector('[data-field="timeline"]')?.value);
+                    
+                    // Only validate if user has started filling this goal (has a name)
+                    if (name) {
+                        if (!amount || amount < 1000) {
+                            errors.push({ field: 'goals', message: `Goal ${index + 1}: Amount must be at least ₹1,000` });
+                        }
+                        if (!timeline || timeline < 1) {
+                            errors.push({ field: 'goals', message: `Goal ${index + 1}: Timeline must be at least 1 year` });
+                        }
                     }
                 });
             }
