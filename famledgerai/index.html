@@ -1053,11 +1053,11 @@
                                 WhatsApp Number (Optional)
                             </label>
                             <div style="display:flex; gap:8px;">
-                                <input type="text" value="+91" disabled
-                                       style="width:60px; padding:12px 16px; background:var(--bg); border:1px solid var(--border2); border-radius:var(--radius-sm); color:var(--text3); font-size:14px; text-align:center;">
+                                <input type="text" id="reg-country-code" value="+91"
+                                       style="width:60px; padding:12px 16px; background:var(--bg); border:1px solid var(--border2); border-radius:var(--radius-sm); color:var(--text); font-size:14px; text-align:center;">
                                 <input type="tel" id="reg-whatsapp" pattern="[0-9]{10}" class="ainp"
                                        style="flex:1; margin-bottom:0;"
-                                       placeholder="9876543210">
+                                       placeholder="10-digit number">
                             </div>
                             <div style="font-size:11px; color:var(--text3); margin-top:6px; display:flex; align-items:center; gap:4px;">
                                 <span>📱</span> Get payment reminders & alerts
@@ -6174,6 +6174,7 @@ window.handleModernRegistration = async () => {
     const firstname = document.getElementById('reg-firstname')?.value?.trim() || '';
     const lastname = document.getElementById('reg-lastname')?.value?.trim() || '';
     const email = document.getElementById('r-em')?.value?.trim() || '';
+    const countryCode = document.getElementById('reg-country-code')?.value?.trim() || '+91';
     const whatsapp = document.getElementById('reg-whatsapp')?.value?.trim() || '';
     const password = document.getElementById('r-pw')?.value || '';
     const termsChecked = document.getElementById('reg-terms')?.checked || false;
@@ -6211,10 +6212,10 @@ window.handleModernRegistration = async () => {
     document.getElementById('r-occupation').value = 'salaried';
     document.getElementById('r-income-range').value = '6-12';
     
-    // Store WhatsApp number in user metadata (will be added to doReg later)
+    // Store WhatsApp number with country code in user metadata (will be added to doReg later)
     if (whatsapp) {
-        // Store temporarily for use in doReg
-        window.tempWhatsAppNumber = whatsapp;
+        // Combine country code and number
+        window.tempWhatsAppNumber = `${countryCode}${whatsapp}`;
     }
     
     // Call the existing doReg function
