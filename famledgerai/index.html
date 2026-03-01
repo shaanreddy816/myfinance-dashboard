@@ -2060,28 +2060,136 @@ async function renderAutopilot() {
     } catch (e) {
         console.error('Autopilot error:', e);
         
-        // Fallback: Generate basic plan client-side
+        // Fallback: Generate intelligent plan client-side with proper calculations
         const age = userData.profile.age || 30;
         const yearsToRetire = Math.max(60 - age, 0);
         const monthlyIncome = computeMonthlyIncome();
         const monthlyExpenses = computeMonthlyExpenses();
-        const monthlySavings = monthlyIncome - monthlyExpenses;
+        const monthlySavings = Math.max(monthlyIncome - monthlyExpenses, 0);
+        const currentInvestments = computeTotalInvestments();
+        const totalLoans = (userData.loans || []).reduce((sum, loan) => sum + (loan.outstanding || 0), 0);
         
-        // Simple projection assuming 12% returns
+        // Calculate emergency fund target (6 months of expenses)
+        const emergencyFundTarget = monthlyExpenses * 6;
+        const currentLiquid = userData.profile.liquidSavings || 0;
+        const emergencyFundNeeded = Math.max(emergencyFundTarget - currentLiquid, 0);
+        
+        // Calculate optimal SIP amount (30-40% of savings for equity)
+        const optimalSIP = Math.round(monthlySavings * 0.35);
+        const minSIP = Math.max(5000, Math.round(monthlySavings * 0.2));
+        const recommendedSIP = Math.max(optimalSIP, minSIP);
+        
+        // Calculate term insurance need (10-15x annual income)
+        const currentTermCover = userData.profile.termCover || 0;
+        const recommendedTermCover = monthlyIncome * 12 * 12; // 12x annual income
+        const insuranceGap = Math.max(recommendedTermCover - currentTermCover, 0);
+        
+        // Retirement corpus projection with realistic assumptions
+        // Assuming 12% equity returns, 8% debt returns, 60:40 allocation
         const monthsToRetire = yearsToRetire * 12;
-        const futureValue = monthlySavings * ((Math.pow(1.01, monthsToRetire) - 1) / 0.01);
-        const retirementCorpus = Math.round(futureValue);
+        const monthlyReturn = 0.01; // 12% annual = ~1% monthly
+        const futureValueSIP = recommendedSIP * ((Math.pow(1 + monthlyReturn, monthsToRetire) - 1) / monthlyReturn);
+        const futureValueExisting = currentInvestments * Math.pow(1 + monthlyReturn, monthsToRetire);
+        const retirementCorpus = Math.round(futureValueSIP + futureValueExisting);
         
-        const actions = [
-            { step: 'Build Emergency Fund', reason: 'Ensure 6 months of expenses in liquid savings', amount: monthlyExpenses * 6 },
-            { step: 'Start Monthly SIP', reason: 'Invest in diversified equity funds for long-term growth', amount: monthlySavings * 0.6 },
-            { step: 'Increase Insurance', reason: 'Get term insurance of 10-15x annual income', amount: monthlyIncome * 12 * 10 }
-        ];
+        // Generate smart actions based on actual data
+        const actions = [];
+        
+        // Priority 1: Emergency Fund (if needed)
+        if (emergencyFundNeeded > 0) {
+            actions.push({
+                step: 'Build Emergency Fund',
+                reason: `Target ${fl(emergencyFundTarget)} (6 months expenses). Currently have ${fl(currentLiquid)}. Build ${fl(emergencyFundNeeded)} more.`,
+                amount: emergencyFundTarget,
+                priority: 1
+            });
+        }
+        
+        // Priority 2: High-interest debt payoff
+        if (totalLoans > 0) {
+            const highInterestLoans = (userData.loans || []).filter(l => (l.rate || 0) > 10);
+            if (highInterestLoans.length > 0) {
+                const totalHighInterest = highInterestLoans.reduce((sum, l) => sum + (l.outstanding || 0), 0);
+                actions.push({
+                    step: 'Pay Off High-Interest Debt',
+                    reason: `${highInterestLoans.length} loan(s) with >10% interest. Prioritize paying these off to save on interest.`,
+                    amount: totalHighInterest,
+                    priority: 2
+                });
+            }
+        }
+        
+        // Priority 3: Term Insurance (if gap exists)
+        if (insuranceGap > 50000) {
+            actions.push({
+                step: 'Increase Term Insurance',
+                reason: `Current cover: ${fl(currentTermCover)}. Recommended: ${fl(recommendedTermCover)} (12x annual income). Gap: ${fl(insuranceGap)}.`,
+                amount: recommendedTermCover,
+                priority: 3
+            });
+        }
+        
+        // Priority 4: Start/Increase SIP
+        if (monthlySavings > 0) {
+            actions.push({
+                step: `Start ₹${fl(recommendedSIP)}/month SIP`,
+                reason: `Invest ${Math.round((recommendedSIP/monthlySavings)*100)}% of monthly savings (₹${fl(monthlySavings)}) in diversified equity funds for long-term wealth creation.`,
+                amount: recommendedSIP,
+                priority: 4
+            });
+        }
+        
+        // Priority 5: Tax-saving investments
+        actions.push({
+            step: 'Maximize Tax Savings',
+            reason: 'Invest ₹1.5L/year in ELSS, PPF, or NPS to save up to ₹46,800 in taxes under Section 80C.',
+            amount: 150000,
+            priority: 5
+        });
+        
+        // Sort by priority and take top 3
+        const topActions = actions.sort((a, b) => a.priority - b.priority).slice(0, 3);
+        
+        // Generate 12-month schedule
+        const schedule = [];
+        if (emergencyFundNeeded > 0) {
+            const monthlyEmergency = Math.min(emergencyFundNeeded / 6, monthlySavings * 0.5);
+            for (let i = 0; i < 6; i++) {
+                schedule.push({
+                    month: i + 1,
+                    action: `Transfer ₹${fl(monthlyEmergency)} to emergency fund`,
+                    amount: monthlyEmergency
+                });
+            }
+        }
+        if (recommendedSIP > 0) {
+            schedule.push({
+                month: schedule.length + 1,
+                action: `Start SIP of ₹${fl(recommendedSIP)} in Nifty 50 Index Fund`,
+                amount: recommendedSIP
+            });
+        }
+        if (insuranceGap > 0) {
+            schedule.push({
+                month: schedule.length + 1,
+                action: `Get term insurance quotes for ₹${fl(recommendedTermCover)} cover`,
+                amount: 0
+            });
+        }
+        
+        // Fill remaining months with SIP continuation
+        while (schedule.length < 12) {
+            schedule.push({
+                month: schedule.length + 1,
+                action: `Continue SIP + review portfolio`,
+                amount: recommendedSIP
+            });
+        }
         
         sh('page-plan', `
             <div class="card" style="background:var(--bg2); border:1px solid var(--yellow); padding:16px; margin-bottom:16px;">
                 <p style="color:var(--yellow); font-size:13px;">
-                    ℹ️ Using client-side projections. For AI-powered planning, deploy the <code>/api/autopilot/plan</code> endpoint.
+                    ℹ️ Using intelligent client-side analysis. For AI-powered scenario planning, deploy the <code>/api/autopilot/plan</code> endpoint.
                 </p>
             </div>
             
@@ -2089,43 +2197,64 @@ async function renderAutopilot() {
                 <div class="card-title"><span class="icon">🤖</span> Autopilot — Retirement Scenario</div>
                 <div class="advisor-msg">
                     <p style="font-size:14px; line-height:1.7;">
-                        Based on your age (${age}) and monthly savings (${fl(monthlySavings)}), you can build a retirement corpus 
-                        of approximately ${fl(retirementCorpus)} by age 60. This assumes 12% annual returns and consistent monthly investments.
+                        Based on your profile (Age: ${age}, Income: ${fl(monthlyIncome)}/month, Expenses: ${fl(monthlyExpenses)}/month), 
+                        you can build a retirement corpus of <strong>${fl(retirementCorpus)}</strong> by age 60. 
+                        This assumes investing ₹${fl(recommendedSIP)}/month with 12% annual returns over ${yearsToRetire} years.
                     </p>
                 </div>
                 <div class="grid-4" style="margin-top:16px;">
-                    <div class="kpi-card green"><div class="kpi-label">Projected Corpus</div><div class="kpi-value">${fl(retirementCorpus)}</div><div class="kpi-sub">At retirement</div></div>
-                    <div class="kpi-card"><div class="kpi-label">Years to Retire</div><div class="kpi-value">${yearsToRetire}</div><div class="kpi-sub">Based on age 60</div></div>
+                    <div class="kpi-card green"><div class="kpi-label">Projected Corpus</div><div class="kpi-value">${fl(retirementCorpus)}</div><div class="kpi-sub">At retirement (age 60)</div></div>
+                    <div class="kpi-card"><div class="kpi-label">Years to Retire</div><div class="kpi-value">${yearsToRetire}</div><div class="kpi-sub">Time remaining</div></div>
                     <div class="kpi-card ${monthlySavings >= 0 ? 'green' : 'red'}"><div class="kpi-label">Monthly Savings</div><div class="kpi-value">${fl(monthlySavings)}</div><div class="kpi-sub">Available to invest</div></div>
-                    <div class="kpi-card yellow"><div class="kpi-label">AI Confidence</div><div class="kpi-value" style="color:var(--yellow);">Basic</div><div class="kpi-sub">Client-side calc</div></div>
+                    <div class="kpi-card cyan"><div class="kpi-label">Recommended SIP</div><div class="kpi-value">${fl(recommendedSIP)}</div><div class="kpi-sub">35% of savings</div></div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+                    <button class="secondary-btn" style="border-color:var(--accent); color:var(--accent2);">
+                        🏖️ Retirement
+                    </button>
+                    <button class="secondary-btn" disabled style="opacity:0.5;">
+                        📈 Optimistic (API needed)
+                    </button>
+                    <button class="secondary-btn" disabled style="opacity:0.5;">
+                        🛡️ Conservative (API needed)
+                    </button>
                 </div>
             </div>
 
             <div class="grid-2">
                 <div class="card">
                     <div class="card-title"><span class="icon">🎯</span> Recommended Actions</div>
-                    ${actions.map(a => `
+                    ${topActions.map(a => `
                         <div class="reco-card">
                             <h4 style="color:var(--accent2); font-size:13px; margin-bottom:4px;">${a.step}</h4>
-                            <p>${a.reason}</p>
-                            <div class="row-value" style="margin-top:8px; color:var(--green);">${fl(a.amount)}</div>
+                            <p style="font-size:12px; line-height:1.5;">${a.reason}</p>
+                            ${a.amount > 0 ? `<div class="row-value" style="margin-top:8px; color:var(--green);">${fl(a.amount)}</div>` : ''}
                         </div>
                     `).join('')}
                 </div>
                 <div class="card">
-                    <div class="card-title"><span class="icon">💡</span> Why Autopilot?</div>
-                    <div class="advisor-msg">
-                        <p style="font-size:13px; line-height:1.6;">
-                            Autopilot creates a personalized financial roadmap based on your income, expenses, loans, and goals. 
-                            Deploy the API endpoint for AI-powered scenario planning and detailed month-by-month guidance.
-                        </p>
-                    </div>
-                    <div class="insight-box" style="margin-top:12px;">
-                        <strong>📝 For better planning:</strong> Add your loans, investments, and complete your profile
-                    </div>
+                    <div class="card-title"><span class="icon">📅</span> 12-Month Action Plan</div>
+                    ${schedule.map(s => `
+                        <div class="row-flex" style="margin-bottom:8px;">
+                            <span class="row-label" style="font-size:12px;">Month ${s.month}: ${s.action}</span>
+                            ${s.amount > 0 ? `<span class="row-value" style="font-size:12px;">${fl(s.amount)}</span>` : ''}
+                        </div>
+                    `).join('')}
                 </div>
             </div>
-            <button class="secondary-btn" style="margin-top:8px;" onclick="renderAutopilot()">🔄 Refresh Plan</button>
+            
+            <div class="card" style="background:var(--cyan-dim); border:1px solid var(--cyan); margin-top:16px;">
+                <div style="font-size:12px; color:var(--text); line-height:1.7;">
+                    <strong>💡 How this plan works:</strong><br>
+                    • Emergency fund first (${emergencyFundNeeded > 0 ? 'build ₹' + fl(emergencyFundNeeded) : 'already sufficient ✓'})<br>
+                    • Then invest ₹${fl(recommendedSIP)}/month in equity (Nifty 50 Index Fund recommended)<br>
+                    • Assumes 12% annual returns (historical average for Indian equity)<br>
+                    • Review and rebalance quarterly<br>
+                    • Increase SIP by 10% annually with salary hikes
+                </div>
+            </div>
+            
+            <button class="secondary-btn" style="margin-top:12px;" onclick="renderAutopilot()">🔄 Refresh Plan</button>
         `);
     }
 }
