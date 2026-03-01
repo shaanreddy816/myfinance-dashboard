@@ -43,6 +43,12 @@ export default async function handler(req, res) {
   if (path === 'whatsapp/send')                      return handleWhatsAppSend(req, res);
   if (path === 'whatsapp/test')                      return handleWhatsAppTest(req, res);
   if (path === 'whatsapp/reminders')                 return handleWhatsAppReminders(req, res);
+  
+  // Financial APIs
+  if (path === 'stocks')                             return handleStocks(req, res);
+  if (path === 'mutualfund')                         return handleMutualFund(req, res);
+  if (path === 'gold')                               return handleGold(req, res);
+  if (path === 'news')                               return handleNews(req, res);
 
   // Optional test endpoint – remove in production if desired
   if (path === 'aa/create-consent')                  return handleAaCreateConsent(req, res);
@@ -1512,5 +1518,226 @@ async function handleWhatsAppReminders(req, res) {
       success: false,
       error: error.message
     });
+  }
+}
+
+
+// ========== FINANCIAL APIs ==========
+
+/**
+ * Stock API Handler
+ * GET /api/stocks?symbol=AAPL
+ * GET /api/stocks?symbols=AAPL,MSFT,GOOGL
+ */
+async function handleStocks(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, error: { message: 'Method not allowed', statusCode: 405 } });
+  }
+
+  try {
+    const stockService = require('./services/stockService');
+    const { symbol, symbols } = req.query;
+
+    // Batch request
+    if (symbols) {
+      const symbolArray = symbols.split(',').map(s => s.trim()).filter(Boolean);
+      
+      if (symbolArray.length === 0) {
+        return res.status(400).json({ success: false, error: { message: 'No valid symbols provided', statusCode: 400 } });
+      }
+
+      if (symbolArray.length > 10) {
+        return res.status(400).json({ success: false, error: { message: 'Maximum 10 symbols allowed per request', statusCode: 400 } });
+      }
+
+      const results = await stockService.getMultipleQuotes(symbolArray);
+      return res.status(200).json({ success: true, message: 'Stock quotes fetched successfully', data: results, timestamp: new Date().toISOString() });
+    }
+
+    // Single request
+    if (!symbol) {
+      return res.status(400).json({ success: false, error: { message: 'Symbol parameter is required', statusCode: 400 } });
+    }
+
+    const quote = await stockService.getQuote(symbol);
+    return res.status(200).json({ success: true, message: 'Stock quote fetched successfully', data: quote, timestamp: new Date().toISOString() });
+
+  } catch (err) {
+    console.error('Stock API error:', err);
+
+    // Handle rate limit errors
+    if (err.message.includes('Rate limit')) {
+      return res.status(429).json({ success: false, error: { message: err.message, statusCode: 429, retryAfter: 60 } });
+    }
+
+    // Handle validation errors
+    if (err.message.includes('Invalid')) {
+      return res.status(400).json({ success: false, error: { message: err.message, statusCode: 400 } });
+    }
+
+    // Generic error
+    return res.status(500).json({ success: false, error: { message: err.message || 'Failed to fetch stock data', statusCode: 500 } });
+  }
+}
+
+/**
+ * Mutual Fund API Handler
+ * GET /api/mutualfund?code=119551
+ * GET /api/mutualfund?codes=119551,120503
+ */
+async function handleMutualFund(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, error: { message: 'Method not allowed', statusCode: 405 } });
+  }
+
+  try {
+    const mutualFundService = require('./services/mutualFundService');
+    const { code, codes } = req.query;
+
+    // Batch request
+    if (codes) {
+      const codeArray = codes.split(',').map(c => c.trim()).filter(Boolean);
+      
+      if (codeArray.length === 0) {
+        return res.status(400).json({ success: false, error: { message: 'No valid codes provided', statusCode: 400 } });
+      }
+
+      // Validate all codes are numeric
+      if (!codeArray.every(c => /^\d+$/.test(c))) {
+        return res.status(400).json({ success: false, error: { message: 'All scheme codes must be numeric', statusCode: 400 } });
+      }
+
+      const results = await mutualFundService.getMultipleNAVs(codeArray);
+      return res.status(200).json({ success: true, message: 'Mutual fund NAVs fetched successfully', data: results, timestamp: new Date().toISOString() });
+    }
+
+    // Single request
+    if (!code) {
+      return res.status(400).json({ success: false, error: { message: 'Code parameter is required', statusCode: 400 } });
+    }
+
+    // Validate code is numeric
+    if (!/^\d+$/.test(code)) {
+      return res.status(400).json({ success: false, error: { message: 'Scheme code must be numeric', statusCode: 400 } });
+    }
+
+    const navData = await mutualFundService.getNAV(code);
+    return res.status(200).json({ success: true, message: 'Mutual fund NAV fetched successfully', data: navData, timestamp: new Date().toISOString() });
+
+  } catch (err) {
+    console.error('Mutual Fund API error:', err);
+
+    // Handle validation errors
+    if (err.message.includes('Invalid')) {
+      return res.status(400).json({ success: false, error: { message: err.message, statusCode: 400 } });
+    }
+
+    // Generic error
+    return res.status(500).json({ success: false, error: { message: err.message || 'Failed to fetch mutual fund data', statusCode: 500 } });
+  }
+}
+
+/**
+ * Gold Price API Handler
+ * GET /api/gold
+ * GET /api/gold?grams=10
+ */
+async function handleGold(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, error: { message: 'Method not allowed', statusCode: 405 } });
+  }
+
+  try {
+    const goldService = require('./services/goldService');
+    const { grams } = req.query;
+
+    // Get price for specific weight
+    if (grams) {
+      const weight = parseFloat(grams);
+      
+      if (isNaN(weight) || weight <= 0) {
+        return res.status(400).json({ success: false, error: { message: 'Invalid weight. Must be a positive number.', statusCode: 400 } });
+      }
+
+      if (weight > 10000) {
+        return res.status(400).json({ success: false, error: { message: 'Maximum weight is 10,000 grams', statusCode: 400 } });
+      }
+
+      const priceData = await goldService.getPriceByWeight(weight);
+      return res.status(200).json({ success: true, message: 'Gold price fetched successfully', data: priceData, timestamp: new Date().toISOString() });
+    }
+
+    // Get base price per gram
+    const priceData = await goldService.getPrice();
+    return res.status(200).json({ success: true, message: 'Gold price fetched successfully', data: priceData, timestamp: new Date().toISOString() });
+
+  } catch (err) {
+    console.error('Gold API error:', err);
+
+    // Handle rate limit errors
+    if (err.message.includes('Rate limit')) {
+      return res.status(429).json({ success: false, error: { message: err.message, statusCode: 429, retryAfter: 3600 } });
+    }
+
+    // Handle configuration errors
+    if (err.message.includes('not configured')) {
+      return res.status(503).json({ success: false, error: { message: 'Service temporarily unavailable', statusCode: 503 } });
+    }
+
+    // Generic error
+    return res.status(500).json({ success: false, error: { message: err.message || 'Failed to fetch gold price', statusCode: 500 } });
+  }
+}
+
+/**
+ * News API Handler
+ * GET /api/news?category=general&limit=5
+ * GET /api/news?symbol=AAPL
+ */
+async function handleNews(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, error: { message: 'Method not allowed', statusCode: 405 } });
+  }
+
+  try {
+    const newsService = require('./services/newsService');
+    const { category, limit, symbol } = req.query;
+
+    // Company-specific news
+    if (symbol) {
+      const newsData = await newsService.getCompanyNews(symbol);
+      return res.status(200).json({ success: true, message: 'Company news fetched successfully', data: newsData, timestamp: new Date().toISOString() });
+    }
+
+    // Validate category
+    const validCategories = ['general', 'forex', 'crypto', 'merger'];
+    if (category && !validCategories.includes(category)) {
+      return res.status(400).json({ success: false, error: { message: `Invalid category. Must be one of: ${validCategories.join(', ')}`, statusCode: 400 } });
+    }
+
+    // Validate limit
+    const newsLimit = limit ? parseInt(limit) : 5;
+    if (isNaN(newsLimit) || newsLimit < 1 || newsLimit > 50) {
+      return res.status(400).json({ success: false, error: { message: 'Limit must be between 1 and 50', statusCode: 400 } });
+    }
+
+    const newsData = await newsService.getNews(category || 'general', newsLimit);
+    return res.status(200).json({ success: true, message: 'News fetched successfully', data: newsData, timestamp: new Date().toISOString() });
+
+  } catch (err) {
+    console.error('News API error:', err);
+
+    // Handle rate limit errors
+    if (err.message.includes('Rate limit')) {
+      return res.status(429).json({ success: false, error: { message: err.message, statusCode: 429, retryAfter: 60 } });
+    }
+
+    // Handle configuration errors
+    if (err.message.includes('not configured')) {
+      return res.status(503).json({ success: false, error: { message: 'Service temporarily unavailable', statusCode: 503 } });
+    }
+
+    // Generic error
+    return res.status(500).json({ success: false, error: { message: err.message || 'Failed to fetch news', statusCode: 500 } });
   }
 }
