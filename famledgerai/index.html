@@ -1050,8 +1050,12 @@
                                 WhatsApp Number (Optional)
                             </label>
                             <div style="display:flex; gap:8px;">
-                                <input type="text" id="reg-country-code" value="+91"
-                                       style="width:60px; padding:12px 16px; background:transparent !important; border:1px solid var(--border2); border-radius:var(--radius-sm); color:var(--text); font-size:14px; text-align:center;">
+                                <div style="position:relative; width:80px;">
+                                    <span id="country-flag" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:18px;">🇮🇳</span>
+                                    <input type="text" id="reg-country-code" value="+91"
+                                           oninput="updateCountryFlag(this.value)"
+                                           style="width:80px; padding:12px 12px 12px 40px; background:transparent !important; border:1px solid var(--border2); border-radius:var(--radius-sm); color:var(--text); font-size:14px; text-align:left;">
+                                </div>
                                 <input type="tel" id="reg-whatsapp" pattern="[0-9]{10}" class="ainp"
                                        style="flex:1; margin-bottom:0;">
                             </div>
@@ -1158,38 +1162,131 @@
 
     <!-- Classic Login Screen -->
     <div id="classic-auth" style="display:block;">
-        <div class="auth-bg"></div>
-        <div class="abox">
-            <div style="display:flex;justify-content:center;margin-bottom:-10px;">
-                <lottie-player
-                    src="https://assets2.lottiefiles.com/packages/lf20_06a6pf9i.json"
-                    background="transparent"
-                    speed="1"
-                    style="width:200px;height:200px;"
-                    loop autoplay>
-                </lottie-player>
-            </div>
-            <div class="alogo">
-                <div class="atitle">FamLedger<span>AI</span></div>
-                <p style="font-size:12px; color:var(--text3); margin-top:4px;">Your AI-powered family financial coach</p>
-            </div>
-            <div class="atabs">
-                <button class="atab on" onclick="switchAuth('login')">Sign In</button>
-                <button class="atab" onclick="switchAuth('reg')">Register</button>
-            </div>
-            <div id="aform-login">
-                <div class="creds-notice" id="creds-notice-login">
-                    <strong>⚙️ Setup Required</strong>
-                    Enter your Supabase credentials below or
-                    <button onclick="openCredsModal()" style="background:none;border:none;color:var(--accent2);font-size:12px;cursor:pointer;font-family:var(--font);text-decoration:underline;">click here to configure</button>.
+        <div style="display:flex; min-height:100vh; flex-wrap:wrap; background:linear-gradient(135deg, #0b0f1a 0%, #1a2235 100%);">
+            
+            <!-- Left Panel - Value Proposition -->
+            <div style="flex:1; min-width:300px; padding:60px 40px; display:flex; flex-direction:column; justify-content:center; background:rgba(0,0,0,0.3);">
+                <div style="max-width:500px; margin:0 auto;">
+                    <div style="margin-bottom:40px;">
+                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+                            <div style="font-size:32px;">💰</div>
+                            <div style="font-size:24px; font-weight:800; color:var(--text);">Fam<span style="color:var(--accent);">Ledger</span>AI</div>
+                        </div>
+                        <h1 style="font-size:36px; font-weight:800; color:var(--text); margin-bottom:16px; line-height:1.2;">
+                            Welcome back to your financial command center
+                        </h1>
+                        <p style="font-size:18px; color:var(--text2); line-height:1.6;">
+                            Track, analyze, and optimize your family's finances with AI-powered insights.
+                        </p>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:20px;">
+                        <div style="display:flex; align-items:start; gap:16px;">
+                            <div style="width:32px; height:32px; background:var(--accent-glow); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <span style="font-size:16px;">📊</span>
+                            </div>
+                            <div>
+                                <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:4px;">Real-time Dashboard</div>
+                                <div style="font-size:14px; color:var(--text3);">See all your finances in one place</div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:start; gap:16px;">
+                            <div style="width:32px; height:32px; background:var(--accent-glow); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <span style="font-size:16px;">🤖</span>
+                            </div>
+                            <div>
+                                <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:4px;">AI Financial Advisor</div>
+                                <div style="font-size:14px; color:var(--text3);">Get personalized recommendations</div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:start; gap:16px;">
+                            <div style="width:32px; height:32px; background:var(--accent-glow); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <span style="font-size:16px;">🔔</span>
+                            </div>
+                            <div>
+                                <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:4px;">Smart Reminders</div>
+                                <div style="font-size:14px; color:var(--text3);">Never miss a payment deadline</div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:start; gap:16px;">
+                            <div style="width:32px; height:32px; background:var(--accent-glow); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <span style="font-size:16px;">🔒</span>
+                            </div>
+                            <div>
+                                <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:4px;">Bank-Level Security</div>
+                                <div style="font-size:14px; color:var(--text3);">Your data is encrypted and secure</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <input id="l-em" class="ainp" type="email" placeholder="Email address" autocomplete="email">
-                <div id="l-em-error" style="display:none; color:var(--red); font-size:12px; margin:-8px 0 12px 4px; padding:8px 12px; background:var(--red-dim); border-left:3px solid var(--red); border-radius:4px;"></div>
-                <div style="position:relative;">
-                    <input id="l-pw" class="ainp" type="password" placeholder="Password" autocomplete="current-password" style="padding-right:45px;">
-                    <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('l-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
+            </div>
+
+            <!-- Right Panel - Login Form -->
+            <div style="flex:1; min-width:300px; padding:60px 40px; display:flex; flex-direction:column; justify-content:center; background:transparent;">
+                <div style="max-width:420px; width:100%; margin:0 auto;">
+                    <div style="text-align:center; margin-bottom:32px;">
+                        <lottie-player
+                            src="https://assets2.lottiefiles.com/packages/lf20_06a6pf9i.json"
+                            background="transparent"
+                            speed="1"
+                            style="width:120px;height:120px;margin:0 auto;"
+                            loop autoplay>
+                        </lottie-player>
+                        <h2 style="font-size:28px; font-weight:800; color:var(--text); margin-top:16px;">
+                            Sign in to your account
+                        </h2>
+                        <p style="font-size:14px; color:var(--text2); margin-top:8px;">
+                            Continue managing your finances
+                        </p>
+                    </div>
+
+                    <div class="atabs" style="margin-bottom:24px;">
+                        <button class="atab on" onclick="switchAuth('login')">Sign In</button>
+                        <button class="atab" onclick="switchAuth('reg')">Register</button>
+                    </div>
+
+                    <div id="aform-login">
+                        <div class="creds-notice" id="creds-notice-login" style="margin-bottom:16px;">
+                            <strong>⚙️ Setup Required</strong>
+                            Enter your Supabase credentials below or
+                            <button onclick="openCredsModal()" style="background:none;border:none;color:var(--accent2);font-size:12px;cursor:pointer;font-family:var(--font);text-decoration:underline;">click here to configure</button>.
+                        </div>
+                        
+                        <div style="margin-bottom:16px;">
+                            <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;">
+                                Email address
+                            </label>
+                            <input id="l-em" class="ainp" type="email" autocomplete="email">
+                            <div id="l-em-error" style="display:none; color:var(--red); font-size:12px; margin-top:6px; padding:8px 12px; background:var(--red-dim); border-left:3px solid var(--red); border-radius:4px;"></div>
+                        </div>
+
+                        <div style="margin-bottom:24px;">
+                            <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;">
+                                Password
+                            </label>
+                            <div style="position:relative;">
+                                <input id="l-pw" class="ainp" type="password" autocomplete="current-password" style="padding-right:45px;">
+                                <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('l-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
+                            </div>
+                        </div>
+
+                        <button class="abtn" id="loginBtn" onclick="doLogin()" style="width:100%; padding:14px; font-size:15px; margin-bottom:16px;">
+                            Sign In →
+                        </button>
+
+                        <div style="text-align:center; margin-top:24px; padding-top:24px; border-top:1px solid var(--border);">
+                            <span style="font-size:14px; color:var(--text2);">
+                                Don't have an account? 
+                                <a href="#" onclick="switchAuth('reg'); return false;" style="color:var(--accent); text-decoration:none; font-weight:600;">
+                                    Register now
+                                </a>
+                            </span>
+                        </div>
+                    </div>
                 </div>
-                <button class="abtn" id="loginBtn" onclick="doLogin()">Sign In →</button>
             </div>
         </div>
     </div>
@@ -6164,6 +6261,37 @@ function updateRequirement(id, isValid) {
         if (span) span.textContent = '○';
     }
 }
+
+// Update country flag based on country code
+window.updateCountryFlag = (code) => {
+    const flagElement = document.getElementById('country-flag');
+    if (!flagElement) return;
+    
+    const countryFlags = {
+        '+1': '🇺🇸', '+44': '🇬🇧', '+49': '🇩🇪', '+33': '🇫🇷', '+39': '🇮🇹',
+        '+34': '🇪🇸', '+91': '🇮🇳', '+86': '🇨🇳', '+81': '🇯🇵', '+82': '🇰🇷',
+        '+61': '🇦🇺', '+55': '🇧🇷', '+52': '🇲🇽', '+7': '🇷🇺', '+966': '🇸🇦',
+        '+971': '🇦🇪', '+65': '🇸🇬', '+60': '🇲🇾', '+62': '🇮🇩', '+63': '🇵🇭',
+        '+66': '🇹🇭', '+84': '🇻🇳', '+92': '🇵🇰', '+880': '🇧🇩', '+94': '🇱🇰',
+        '+977': '🇳🇵', '+852': '🇭🇰', '+886': '🇹🇼', '+64': '🇳🇿', '+27': '🇿🇦'
+    };
+    
+    const cleanCode = code.trim();
+    let flag = '🌍';
+    
+    if (countryFlags[cleanCode]) {
+        flag = countryFlags[cleanCode];
+    } else {
+        for (const [countryCode, countryFlag] of Object.entries(countryFlags)) {
+            if (cleanCode.startsWith(countryCode)) {
+                flag = countryFlag;
+                break;
+            }
+        }
+    }
+    
+    flagElement.textContent = flag;
+};
 
 // Handle modern registration form
 window.handleModernRegistration = async () => {
