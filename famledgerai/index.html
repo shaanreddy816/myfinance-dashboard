@@ -6744,38 +6744,151 @@ async function syncPendingOnboardingData() {
             return;
         }
         
-        // Update user metadata with onboarding data
-        const { error: updateError } = await supabase.auth.updateUser({
-            data: {
-                ...onboardingData,
-                onboarding_completed: true,
-                onboarding_date: new Date().toISOString(),
-                synced_from_local: true,
-                synced_at: new Date().toISOString()
-            }
-        });
+        // Convert onboarding data to app's userData structure
+        const convertedData = {
+            profile: {
+                name: onboardingData.name || '',
+                age: onboardingData.age || 0,
+                occupation: onboardingData.occupation || '',
+                city: onboardingData.city || '',
+                gender: onboardingData.gender || '',
+                maritalStatus: onboardingData.marital_status || '',
+                spouseName: onboardingData.spouse_name || '',
+                spouseAge: onboardingData.spouse_age || null,
+                spouseOccupation: onboardingData.spouse_occupation || '',
+                liquidSavings: onboardingData.assets?.cash || 0,
+                termCover: 0,
+                familyMembers: [
+                    { id: 'self', name: onboardingData.name, role: 'self' }
+                ]
+            },
+            income: {
+                husband: onboardingData.monthly_income || 0,
+                wife: onboardingData.spouse_income || 0,
+                rental: onboardingData.rental_income || 0,
+                business: onboardingData.business_income || 0,
+                other: onboardingData.other_income || 0,
+                rentalActive: (onboardingData.rental_income || 0) > 0
+            },
+            expenses: {
+                monthly: [],
+                periodic: [],
+                byMember: {},
+                byMonth: {}
+            },
+            investments: {
+                mutualFunds: [],
+                stocks: [],
+                fd: onboardingData.assets?.fd ? [{ amount: onboardingData.assets.fd, name: 'Fixed Deposit' }] : [],
+                ppf: onboardingData.assets?.retirement ? [{ amount: onboardingData.assets.retirement, name: 'Retirement Fund' }] : []
+            },
+            loans: [],
+            insurance: {
+                term: [],
+                health: [],
+                vehicle: []
+            },
+            schemes: [],
+            bankAccounts: []
+        };
         
-        if (updateError) {
-            console.error('Error syncing onboarding data:', updateError);
+        // Add spouse to family members if exists
+        if (onboardingData.spouse_name) {
+            convertedData.profile.familyMembers.push({
+                id: 'spouse',
+                name: onboardingData.spouse_name,
+                role: 'spouse'
+            });
+        }
+        
+        // Add assets as investments
+        if (onboardingData.assets) {
+            if (onboardingData.assets.investments) {
+                convertedData.investments.stocks.push({
+                    name: 'Investments',
+                    amount: onboardingData.assets.investments
+                });
+            }
+            if (onboardingData.assets.property) {
+                convertedData.profile.propertyValue = onboardingData.assets.property;
+            }
+            if (onboardingData.assets.gold) {
+                convertedData.profile.goldValue = onboardingData.assets.gold;
+            }
+            if (onboardingData.assets.vehicle) {
+                convertedData.profile.vehicleValue = onboardingData.assets.vehicle;
+            }
+        }
+        
+        // Add liabilities as loans
+        if (onboardingData.liabilities) {
+            if (onboardingData.liabilities.home_loan) {
+                convertedData.loans.push({
+                    id: 'home-' + Date.now(),
+                    type: 'home',
+                    name: 'Home Loan',
+                    principal: onboardingData.liabilities.home_loan,
+                    outstanding: onboardingData.liabilities.home_loan,
+                    emi: 0,
+                    rate: 8.5
+                });
+            }
+            if (onboardingData.liabilities.car_loan) {
+                convertedData.loans.push({
+                    id: 'car-' + Date.now(),
+                    type: 'vehicle',
+                    name: 'Car Loan',
+                    principal: onboardingData.liabilities.car_loan,
+                    outstanding: onboardingData.liabilities.car_loan,
+                    emi: 0,
+                    rate: 9.5
+                });
+            }
+            if (onboardingData.liabilities.personal_loan) {
+                convertedData.loans.push({
+                    id: 'personal-' + Date.now(),
+                    type: 'personal',
+                    name: 'Personal Loan',
+                    principal: onboardingData.liabilities.personal_loan,
+                    outstanding: onboardingData.liabilities.personal_loan,
+                    emi: 0,
+                    rate: 12
+                });
+            }
+        }
+        
+        // Save to user_data table
+        const { error: saveError } = await supabase
+            .from('user_data')
+            .upsert({
+                email: user.email,
+                profile: convertedData.profile,
+                income: convertedData.income,
+                expenses: convertedData.expenses,
+                investments: convertedData.investments,
+                loans: convertedData.loans,
+                insurance: convertedData.insurance,
+                schemes: convertedData.schemes,
+                bank_accounts: convertedData.bankAccounts
+            }, { onConflict: 'email' });
+        
+        if (saveError) {
+            console.error('Error saving to user_data:', saveError);
             return;
         }
         
-        // Save to profiles table
-        const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-                user_id: user.id,
+        // Also update user metadata
+        await supabase.auth.updateUser({
+            data: {
                 name: onboardingData.name,
-                age: onboardingData.age,
-                occupation: onboardingData.occupation,
-                city: onboardingData.city,
-                monthly_income: onboardingData.monthly_income,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id' });
+                onboarding_completed: true,
+                onboarding_date: new Date().toISOString(),
+                synced_from_local: true
+            }
+        });
         
-        if (profileError) {
-            console.warn('Profile sync warning:', profileError);
-        }
+        // Update local userData object
+        userData = convertedData;
         
         // Clear pending data
         localStorage.removeItem('pending_onboarding_data');
@@ -6783,6 +6896,11 @@ async function syncPendingOnboardingData() {
         
         console.log('✅ Onboarding data synced successfully!');
         showToast('✅ Your profile data has been synced!', 'green');
+        
+        // Reload the page to show the data
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
         
     } catch (e) {
         console.error('Error syncing pending data:', e);
