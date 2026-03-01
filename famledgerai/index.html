@@ -543,7 +543,10 @@
                 <button onclick="openCredsModal()" style="background:none;border:none;color:var(--accent2);font-size:12px;cursor:pointer;font-family:var(--font);text-decoration:underline;">click here to configure</button>.
             </div>
             <input id="l-em" class="ainp" type="email" placeholder="Email address" autocomplete="email">
-            <input id="l-pw" class="ainp" type="password" placeholder="Password" autocomplete="current-password">
+            <div style="position:relative;">
+                <input id="l-pw" class="ainp" type="password" placeholder="Password" autocomplete="current-password" style="padding-right:45px;">
+                <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('l-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
+            </div>
             <button class="abtn" id="loginBtn" onclick="doLogin()">Sign In →</button>
         </div>
         <div id="aform-reg" style="display:none">
@@ -591,8 +594,15 @@
                     <span class="risk-option" data-risk="high">🚀 High</span>
                 </div>
             </div>
-            <input id="r-pw" class="ainp" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password">
-            <input id="r-pw2" class="ainp" type="password" placeholder="Confirm password" autocomplete="new-password">
+            <input id="r-pw" class="ainp" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password" style="padding-right:45px;">
+            <div style="position:relative;">
+                <input id="r-pw" class="ainp" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password" style="padding-right:45px;">
+                <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('r-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
+            </div>
+            <div style="position:relative;">
+                <input id="r-pw2" class="ainp" type="password" placeholder="Confirm password" autocomplete="new-password" style="padding-right:45px;">
+                <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('r-pw2', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
+            </div>
             <button class="abtn" id="regBtn" onclick="doReg()">Create Account →</button>
         </div>
     </div>
@@ -1995,7 +2005,14 @@ window.doReg = async () => {
         userData = { profile:{ name, age, occupation, incomeRange, goals, risk, spouseName, kids, familyMembers }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
         currentUserEmail = email;
         await saveUserData(email);
-        showApp(); resetInactivity();
+        
+        // Show congratulations message
+        showCongratulationsModal(name);
+        
+        setTimeout(() => {
+            showApp(); 
+            resetInactivity();
+        }, 3000);
     } catch(e) {
         console.error('Registration error:', e);
         alert('Registration failed: ' + (e.message || 'Network error. Check your connection.'));
@@ -2004,6 +2021,96 @@ window.doReg = async () => {
 };
 
 window.doLogout = async () => { await sb.auth.signOut(); showAuth(); };
+
+// ========== PASSWORD VISIBILITY TOGGLE ==========
+window.togglePasswordVisibility = (inputId, iconEl) => {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        iconEl.classList.remove('fa-eye');
+        iconEl.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        iconEl.classList.remove('fa-eye-slash');
+        iconEl.classList.add('fa-eye');
+    }
+};
+
+// ========== CONGRATULATIONS MODAL ==========
+window.showCongratulationsModal = (name) => {
+    const modal = document.createElement('div');
+    modal.id = 'congratsModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease;
+    `;
+    
+    modal.innerHTML = `
+        <div style="
+            background: linear-gradient(135deg, var(--bg2), var(--bg3));
+            border: 2px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(59, 126, 255, 0.3);
+            animation: slideUp 0.5s ease;
+        ">
+            <div style="font-size: 64px; margin-bottom: 20px;">🎉</div>
+            <h2 style="font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 12px;">
+                Congratulations, ${name}!
+            </h2>
+            <p style="font-size: 15px; color: var(--text2); line-height: 1.6; margin-bottom: 20px;">
+                Welcome to FamLedgerAI! 🚀<br>
+                Your journey to financial freedom starts now.
+            </p>
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center; padding: 16px; background: var(--accent-glow); border-radius: var(--radius-sm); margin-top: 20px;">
+                <i class="fas fa-check-circle" style="color: var(--green); font-size: 20px;"></i>
+                <span style="color: var(--text); font-size: 13px; font-weight: 600;">Account created successfully!</span>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        modal.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => modal.remove(), 300);
+    }, 2700);
+};
+
+// Add animations to CSS if not already present
+if (!document.getElementById('congrats-animations')) {
+    const style = document.createElement('style');
+    style.id = 'congrats-animations';
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+}
 
 // ========== NAVIGATION ==========
 const pageTitles    = { overview:'Overview', income:'Income', expenses:'Expenses', investments:'Investments', loans:'Loans', insurance:'Insurance', schemes:'Gov. Schemes', recommendations:'Recommendations', advisor:'AI Advisor', settings:'Settings', nri:'NRI Planner', plan:'Autopilot', family:'Family', accounts: 'Bank Accounts'  };
