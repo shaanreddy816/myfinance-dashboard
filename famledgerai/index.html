@@ -1486,7 +1486,18 @@
                     
                     <div class="form-group">
                         <label class="form-label">Occupation <span class="required">*</span></label>
-                        <input type="text" class="onboarding-input" id="onb-occupation" placeholder="e.g. Software Engineer" required>
+                        <select class="onboarding-input" id="onb-occupation" required onchange="toggleOccupationOther(this, 'onb-occupation-other')">
+                            <option value="">Select Occupation</option>
+                            <option value="salaried">Salaried Employee</option>
+                            <option value="self-employed">Self-Employed / Business Owner</option>
+                            <option value="professional">Professional (Doctor, Lawyer, CA, etc.)</option>
+                            <option value="freelancer">Freelancer / Consultant</option>
+                            <option value="retired">Retired</option>
+                            <option value="homemaker">Homemaker</option>
+                            <option value="student">Student</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <input type="text" class="onboarding-input" id="onb-occupation-other" placeholder="Please specify your occupation" style="display:none; margin-top:8px;">
                         <div class="error-message" id="error-onb-occupation" style="display:none;"></div>
                     </div>
                     
@@ -1539,7 +1550,18 @@
                         
                         <div class="form-group">
                             <label class="form-label">Spouse Occupation</label>
-                            <input type="text" class="onboarding-input" id="onb-spouse-occupation" placeholder="e.g. Teacher">
+                            <select class="onboarding-input" id="onb-spouse-occupation" onchange="toggleOccupationOther(this, 'onb-spouse-occupation-other')">
+                                <option value="">Select Occupation</option>
+                                <option value="salaried">Salaried Employee</option>
+                                <option value="self-employed">Self-Employed / Business Owner</option>
+                                <option value="professional">Professional (Doctor, Lawyer, CA, etc.)</option>
+                                <option value="freelancer">Freelancer / Consultant</option>
+                                <option value="retired">Retired</option>
+                                <option value="homemaker">Homemaker</option>
+                                <option value="student">Student</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <input type="text" class="onboarding-input" id="onb-spouse-occupation-other" placeholder="Please specify spouse's occupation" style="display:none; margin-top:8px;">
                         </div>
                     </div>
                     
@@ -2039,8 +2061,108 @@
                     <h2>💎 Assets & Liabilities</h2>
                     <div class="subtitle">Let's calculate your net worth</div>
                     
-                    <!-- Assets and Liabilities will be added here -->
-                    <div id="assets-liabilities-container"></div>
+                    <!-- Assets Section -->
+                    <div style="margin-top:24px;">
+                        <h3 style="font-size:18px; margin-bottom:16px; color:var(--green); display:flex; align-items:center; gap:8px;">
+                            ✅ Assets (What You Own)
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Cash & Bank Balance</label>
+                            <input type="number" class="onboarding-input asset-input" id="asset-cash" placeholder="Savings, current account" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Fixed Deposits (FD)</label>
+                            <input type="number" class="onboarding-input asset-input" id="asset-fd" placeholder="Total FD value" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Mutual Funds & Stocks</label>
+                            <input type="number" class="onboarding-input asset-input" id="asset-investments" placeholder="Current market value" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">PPF / EPF / NPS</label>
+                            <input type="number" class="onboarding-input asset-input" id="asset-retirement" placeholder="Retirement funds" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Real Estate (Property)</label>
+                            <input type="number" class="onboarding-input asset-input" id="asset-property" placeholder="Current market value" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Gold & Jewelry</label>
+                            <input type="number" class="onboarding-input asset-input" id="asset-gold" placeholder="Estimated value" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Vehicle(s)</label>
+                            <input type="number" class="onboarding-input asset-input" id="asset-vehicle" placeholder="Current market value" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Other Assets</label>
+                            <input type="number" class="onboarding-input asset-input" id="asset-other" placeholder="Any other assets" min="0">
+                        </div>
+                        
+                        <div style="background:var(--green-dim); border:1px solid var(--green); border-radius:var(--radius-sm); padding:16px; margin-top:16px;">
+                            <div style="font-size:12px; color:var(--text3); margin-bottom:6px;">Total Assets</div>
+                            <div style="font-size:28px; font-weight:800; font-family:var(--mono); color:var(--green);" id="total-assets">₹0</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Liabilities Section -->
+                    <div style="margin-top:32px;">
+                        <h3 style="font-size:18px; margin-bottom:16px; color:var(--red); display:flex; align-items:center; gap:8px;">
+                            ❌ Liabilities (What You Owe)
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Home Loan</label>
+                            <input type="number" class="onboarding-input liability-input" id="liability-home-loan" placeholder="Outstanding amount" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Car Loan</label>
+                            <input type="number" class="onboarding-input liability-input" id="liability-car-loan" placeholder="Outstanding amount" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Personal Loan</label>
+                            <input type="number" class="onboarding-input liability-input" id="liability-personal-loan" placeholder="Outstanding amount" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Education Loan</label>
+                            <input type="number" class="onboarding-input liability-input" id="liability-education-loan" placeholder="Outstanding amount" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Credit Card Debt</label>
+                            <input type="number" class="onboarding-input liability-input" id="liability-credit-card" placeholder="Outstanding balance" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Other Debts</label>
+                            <input type="number" class="onboarding-input liability-input" id="liability-other" placeholder="Any other debts" min="0">
+                        </div>
+                        
+                        <div style="background:var(--red-dim); border:1px solid var(--red); border-radius:var(--radius-sm); padding:16px; margin-top:16px;">
+                            <div style="font-size:12px; color:var(--text3); margin-bottom:6px;">Total Liabilities</div>
+                            <div style="font-size:28px; font-weight:800; font-family:var(--mono); color:var(--red);" id="total-liabilities">₹0</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Net Worth Summary -->
+                    <div style="background:var(--bg3); border:2px solid var(--accent); border-radius:var(--radius); padding:24px; margin-top:32px;">
+                        <h3 style="font-size:20px; margin-bottom:16px; color:var(--text); text-align:center;">💰 Your Net Worth</h3>
+                        <div style="text-align:center;">
+                            <div style="font-size:36px; font-weight:800; font-family:var(--mono); color:var(--accent);" id="net-worth">₹0</div>
+                            <div style="font-size:13px; color:var(--text3); margin-top:8px;">Assets - Liabilities = Net Worth</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -11845,6 +11967,78 @@ window.removeParent = (parentId) => {
     const element = document.querySelector(`[data-id="${parentId}"]`);
     if (element) element.remove();
 };
+
+// Toggle occupation "Other" field
+window.toggleOccupationOther = (selectElement, otherId) => {
+    const otherInput = document.getElementById(otherId);
+    if (selectElement.value === 'other') {
+        otherInput.style.display = 'block';
+        otherInput.required = true;
+    } else {
+        otherInput.style.display = 'none';
+        otherInput.required = false;
+        otherInput.value = '';
+    }
+};
+
+// Calculate total assets
+window.calculateAssets = () => {
+    const assetInputs = document.querySelectorAll('.asset-input');
+    let total = 0;
+    assetInputs.forEach(input => {
+        const value = parseFloat(input.value) || 0;
+        total += value;
+    });
+    document.getElementById('total-assets').textContent = '₹' + total.toLocaleString('en-IN');
+    calculateNetWorth();
+};
+
+// Calculate total liabilities
+window.calculateLiabilities = () => {
+    const liabilityInputs = document.querySelectorAll('.liability-input');
+    let total = 0;
+    liabilityInputs.forEach(input => {
+        const value = parseFloat(input.value) || 0;
+        total += value;
+    });
+    document.getElementById('total-liabilities').textContent = '₹' + total.toLocaleString('en-IN');
+    calculateNetWorth();
+};
+
+// Calculate net worth
+window.calculateNetWorth = () => {
+    const assetInputs = document.querySelectorAll('.asset-input');
+    const liabilityInputs = document.querySelectorAll('.liability-input');
+    
+    let totalAssets = 0;
+    assetInputs.forEach(input => {
+        totalAssets += parseFloat(input.value) || 0;
+    });
+    
+    let totalLiabilities = 0;
+    liabilityInputs.forEach(input => {
+        totalLiabilities += parseFloat(input.value) || 0;
+    });
+    
+    const netWorth = totalAssets - totalLiabilities;
+    const netWorthElement = document.getElementById('net-worth');
+    netWorthElement.textContent = '₹' + netWorth.toLocaleString('en-IN');
+    netWorthElement.style.color = netWorth >= 0 ? 'var(--green)' : 'var(--red)';
+};
+
+// Initialize asset/liability calculations
+setTimeout(() => {
+    const assetInputs = document.querySelectorAll('.asset-input');
+    const liabilityInputs = document.querySelectorAll('.liability-input');
+    
+    assetInputs.forEach(input => {
+        input.addEventListener('input', calculateAssets);
+    });
+    
+    liabilityInputs.forEach(input => {
+        input.addEventListener('input', calculateLiabilities);
+    });
+}, 1000);
 
 // Goal management functions
 window.addGoal = (goalData = null) => {
