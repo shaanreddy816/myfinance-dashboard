@@ -33,6 +33,10 @@
     { "source": "/api/(.*)", "destination": "/api/[...catchall].js" },
     { "source": "/icon-generator.html", "destination": "/public/icon-generator.html" },
     { "source": "/zerodha-success.html", "destination": "/public/zerodha-success.html" },
+    { "source": "/manifest.json", "destination": "/manifest.json" },
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/icon-192.png", "destination": "/public/icon-192.png" },
+    { "source": "/icon-512.png", "destination": "/public/icon-512.png" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
