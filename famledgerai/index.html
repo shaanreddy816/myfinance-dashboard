@@ -4,6 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>FamLedgerAI – Complete Financial Dashboard</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="AI-powered family finance management with expense tracking, investments, loans, insurance, and NRI planning">
+    <meta name="theme-color" content="#00d9ff">
+    
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FamLedger">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="/icon-192.png">
+    
+    <!-- Android/PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+    
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.8/dist/lottie-player.js"></script>
@@ -5575,6 +5594,24 @@ window.onload = () => {
         }
     });
 };
+
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registered:', reg.scope))
+            .catch(err => console.log('Service Worker registration failed:', err));
+    });
+}
+
+// PWA Install Prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Show install button/banner if you want
+    console.log('PWA install prompt available');
+});
 </script>
 </body>
 </html>

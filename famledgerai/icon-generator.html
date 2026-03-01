@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FamLedger Icon Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0b0f1a;
+            color: #e8edf5;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+        h1 {
+            color: #00d9ff;
+            margin-bottom: 10px;
+        }
+        .instructions {
+            background: #1a2235;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+        .canvas-container {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .icon-preview {
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #00d9ff;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 217, 255, 0.3);
+        }
+        .controls {
+            background: #1a2235;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 100%;
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #8899b4;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: #0b0f1a;
+            border: 1px solid #243552;
+            border-radius: 8px;
+            color: #e8edf5;
+            font-size: 16px;
+        }
+        button {
+            background: linear-gradient(135deg, #00d9ff, #3b7eff);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .size-label {
+            color: #00d9ff;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .note {
+            background: rgba(0, 217, 255, 0.1);
+            border-left: 3px solid #00d9ff;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 FamLedger Icon Generator</h1>
+    
+    <div class="instructions">
+        <h3 style="color: #00d9ff; margin-bottom: 10px;">📋 Instructions:</h3>
+        <ol style="padding-left: 20px;">
+            <li>Customize your icon using the controls below</li>
+            <li>Click "Download 192x192" and "Download 512x512" buttons</li>
+            <li>Save as <code>icon-192.png</code> and <code>icon-512.png</code></li>
+            <li>Place files in <code>famledgerai/public/</code> folder</li>
+            <li>Deploy and test!</li>
+        </ol>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Icon Text</label>
+            <input type="text" id="iconText" value="FL" maxlength="3">
+        </div>
+        
+        <div class="control-group">
+            <label>Text Color</label>
+            <input type="color" id="textColor" value="#00d9ff">
+        </div>
+        
+        <div class="control-group">
+            <label>Background Color</label>
+            <input type="color" id="bgColor" value="#0b0f1a">
+        </div>
+        
+        <div class="control-group">
+            <label>Icon Style</label>
+            <select id="iconStyle">
+                <option value="text">Text Only</option>
+                <option value="rupee">Rupee Symbol (₹)</option>
+                <option value="both">Text + Symbol</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Font Weight</label>
+            <select id="fontWeight">
+                <option value="600">Semi-Bold</option>
+                <option value="700">Bold</option>
+                <option value="800" selected>Extra Bold</option>
+                <option value="900">Black</option>
+            </select>
+        </div>
+        
+        <button onclick="updateIcons()">🔄 Update Preview</button>
+    </div>
+
+    <div class="canvas-container">
+        <div class="icon-preview">
+            <canvas id="canvas192" width="192" height="192"></canvas>
+            <div class="size-label">192 x 192</div>
+            <button onclick="downloadIcon(192)">⬇️ Download 192x192</button>
+        </div>
+        
+        <div class="icon-preview">
+            <canvas id="canvas512" width="512" height="512"></canvas>
+            <div class="size-label">512 x 512</div>
+            <button onclick="downloadIcon(512)">⬇️ Download 512x512</button>
+        </div>
+    </div>
+
+    <div class="note">
+        <strong>💡 Pro Tip:</strong> After downloading, rename files to:<br>
+        • <code>icon-192.png</code> (for 192x192 file)<br>
+        • <code>icon-512.png</code> (for 512x512 file)<br>
+        Then place them in <code>famledgerai/public/</code> folder
+    </div>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const text = document.getElementById('iconText').value || 'FL';
+            const textColor = document.getElementById('textColor').value;
+            const bgColor = document.getElementById('bgColor').value;
+            const style = document.getElementById('iconStyle').value;
+            const fontWeight = document.getElementById('fontWeight').value;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Draw background with gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, bgColor);
+            gradient.addColorStop(1, adjustColor(bgColor, 20));
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Add subtle border
+            ctx.strokeStyle = textColor;
+            ctx.lineWidth = size * 0.02;
+            ctx.strokeRect(size * 0.05, size * 0.05, size * 0.9, size * 0.9);
+            
+            // Set text properties
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Draw based on style
+            if (style === 'text') {
+                ctx.font = `${fontWeight} ${size * 0.4}px Arial, sans-serif`;
+                ctx.fillText(text, size / 2, size / 2);
+            } else if (style === 'rupee') {
+                ctx.font = `${fontWeight} ${size * 0.5}px Arial, sans-serif`;
+                ctx.fillText('₹', size / 2, size / 2);
+            } else if (style === 'both') {
+                ctx.font = `${fontWeight} ${size * 0.25}px Arial, sans-serif`;
+                ctx.fillText('₹', size / 2, size * 0.35);
+                ctx.font = `${fontWeight} ${size * 0.3}px Arial, sans-serif`;
+                ctx.fillText(text, size / 2, size * 0.65);
+            }
+            
+            // Add glow effect
+            ctx.shadowColor = textColor;
+            ctx.shadowBlur = size * 0.05;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+        }
+        
+        function adjustColor(color, amount) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+            const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+            const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+            return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+        }
+        
+        function updateIcons() {
+            drawIcon(document.getElementById('canvas192'), 192);
+            drawIcon(document.getElementById('canvas512'), 512);
+        }
+        
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const link = document.createElement('a');
+            link.download = `famledger-icon-${size}x${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Auto-update on input change
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('change', updateIcons);
+            el.addEventListener('input', updateIcons);
+        });
+        
+        // Initial draw
+        updateIcons();
+    </script>
+</body>
+</html>
