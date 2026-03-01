@@ -12654,6 +12654,7 @@ async function completeOnboarding() {
         const onboardingData = collectOnboardingData();
         
         const userId = session.user.id;
+        const userEmail = session.user.email;
         
         // Update user metadata
         const { error: updateError } = await supabase.auth.updateUser({
@@ -12666,22 +12667,18 @@ async function completeOnboarding() {
         
         if (updateError) throw updateError;
         
-        // Create initial profile in profiles table if it doesn't exist
-        const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-                user_id: userId,
-                name: onboardingData.name,
-                age: onboardingData.age,
-                occupation: onboardingData.occupation,
-                city: onboardingData.city,
-                monthly_income: onboardingData.monthly_income,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id' });
+        // Build family members array
+        const familyMembers = [{ id: 'self', name: onboardingData.name || 'Me', role: 'self' }];
+        if (onboardingData.spouse_name) {
+            familyMembers.push({ id: 'spouse', name: onboardingData.spouse_name, role: 'spouse' });
+        }
+        if (onboardingData.kids && onboardingData.kids.length > 0) {
+            onboardingData.kids.forEach((kid, i) => {
+                if (kid) familyMembers.push({ id: `kid-${i+1}`, name: kid, role: 'kid' });
+            });
+        }
         
-        if (profileError) console.warn('Profile update warning:', profileError);
-        
-        // Save Phase 3 expenses as recurring expenses
+        // Collect expenses from Phase 3
         const expenseCategories = [
             { id: 'exp-rent', name: 'Rent/EMI', category: 'housing' },
             { id: 'exp-utilities', name: 'Utilities', category: 'housing' },
@@ -12709,24 +12706,92 @@ async function completeOnboarding() {
             { id: 'exp-charity', name: 'Charity', category: 'miscellaneous' }
         ];
         
-        const recurringExpenses = [];
+        const monthlyExpenses = [];
         expenseCategories.forEach(exp => {
             const amount = parseFloat(document.getElementById(exp.id)?.value);
             if (amount && amount > 0) {
-                recurringExpenses.push({
-                    user_id: userId,
-                    name: exp.name,
-                    amount: amount,
+                monthlyExpenses.push({
+                    label: exp.name,
+                    v: amount,
                     category: exp.category,
-                    frequency: 'monthly',
-                    next_due_date: new Date(new Date().setDate(1)).toISOString().split('T')[0], // 1st of current month
-                    is_active: true,
-                    created_at: new Date().toISOString()
+                    member: 'self'
                 });
             }
         });
         
-        // Insert recurring expenses if any
+        // Build complete user_data structure
+        const userData = {
+            email: userEmail,
+            profile: {
+                name: onboardingData.name || '',
+                age: onboardingData.age || null,
+                occupation: onboardingData.occupation || '',
+                city: onboardingData.city || '',
+                gender: onboardingData.gender || '',
+                maritalStatus: onboardingData.spouse_name ? 'married' : 'single',
+                spouseName: onboardingData.spouse_name || '',
+                kids: onboardingData.kids || [],
+                whatsapp_number: onboardingData.whatsapp_number || '',
+                liquidSavings: onboardingData.liquid_savings || 0,
+                termCover: 0,
+                familyMembers: familyMembers,
+                goals: [],
+                risk: 'moderate',
+                incomeRange: '',
+                memberProfiles: {}
+            },
+            income: {
+                husband: onboardingData.monthly_income || 0,
+                wife: onboardingData.spouse_income || 0,
+                rental: 0,
+                business: 0,
+                other: 0,
+                rentalActive: false
+            },
+            expenses: {
+                monthly: monthlyExpenses,
+                periodic: [],
+                byMember: {},
+                byMonth: {}
+            },
+            investments: {
+                mutualFunds: [],
+                stocks: [],
+                fd: [],
+                ppf: []
+            },
+            loans: [],
+            insurance: {
+                term: [],
+                health: [],
+                vehicle: []
+            },
+            schemes: [],
+            bank_accounts: []
+        };
+        
+        // Save to user_data table (main data store)
+        const { error: userDataError } = await supabase
+            .from('user_data')
+            .upsert(userData, { onConflict: 'email' });
+        
+        if (userDataError) {
+            console.error('user_data save error:', userDataError);
+            throw userDataError;
+        }
+        
+        // Also save to recurring_expenses table for reminders
+        const recurringExpenses = monthlyExpenses.map(exp => ({
+            user_id: userId,
+            name: exp.label,
+            amount: exp.v,
+            category: exp.category,
+            frequency: 'monthly',
+            next_due_date: new Date(new Date().setDate(1)).toISOString().split('T')[0],
+            is_active: true,
+            created_at: new Date().toISOString()
+        }));
+        
         if (recurringExpenses.length > 0) {
             const { error: expError } = await supabase
                 .from('recurring_expenses')
