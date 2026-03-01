@@ -4183,6 +4183,58 @@ window.doReg = async () => {
         currentUserEmail = email;
         await saveUserData(email);
         
+        // Pre-populate onboarding data with registration info
+        onboardingState.data.basicInfo = {
+            name: name,
+            age: age,
+            gender: '', // Not collected in registration
+            maritalStatus: spouseName ? 'married' : 'single',
+            occupation: occupation,
+            city: '', // Not collected in registration
+            cityTier: 3,
+            spouse: spouseName ? {
+                name: spouseName,
+                age: null,
+                occupation: ''
+            } : null,
+            children: kids.map((kidName, index) => ({
+                name: kidName,
+                age: null,
+                grade: ''
+            })),
+            parents: []
+        };
+        
+        // Pre-populate goals from registration
+        if (goals && goals.length > 0) {
+            onboardingState.data.goals = goals.map(goalType => {
+                const goalTemplates = {
+                    'retirement': { name: 'Retirement Fund', amount: 10000000, timeline: 20, priority: 'high' },
+                    'child-education': { name: 'Children Education', amount: 2000000, timeline: 10, priority: 'high' },
+                    'home': { name: 'Home Purchase', amount: 5000000, timeline: 7, priority: 'high' },
+                    'car': { name: 'Car Purchase', amount: 1000000, timeline: 3, priority: 'medium' },
+                    'emergency': { name: 'Emergency Fund', amount: 500000, timeline: 1, priority: 'high' },
+                    'vacation': { name: 'Dream Vacation', amount: 300000, timeline: 2, priority: 'low' }
+                };
+                const template = goalTemplates[goalType] || { name: goalType, amount: 1000000, timeline: 5, priority: 'medium' };
+                return {
+                    id: 'goal-' + Date.now() + '-' + Math.random(),
+                    name: template.name,
+                    targetAmount: template.amount,
+                    timeline: template.timeline,
+                    priority: template.priority,
+                    category: template.timeline < 3 ? 'short' : template.timeline <= 7 ? 'medium' : 'long'
+                };
+            });
+        }
+        
+        // Save pre-populated data to localStorage
+        try {
+            localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(onboardingState));
+        } catch (e) {
+            console.error('Error saving onboarding data:', e);
+        }
+        
         // Show congratulations message
         showCongratulationsModal(name);
         
