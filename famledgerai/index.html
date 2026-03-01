@@ -749,15 +749,20 @@
             background: var(--red-dim);
             border: 1px solid var(--red);
             border-radius: var(--radius-sm);
-            padding: 6px 12px;
+            padding: 8px 10px;
             color: var(--red);
-            font-size: 12px;
+            font-size: 14px;
             cursor: pointer;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
         }
         .dynamic-group .remove-btn:hover {
             background: var(--red);
             color: white;
+            transform: scale(1.05);
         }
         
         /* Goal Template Buttons */
@@ -11980,7 +11985,9 @@ window.addChild = () => {
     
     const html = `
         <div class="dynamic-group" data-id="${childId}">
-            <button type="button" class="remove-btn" onclick="removeChild('${childId}')">Remove</button>
+            <button type="button" class="remove-btn" onclick="removeChild('${childId}')" title="Remove child">
+                <i class="fas fa-trash-alt"></i>
+            </button>
             <div class="form-group">
                 <label class="form-label">Child ${count} Name</label>
                 <input type="text" class="onboarding-input" data-field="name" placeholder="Child's name">
@@ -12010,7 +12017,9 @@ window.addParent = () => {
     
     const html = `
         <div class="dynamic-group" data-id="${parentId}">
-            <button type="button" class="remove-btn" onclick="removeParent('${parentId}')">Remove</button>
+            <button type="button" class="remove-btn" onclick="removeParent('${parentId}')" title="Remove parent">
+                <i class="fas fa-trash-alt"></i>
+            </button>
             <div class="form-group">
                 <label class="form-label">Parent ${count} Name</label>
                 <input type="text" class="onboarding-input" data-field="name" placeholder="Parent's name">
@@ -12123,7 +12132,9 @@ window.addGoal = (goalData = null) => {
     
     const html = `
         <div class="goal-card" data-id="${goalId}">
-            <button type="button" class="remove-btn" onclick="removeGoal('${goalId}')">Remove</button>
+            <button type="button" class="remove-btn" onclick="removeGoal('${goalId}')" title="Remove goal">
+                <i class="fas fa-trash-alt"></i>
+            </button>
             <div class="goal-category-badge" data-category="medium">Medium-term</div>
             <div class="form-group">
                 <label class="form-label">Goal Name</label>
