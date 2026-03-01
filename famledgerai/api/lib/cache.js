@@ -62,4 +62,4 @@ const cache = new CacheService();
 // Cleanup every 10 minutes
 setInterval(() => cache.cleanup(), 10 * 60 * 1000);
 
-module.exports = cache;
+export default cache;

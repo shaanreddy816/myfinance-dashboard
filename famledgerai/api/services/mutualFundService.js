@@ -4,7 +4,7 @@
  * No rate limits documented, but we cache to be respectful
  */
 
-const cache = require('../lib/cache');
+import cache from '../lib/cache.js';
 
 class MutualFundService {
     constructor() {
@@ -115,4 +115,4 @@ class MutualFundService {
     }
 }
 
-module.exports = new MutualFundService();
+export default new MutualFundService();

@@ -57,4 +57,4 @@ class RateLimiter {
 // Singleton instance
 const rateLimiter = new RateLimiter();
 
-module.exports = rateLimiter;
+export default rateLimiter;

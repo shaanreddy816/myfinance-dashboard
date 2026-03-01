@@ -4,8 +4,8 @@
  * Alternative: Use goldapi.io or commodities-api.com
  */
 
-const cache = require('../lib/cache');
-const rateLimiter = require('../lib/rateLimit');
+import cache from '../lib/cache.js';
+import rateLimiter from '../lib/rateLimit.js';
 
 class GoldService {
     constructor() {
@@ -91,4 +91,4 @@ class GoldService {
     }
 }
 
-module.exports = new GoldService();
+export default new GoldService();

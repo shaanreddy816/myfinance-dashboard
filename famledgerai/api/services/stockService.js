@@ -4,8 +4,8 @@
  * Free tier: 5 API calls per minute, 500 per day
  */
 
-const cache = require('../lib/cache');
-const rateLimiter = require('../lib/rateLimit');
+import cache from '../lib/cache.js';
+import rateLimiter from '../lib/rateLimit.js';
 
 class StockService {
     constructor() {
@@ -105,4 +105,4 @@ class StockService {
     }
 }
 
-module.exports = new StockService();
+export default new StockService();

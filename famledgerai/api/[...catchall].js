@@ -1535,7 +1535,7 @@ async function handleStocks(req, res) {
   }
 
   try {
-    const stockService = require('./services/stockService');
+    const { default: stockService } = await import('./services/stockService.js');
     const { symbol, symbols } = req.query;
 
     // Batch request
@@ -1591,7 +1591,7 @@ async function handleMutualFund(req, res) {
   }
 
   try {
-    const mutualFundService = require('./services/mutualFundService');
+    const { default: mutualFundService } = await import('./services/mutualFundService.js');
     const { code, codes } = req.query;
 
     // Batch request
@@ -1648,7 +1648,7 @@ async function handleGold(req, res) {
   }
 
   try {
-    const goldService = require('./services/goldService');
+    const { default: goldService } = await import('./services/goldService.js');
     const { grams } = req.query;
 
     // Get price for specific weight
@@ -1700,7 +1700,7 @@ async function handleNews(req, res) {
   }
 
   try {
-    const newsService = require('./services/newsService');
+    const { default: newsService } = await import('./services/newsService.js');
     const { category, limit, symbol } = req.query;
 
     // Company-specific news

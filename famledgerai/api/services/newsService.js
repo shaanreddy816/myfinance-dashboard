@@ -3,8 +3,8 @@
  * Fetches news from Finnhub API (Free tier: 60 calls/minute)
  */
 
-const cache = require('../lib/cache');
-const rateLimiter = require('../lib/rateLimit');
+import cache from '../lib/cache.js';
+import rateLimiter from '../lib/rateLimit.js';
 
 class NewsService {
     constructor() {
@@ -148,4 +148,4 @@ class NewsService {
     }
 }
 
-module.exports = new NewsService();
+export default new NewsService();
