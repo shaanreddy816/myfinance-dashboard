@@ -2059,15 +2059,73 @@ async function renderAutopilot() {
 
     } catch (e) {
         console.error('Autopilot error:', e);
+        
+        // Fallback: Generate basic plan client-side
+        const age = userData.profile.age || 30;
+        const yearsToRetire = Math.max(60 - age, 0);
+        const monthlyIncome = computeMonthlyIncome();
+        const monthlyExpenses = computeMonthlyExpenses();
+        const monthlySavings = monthlyIncome - monthlyExpenses;
+        
+        // Simple projection assuming 12% returns
+        const monthsToRetire = yearsToRetire * 12;
+        const futureValue = monthlySavings * ((Math.pow(1.01, monthsToRetire) - 1) / 0.01);
+        const retirementCorpus = Math.round(futureValue);
+        
+        const actions = [
+            { step: 'Build Emergency Fund', reason: 'Ensure 6 months of expenses in liquid savings', amount: monthlyExpenses * 6 },
+            { step: 'Start Monthly SIP', reason: 'Invest in diversified equity funds for long-term growth', amount: monthlySavings * 0.6 },
+            { step: 'Increase Insurance', reason: 'Get term insurance of 10-15x annual income', amount: monthlyIncome * 12 * 10 }
+        ];
+        
         sh('page-plan', `
-            <div class="card">
-                <p style="color:var(--red); margin-bottom:12px;">⚠️ Autopilot error: ${e.message}</p>
-                <p style="color:var(--text3); font-size:13px; margin-bottom:12px; line-height:1.6;">
-                    Make sure your profile, loans, and investments are set up.
-                    The <code style="font-family:var(--mono);">/api/autopilot/plan</code> endpoint must be running.
+            <div class="card" style="background:var(--bg2); border:1px solid var(--yellow); padding:16px; margin-bottom:16px;">
+                <p style="color:var(--yellow); font-size:13px;">
+                    ℹ️ Using client-side projections. For AI-powered planning, deploy the <code>/api/autopilot/plan</code> endpoint.
                 </p>
-                <button class="secondary-btn" onclick="renderAutopilot()">🔄 Try Again</button>
             </div>
+            
+            <div class="card" style="background:linear-gradient(135deg, var(--bg2), var(--bg3)); border-color:var(--accent); margin-bottom:18px;">
+                <div class="card-title"><span class="icon">🤖</span> Autopilot — Retirement Scenario</div>
+                <div class="advisor-msg">
+                    <p style="font-size:14px; line-height:1.7;">
+                        Based on your age (${age}) and monthly savings (${fl(monthlySavings)}), you can build a retirement corpus 
+                        of approximately ${fl(retirementCorpus)} by age 60. This assumes 12% annual returns and consistent monthly investments.
+                    </p>
+                </div>
+                <div class="grid-4" style="margin-top:16px;">
+                    <div class="kpi-card green"><div class="kpi-label">Projected Corpus</div><div class="kpi-value">${fl(retirementCorpus)}</div><div class="kpi-sub">At retirement</div></div>
+                    <div class="kpi-card"><div class="kpi-label">Years to Retire</div><div class="kpi-value">${yearsToRetire}</div><div class="kpi-sub">Based on age 60</div></div>
+                    <div class="kpi-card ${monthlySavings >= 0 ? 'green' : 'red'}"><div class="kpi-label">Monthly Savings</div><div class="kpi-value">${fl(monthlySavings)}</div><div class="kpi-sub">Available to invest</div></div>
+                    <div class="kpi-card yellow"><div class="kpi-label">AI Confidence</div><div class="kpi-value" style="color:var(--yellow);">Basic</div><div class="kpi-sub">Client-side calc</div></div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title"><span class="icon">🎯</span> Recommended Actions</div>
+                    ${actions.map(a => `
+                        <div class="reco-card">
+                            <h4 style="color:var(--accent2); font-size:13px; margin-bottom:4px;">${a.step}</h4>
+                            <p>${a.reason}</p>
+                            <div class="row-value" style="margin-top:8px; color:var(--green);">${fl(a.amount)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">💡</span> Why Autopilot?</div>
+                    <div class="advisor-msg">
+                        <p style="font-size:13px; line-height:1.6;">
+                            Autopilot creates a personalized financial roadmap based on your income, expenses, loans, and goals. 
+                            Deploy the API endpoint for AI-powered scenario planning and detailed month-by-month guidance.
+                        </p>
+                    </div>
+                    <div class="insight-box" style="margin-top:12px;">
+                        <strong>📝 For better planning:</strong> Add your loans, investments, and complete your profile
+                    </div>
+                </div>
+            </div>
+            <button class="secondary-btn" style="margin-top:8px;" onclick="renderAutopilot()">🔄 Refresh Plan</button>
         `);
     }
 }
@@ -4774,7 +4832,7 @@ async function renderAdvisor() {
 
     try {
         const res  = await fetch('/api/advice', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(metrics) });
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        if(!res.ok) throw new Error(`API not available - using fallback`);
         const data = await res.json();
         if(data.error) throw new Error(data.error);
 
@@ -4814,11 +4872,63 @@ async function renderAdvisor() {
             </div>
         `);
     } catch(e) {
+        // Fallback: Generate advice client-side
+        const savingsRate = metrics.savingsRate || 0;
+        const emergencyRatio = metrics.emergencyRatio || 0;
+        const debtRatio = metrics.debtRatio || 0;
+        
+        const summary = `Based on your profile, you're saving ${Math.round(savingsRate * 100)}% of your income. ${
+            savingsRate >= 0.2 ? 'Great job!' : 'Consider increasing your savings rate to at least 20%.'
+        } Your emergency fund covers ${Math.round(emergencyRatio)} months of expenses. ${
+            emergencyRatio >= 6 ? 'Excellent!' : 'Aim for 6 months of expenses.'
+        }`;
+        
+        const topActions = [];
+        if (emergencyRatio < 6) topActions.push({ action: 'Build Emergency Fund', reason: `Increase from ${Math.round(emergencyRatio)} to 6 months of expenses` });
+        if (savingsRate < 0.2) topActions.push({ action: 'Increase Savings Rate', reason: 'Target 20-30% of income for long-term wealth' });
+        if (debtRatio > 0.4) topActions.push({ action: 'Reduce Debt', reason: 'High debt ratio - focus on paying down loans' });
+        if (metrics.totalInvested < 100000) topActions.push({ action: 'Start Investing', reason: 'Begin with ₹5K-10K monthly SIP in index funds' });
+        
+        const plan7Days = [
+            'Review your monthly expenses and identify 3 areas to cut costs',
+            'Open a high-interest savings account for emergency fund',
+            'Research top-rated mutual funds or index funds'
+        ];
+        
+        const plan30Days = [
+            `Transfer ₹${fl(metrics.monthlyIncome * 0.1)} to emergency fund`,
+            'Start a monthly SIP of ₹5,000-10,000',
+            'Review and optimize insurance coverage',
+            'Set up automatic savings transfers'
+        ];
+        
         sh('page-advisor', `
-            <div class="card">
-                <p style="color:var(--red); margin-bottom:12px;">⚠️ Could not load AI advice: ${e.message}</p>
-                <p style="color:var(--text3); font-size:13px;">Make sure your <code style="font-family:var(--mono); background:var(--bg3); padding:1px 4px; border-radius:3px;">/api/advice</code> serverless endpoint is deployed and running.</p>
-                <button class="secondary-btn" style="margin-top:12px;" onclick="renderAdvisor()">Try Again</button>
+            <div class="card" style="background:var(--bg2); border:1px solid var(--yellow); padding:16px; margin-bottom:16px;">
+                <p style="color:var(--yellow); font-size:13px;">
+                    ℹ️ Using client-side analysis. For AI-powered advice, deploy the <code>/api/advice</code> endpoint.
+                </p>
+            </div>
+            
+            <div class="card" style="background:linear-gradient(135deg, var(--bg2), var(--bg3)); border-color:var(--accent);">
+                <div class="card-title"><span class="icon">🤖</span> Financial Coach</div>
+                <div class="advisor-msg">
+                    <h4>📊 Summary</h4>
+                    <p style="white-space:pre-wrap;">${summary}</p>
+                </div>
+                <div class="advisor-msg">
+                    <h4>🎯 Top Actions</h4>
+                    <ul>${topActions.map(a=>`<li><strong>${a.action}</strong> — ${a.reason}</li>`).join('')}</ul>
+                </div>
+                <div class="advisor-msg">
+                    <h4>📅 7-Day Plan</h4>
+                    <ul>${plan7Days.map(p=>`<li>${p}</li>`).join('')}</ul>
+                </div>
+                <div class="advisor-msg">
+                    <h4>📆 30-Day Plan</h4>
+                    <ul>${plan30Days.map(p=>`<li>${p}</li>`).join('')}</ul>
+                </div>
+                <p style="font-size:11px; color:var(--text3); margin-top:12px;">This advice is based on your current financial data and general best practices.</p>
+                <button class="secondary-btn" style="margin-top:12px;" onclick="renderAdvisor()">🔄 Refresh Advice</button>
             </div>
             
             <div class="card">
