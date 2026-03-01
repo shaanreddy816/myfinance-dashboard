@@ -31,7 +31,8 @@
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/[...catchall].js" },
-    { "source": "/icon-generator.html", "destination": "/icon-generator.html" },
+    { "source": "/icon-generator.html", "destination": "/public/icon-generator.html" },
+    { "source": "/zerodha-success.html", "destination": "/public/zerodha-success.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
