@@ -5647,6 +5647,119 @@ function showToast(msg, type='green') {
     setTimeout(()=>t.remove(), 3000);
 }
 
+// ========== VALIDATION HELPERS ==========
+function validateAmount(amount, fieldName = 'Amount') {
+    if (!amount && amount !== 0) {
+        showToast(`${fieldName} is required`, 'red');
+        return false;
+    }
+    const num = parseFloat(amount);
+    if (isNaN(num)) {
+        showToast(`${fieldName} must be a valid number`, 'red');
+        return false;
+    }
+    if (num < 0) {
+        showToast(`${fieldName} cannot be negative`, 'red');
+        return false;
+    }
+    if (num > 10000000000) { // 1000 Crores
+        showToast(`${fieldName} seems unusually large. Please verify.`, 'yellow');
+    }
+    return true;
+}
+
+function validateDate(date, fieldName = 'Date', allowFuture = false) {
+    if (!date) {
+        showToast(`${fieldName} is required`, 'red');
+        return false;
+    }
+    const d = new Date(date);
+    if (isNaN(d.getTime())) {
+        showToast(`${fieldName} is invalid`, 'red');
+        return false;
+    }
+    if (!allowFuture && d > new Date()) {
+        showToast(`${fieldName} cannot be in the future`, 'red');
+        return false;
+    }
+    return true;
+}
+
+function validateEmail(email) {
+    if (!email) {
+        showToast('Email is required', 'red');
+        return false;
+    }
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!re.test(email)) {
+        showToast('Please enter a valid email address', 'red');
+        return false;
+    }
+    return true;
+}
+
+function validateRequired(value, fieldName = 'This field') {
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
+        showToast(`${fieldName} is required`, 'red');
+        return false;
+    }
+    return true;
+}
+
+// ========== CONFIRMATION DIALOG ==========
+window.confirmAction = (message, onConfirm, onCancel) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:10000;';
+    modal.innerHTML = `
+        <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; max-width:400px; width:90%;">
+            <h3 style="color:var(--text); margin-bottom:16px; font-size:16px;">Confirm Action</h3>
+            <p style="color:var(--text2); margin-bottom:24px; line-height:1.6;">${message}</p>
+            <div style="display:flex; gap:12px; justify-content:flex-end;">
+                <button class="secondary-btn" id="cancelBtn">Cancel</button>
+                <button class="primary-btn" id="confirmBtn" style="background:var(--red);">Confirm</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    modal.querySelector('#confirmBtn').onclick = () => {
+        modal.remove();
+        if (onConfirm) onConfirm();
+    };
+    modal.querySelector('#cancelBtn').onclick = () => {
+        modal.remove();
+        if (onCancel) onCancel();
+    };
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.remove();
+            if (onCancel) onCancel();
+        }
+    };
+};
+
+// ========== ERROR MESSAGE HELPER ==========
+function getUserFriendlyError(error) {
+    const errorMap = {
+        'HTTP 404': 'This feature is not available yet',
+        'HTTP 500': 'Something went wrong. Please try again.',
+        'HTTP 401': 'Please log in to continue',
+        'HTTP 403': 'You don\'t have permission to do this',
+        'Network request failed': 'Please check your internet connection',
+        'Failed to fetch': 'Cannot connect to server. Please check your connection.',
+        'API error': 'Service temporarily unavailable',
+    };
+    
+    const errorStr = error.message || error.toString();
+    for (const [key, value] of Object.entries(errorMap)) {
+        if (errorStr.includes(key)) {
+            return value;
+        }
+    }
+    
+    return errorStr || 'An unexpected error occurred';
+}
+
 window.openCredsModal  = () => { $('credsModal').style.display='flex'; };
 window.closeCredsModal = () => { $('credsModal').style.display='none'; };
 window.saveCredsAndReload = () => {
