@@ -12188,15 +12188,158 @@ window.toggleHousingType = () => {
 
 // Complete onboarding
 async function completeOnboarding() {
-    showToast('Completing your profile...');
+    showToast('Saving your profile...');
     
-    // For now, just transition to the app
-    // Full implementation will be in later tasks
-    setTimeout(() => {
-        document.getElementById('onboarding-wizard').style.display = 'none';
-        showApp();
-        showToast('Welcome to FamLedger AI!');
-    }, 1500);
+    try {
+        // Collect all onboarding data
+        const onboardingData = {
+            // Phase 1: Basic Info
+            name: document.getElementById('onb-name')?.value || '',
+            age: parseInt(document.getElementById('onb-age')?.value) || 0,
+            gender: document.getElementById('onb-gender')?.value || '',
+            marital_status: document.getElementById('onb-marital')?.value || '',
+            occupation: document.getElementById('onb-occupation')?.value === 'other' 
+                ? document.getElementById('onb-occupation-other')?.value 
+                : document.getElementById('onb-occupation')?.value || '',
+            city: document.getElementById('onb-city')?.value || '',
+            
+            // Spouse info
+            spouse_name: document.getElementById('onb-spouse-name')?.value || null,
+            spouse_age: parseInt(document.getElementById('onb-spouse-age')?.value) || null,
+            spouse_occupation: document.getElementById('onb-spouse-occupation')?.value === 'other'
+                ? document.getElementById('onb-spouse-occupation-other')?.value
+                : document.getElementById('onb-spouse-occupation')?.value || null,
+            
+            // Phase 2: Income
+            monthly_income: parseFloat(document.getElementById('income-salary')?.value) || 0,
+            spouse_income: parseFloat(document.getElementById('income-spouse')?.value) || 0,
+            rental_income: parseFloat(document.getElementById('income-rental')?.value) || 0,
+            business_income: parseFloat(document.getElementById('income-business')?.value) || 0,
+            other_income: parseFloat(document.getElementById('income-other')?.value) || 0,
+            
+            // Phase 4: Assets & Liabilities
+            assets: {
+                cash: parseFloat(document.getElementById('asset-cash')?.value) || 0,
+                fd: parseFloat(document.getElementById('asset-fd')?.value) || 0,
+                investments: parseFloat(document.getElementById('asset-investments')?.value) || 0,
+                retirement: parseFloat(document.getElementById('asset-retirement')?.value) || 0,
+                property: parseFloat(document.getElementById('asset-property')?.value) || 0,
+                gold: parseFloat(document.getElementById('asset-gold')?.value) || 0,
+                vehicle: parseFloat(document.getElementById('asset-vehicle')?.value) || 0,
+                other: parseFloat(document.getElementById('asset-other')?.value) || 0
+            },
+            liabilities: {
+                home_loan: parseFloat(document.getElementById('liability-home-loan')?.value) || 0,
+                car_loan: parseFloat(document.getElementById('liability-car-loan')?.value) || 0,
+                personal_loan: parseFloat(document.getElementById('liability-personal-loan')?.value) || 0,
+                education_loan: parseFloat(document.getElementById('liability-education-loan')?.value) || 0,
+                credit_card: parseFloat(document.getElementById('liability-credit-card')?.value) || 0,
+                other: parseFloat(document.getElementById('liability-other')?.value) || 0
+            }
+        };
+        
+        // Save to user metadata in Supabase
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        
+        const userId = userData.user.id;
+        
+        // Update user metadata
+        const { error: updateError } = await supabase.auth.updateUser({
+            data: {
+                ...onboardingData,
+                onboarding_completed: true,
+                onboarding_date: new Date().toISOString()
+            }
+        });
+        
+        if (updateError) throw updateError;
+        
+        // Create initial profile in profiles table if it doesn't exist
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+                user_id: userId,
+                name: onboardingData.name,
+                age: onboardingData.age,
+                occupation: onboardingData.occupation,
+                city: onboardingData.city,
+                monthly_income: onboardingData.monthly_income,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+        
+        if (profileError) console.warn('Profile update warning:', profileError);
+        
+        // Save Phase 3 expenses as recurring expenses
+        const expenseCategories = [
+            { id: 'exp-rent', name: 'Rent/EMI', category: 'housing' },
+            { id: 'exp-utilities', name: 'Utilities', category: 'housing' },
+            { id: 'exp-maintenance', name: 'Maintenance', category: 'housing' },
+            { id: 'exp-groceries', name: 'Groceries', category: 'food' },
+            { id: 'exp-dining', name: 'Dining Out', category: 'food' },
+            { id: 'exp-fuel', name: 'Fuel/Petrol', category: 'transport' },
+            { id: 'exp-vehicle-maintenance', name: 'Vehicle Maintenance', category: 'transport' },
+            { id: 'exp-public-transport', name: 'Public Transport', category: 'transport' },
+            { id: 'exp-school-fees', name: 'School Fees', category: 'education' },
+            { id: 'exp-tuition', name: 'Tuition', category: 'education' },
+            { id: 'exp-health-insurance', name: 'Health Insurance', category: 'healthcare' },
+            { id: 'exp-medicines', name: 'Medicines', category: 'healthcare' },
+            { id: 'exp-outings', name: 'Outings/Trips', category: 'lifestyle' },
+            { id: 'exp-entertainment', name: 'Entertainment', category: 'lifestyle' },
+            { id: 'exp-shopping', name: 'Shopping', category: 'lifestyle' },
+            { id: 'exp-hobbies', name: 'Hobbies', category: 'lifestyle' },
+            { id: 'exp-sip', name: 'SIP', category: 'investments' },
+            { id: 'exp-ppf', name: 'PPF/EPF', category: 'investments' },
+            { id: 'exp-stocks', name: 'Stocks', category: 'investments' },
+            { id: 'exp-education-fund', name: 'Education Fund', category: 'investments' },
+            { id: 'exp-retirement-fund', name: 'Retirement Fund', category: 'investments' },
+            { id: 'exp-domestic-help', name: 'Domestic Help', category: 'miscellaneous' },
+            { id: 'exp-pets', name: 'Pet Expenses', category: 'miscellaneous' },
+            { id: 'exp-charity', name: 'Charity', category: 'miscellaneous' }
+        ];
+        
+        const recurringExpenses = [];
+        expenseCategories.forEach(exp => {
+            const amount = parseFloat(document.getElementById(exp.id)?.value);
+            if (amount && amount > 0) {
+                recurringExpenses.push({
+                    user_id: userId,
+                    name: exp.name,
+                    amount: amount,
+                    category: exp.category,
+                    frequency: 'monthly',
+                    next_due_date: new Date(new Date().setDate(1)).toISOString().split('T')[0], // 1st of current month
+                    is_active: true,
+                    created_at: new Date().toISOString()
+                });
+            }
+        });
+        
+        // Insert recurring expenses if any
+        if (recurringExpenses.length > 0) {
+            const { error: expError } = await supabase
+                .from('recurring_expenses')
+                .insert(recurringExpenses);
+            
+            if (expError) console.warn('Recurring expenses warning:', expError);
+        }
+        
+        // Mark onboarding as completed
+        localStorage.setItem('onboarding_completed', 'true');
+        
+        // Show success and transition to app
+        showToast('✅ Profile completed successfully!', 'green');
+        
+        setTimeout(() => {
+            document.getElementById('onboarding-wizard').style.display = 'none';
+            showApp();
+            showToast('Welcome to FamLedger AI! 🎉', 'green');
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Onboarding completion error:', error);
+        showToast('❌ Error saving profile. Please try again.', 'red');
+    }
 }
 
 // Check if onboarding is required
