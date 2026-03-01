@@ -6690,6 +6690,10 @@ window.doLogin = async () => {
         }
         currentUserEmail = data.user.email;
         await loadUserData(currentUserEmail);
+        
+        // Check for pending onboarding data and sync it
+        await syncPendingOnboardingData();
+        
         showApp(); resetInactivity();
     } catch(e) {
         console.error('Login error:', e);
@@ -6717,6 +6721,73 @@ window.doLogin = async () => {
         btn.disabled=false;
     }
 };
+
+// Sync pending onboarding data after login
+async function syncPendingOnboardingData() {
+    try {
+        const pendingData = localStorage.getItem('pending_onboarding_data');
+        
+        if (!pendingData) {
+            return; // No pending data to sync
+        }
+        
+        console.log('Found pending onboarding data, syncing to Supabase...');
+        
+        const parsed = JSON.parse(pendingData);
+        const onboardingData = parsed.data;
+        
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+            console.warn('Cannot sync - user not authenticated');
+            return;
+        }
+        
+        // Update user metadata with onboarding data
+        const { error: updateError } = await supabase.auth.updateUser({
+            data: {
+                ...onboardingData,
+                onboarding_completed: true,
+                onboarding_date: new Date().toISOString(),
+                synced_from_local: true,
+                synced_at: new Date().toISOString()
+            }
+        });
+        
+        if (updateError) {
+            console.error('Error syncing onboarding data:', updateError);
+            return;
+        }
+        
+        // Save to profiles table
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+                user_id: user.id,
+                name: onboardingData.name,
+                age: onboardingData.age,
+                occupation: onboardingData.occupation,
+                city: onboardingData.city,
+                monthly_income: onboardingData.monthly_income,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+        
+        if (profileError) {
+            console.warn('Profile sync warning:', profileError);
+        }
+        
+        // Clear pending data
+        localStorage.removeItem('pending_onboarding_data');
+        localStorage.setItem('onboarding_completed', 'true');
+        
+        console.log('✅ Onboarding data synced successfully!');
+        showToast('✅ Your profile data has been synced!', 'green');
+        
+    } catch (e) {
+        console.error('Error syncing pending data:', e);
+    }
+}
 
 window.addKidField = () => {
     const wrap = $('r-kids-wrap');
