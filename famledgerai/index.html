@@ -8061,16 +8061,22 @@ class OnboardingWizard {
                 // Validate each goal card that has been started (has a name)
                 document.querySelectorAll('#goals-list .goal-card').forEach((card, index) => {
                     const name = card.querySelector('[data-field="name"]')?.value?.trim();
-                    const amount = parseFloat(card.querySelector('[data-field="amount"]')?.value);
-                    const timeline = parseInt(card.querySelector('[data-field="timeline"]')?.value);
+                    const amountInput = card.querySelector('[data-field="amount"]');
+                    const timelineInput = card.querySelector('[data-field="timeline"]');
                     
                     // Only validate if user has started filling this goal (has a name)
                     if (name) {
-                        if (!amount || amount < 1000) {
-                            errors.push({ field: 'goals', message: `Goal ${index + 1}: Amount must be at least ₹1,000` });
+                        const amount = parseFloat(amountInput?.value || '0');
+                        const timeline = parseInt(timelineInput?.value || '0');
+                        
+                        // Debug log
+                        console.log(`Goal ${index + 1}: name="${name}", amount=${amount}, timeline=${timeline}`);
+                        
+                        if (isNaN(amount) || amount < 1000) {
+                            errors.push({ field: 'goals', message: `Goal ${index + 1} (${name}): Amount must be at least ₹1,000` });
                         }
-                        if (!timeline || timeline < 1) {
-                            errors.push({ field: 'goals', message: `Goal ${index + 1}: Timeline must be at least 1 year` });
+                        if (isNaN(timeline) || timeline < 1) {
+                            errors.push({ field: 'goals', message: `Goal ${index + 1} (${name}): Timeline must be at least 1 year` });
                         }
                     }
                 });
