@@ -1,9 +1,9 @@
 // api/[...catchall].js
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { callAIWithFallback } from './lib/aiRouter.js';
-import { deterministicProjection } from './lib/deterministic.js';
-import { sendWhatsAppMessage, sendTestMessage, formatConsolidatedReminder, formatIndividualReminder } from './lib/whatsapp.js';
+import { callAIWithFallback } from '../lib/api/aiRouter.js';
+import { deterministicProjection } from '../lib/api/deterministic.js';
+import { sendWhatsAppMessage, sendTestMessage, formatConsolidatedReminder, formatIndividualReminder } from '../lib/api/whatsapp.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -1535,7 +1535,7 @@ async function handleStocks(req, res) {
   }
 
   try {
-    const { default: stockService } = await import('./services/stockService.js');
+    const { default: stockService } = await import('../lib/services/stockService.js');
     const { symbol, symbols } = req.query;
 
     // Batch request
@@ -1591,7 +1591,7 @@ async function handleMutualFund(req, res) {
   }
 
   try {
-    const { default: mutualFundService } = await import('./services/mutualFundService.js');
+    const { default: mutualFundService } = await import('../lib/services/mutualFundService.js');
     const { code, codes } = req.query;
 
     // Batch request
@@ -1648,7 +1648,7 @@ async function handleGold(req, res) {
   }
 
   try {
-    const { default: goldService } = await import('./services/goldService.js');
+    const { default: goldService } = await import('../lib/services/goldService.js');
     const { grams } = req.query;
 
     // Get price for specific weight
@@ -1700,7 +1700,7 @@ async function handleNews(req, res) {
   }
 
   try {
-    const { default: newsService } = await import('./services/newsService.js');
+    const { default: newsService } = await import('../lib/services/newsService.js');
     const { category, limit, symbol } = req.query;
 
     // Company-specific news

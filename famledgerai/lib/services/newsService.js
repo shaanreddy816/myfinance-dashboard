@@ -3,8 +3,8 @@
  * Fetches news from Finnhub API (Free tier: 60 calls/minute)
  */
 
-import cache from '../lib/cache.js';
-import rateLimiter from '../lib/rateLimit.js';
+import cache from '../api/cache.js';
+import rateLimiter from '../api/rateLimit.js';
 
 class NewsService {
     constructor() {

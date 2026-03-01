@@ -4,8 +4,8 @@
  * Free tier: 5 API calls per minute, 500 per day
  */
 
-import cache from '../lib/cache.js';
-import rateLimiter from '../lib/rateLimit.js';
+import cache from '../api/cache.js';
+import rateLimiter from '../api/rateLimit.js';
 
 class StockService {
     constructor() {

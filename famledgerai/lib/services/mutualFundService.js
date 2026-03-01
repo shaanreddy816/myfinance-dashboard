@@ -4,7 +4,7 @@
  * No rate limits documented, but we cache to be respectful
  */
 
-import cache from '../lib/cache.js';
+import cache from '../api/cache.js';
 
 class MutualFundService {
     constructor() {

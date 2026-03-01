@@ -4,8 +4,8 @@
  * Alternative: Use goldapi.io or commodities-api.com
  */
 
-import cache from '../lib/cache.js';
-import rateLimiter from '../lib/rateLimit.js';
+import cache from '../api/cache.js';
+import rateLimiter from '../api/rateLimit.js';
 
 class GoldService {
     constructor() {
