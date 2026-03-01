@@ -65,6 +65,55 @@ Product design, features, concepts, and roadmap documentation for FamLedgerAI.
 
 ---
 
+### [MODERN_REGISTRATION_DESIGN.md](./MODERN_REGISTRATION_DESIGN.md)
+**Purpose**: Modern registration screen design specification  
+**Last Updated**: March 1, 2026  
+**Key Topics**:
+- Split-screen registration UI
+- Password validation
+- WhatsApp number collection
+- Trust indicators
+- Mobile responsive design
+
+---
+
+### [MODERN_REGISTRATION_IMPLEMENTATION.md](./MODERN_REGISTRATION_IMPLEMENTATION.md)
+**Purpose**: Implementation details for modern registration screen  
+**Last Updated**: March 1, 2026  
+**Status**: ✅ Complete  
+**Key Topics**:
+- Technical implementation
+- Functions added/modified
+- Backward compatibility
+- Testing checklist
+- Next steps
+
+---
+
+### [WHATSAPP_INTEGRATION_GUIDE.md](./WHATSAPP_INTEGRATION_GUIDE.md)
+**Purpose**: Guide for integrating WhatsApp reminders using Twilio  
+**Last Updated**: March 1, 2026  
+**Key Topics**:
+- Twilio setup and configuration
+- WhatsApp sandbox testing
+- Cost analysis (₹6-18/year per user)
+- Message templates
+- Implementation code
+
+---
+
+### [SMART_REMINDER_SYSTEM.md](./SMART_REMINDER_SYSTEM.md)
+**Purpose**: Smart reminder system for recurring expenses  
+**Last Updated**: March 1, 2026  
+**Key Topics**:
+- Consolidated monthly reminders
+- Individual expense reminders
+- Critical-only reminders
+- Message frequency optimization
+- User preferences
+
+---
+
 ## 🎯 Design Principles
 
 FamLedgerAI follows these core design principles:

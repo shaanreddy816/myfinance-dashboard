@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { callAIWithFallback } from './lib/aiRouter.js';
 import { deterministicProjection } from './lib/deterministic.js';
+import { sendWhatsAppMessage, sendTestMessage, formatConsolidatedReminder, formatIndividualReminder } from './lib/whatsapp.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -39,6 +40,9 @@ export default async function handler(req, res) {
   if (path === 'integrations/zerodha/holdings')      return handleZerodhaHoldings(req, res);
   if (path === 'integrations/zerodha/mf-holdings')   return handleZerodhaHoldings(req, res);
   if (path === 'integrations/zerodha/mf-sips')       return handleZerodhaMfSips(req, res);
+  if (path === 'whatsapp/send')                      return handleWhatsAppSend(req, res);
+  if (path === 'whatsapp/test')                      return handleWhatsAppTest(req, res);
+  if (path === 'whatsapp/reminders')                 return handleWhatsAppReminders(req, res);
 
   // Optional test endpoint – remove in production if desired
   if (path === 'aa/create-consent')                  return handleAaCreateConsent(req, res);
@@ -1297,4 +1301,216 @@ function generateServerSideFallback(userContext) {
       `⚠️ Fixed deposits (5-7%) will lose real value against ${avgInflation}% inflation`
     ]
   };
+}
+
+
+// ========== WHATSAPP INTEGRATION ==========
+
+/**
+ * Send a WhatsApp message
+ * POST /api/whatsapp/send
+ * Body: { to: "+919876543210", message: "text" }
+ */
+async function handleWhatsAppSend(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { to, message } = req.body;
+  
+  if (!to || !message) {
+    return res.status(400).json({ error: 'Missing required fields: to, message' });
+  }
+
+  try {
+    const result = await sendWhatsAppMessage(to, message);
+    return res.status(200).json({
+      success: true,
+      messageSid: result.sid,
+      status: result.status,
+      to: result.to
+    });
+  } catch (error) {
+    console.error('WhatsApp send error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Send a test WhatsApp message
+ * POST /api/whatsapp/test
+ * Body: { to: "+919876543210", userName: "Shantan" }
+ */
+async function handleWhatsAppTest(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { to, userName } = req.body;
+  
+  if (!to) {
+    return res.status(400).json({ error: 'Missing required field: to' });
+  }
+
+  try {
+    const result = await sendTestMessage(to, userName || 'User');
+    return res.status(200).json({
+      success: true,
+      messageSid: result.sid,
+      status: result.status,
+      to: result.to,
+      message: 'Test message sent successfully!'
+    });
+  } catch (error) {
+    console.error('WhatsApp test error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Send WhatsApp reminders for upcoming recurring expenses
+ * POST /api/whatsapp/reminders
+ * Body: { userId: "email@example.com", daysAhead: 7, type: "consolidated" }
+ */
+async function handleWhatsAppReminders(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { userId, daysAhead = 7, type = 'consolidated' } = req.body;
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'Missing required field: userId' });
+  }
+
+  try {
+    // Get user data from Supabase
+    const { data: userData, error: userError } = await supabase
+      .from('user_data')
+      .select('profile, email')
+      .eq('email', userId)
+      .maybeSingle();
+
+    if (userError || !userData) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if user has WhatsApp number
+    const whatsappNumber = userData.profile?.whatsapp_number;
+    if (!whatsappNumber) {
+      return res.status(400).json({
+        error: 'No WhatsApp number found for user',
+        message: 'Please add your WhatsApp number in profile settings'
+      });
+    }
+
+    // Get upcoming recurring expenses from master_expenses table
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() + daysAhead);
+
+    const { data: expenses, error: expensesError } = await supabase
+      .from('master_expenses')
+      .select('*')
+      .eq('user_email', userId)
+      .eq('status', 'active')
+      .lte('next_due_date', cutoffDate.toISOString().split('T')[0])
+      .order('next_due_date', { ascending: true });
+
+    if (expensesError) {
+      console.error('Error fetching expenses:', expensesError);
+      return res.status(500).json({ error: 'Failed to fetch expenses' });
+    }
+
+    if (!expenses || expenses.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No upcoming expenses found',
+        remindersSent: 0
+      });
+    }
+
+    const userName = userData.profile?.name || 'User';
+    let remindersSent = 0;
+    const results = [];
+
+    if (type === 'consolidated') {
+      // Send one consolidated message with all upcoming expenses
+      const message = formatConsolidatedReminder(userName, expenses);
+      
+      try {
+        const result = await sendWhatsAppMessage(whatsappNumber, message);
+        remindersSent = 1;
+        results.push({
+          type: 'consolidated',
+          expenseCount: expenses.length,
+          messageSid: result.sid,
+          status: result.status
+        });
+      } catch (error) {
+        console.error('Failed to send consolidated reminder:', error);
+        results.push({
+          type: 'consolidated',
+          error: error.message
+        });
+      }
+    } else {
+      // Send individual messages for each expense
+      for (const expense of expenses) {
+        const message = formatIndividualReminder(userName, expense);
+        
+        try {
+          const result = await sendWhatsAppMessage(whatsappNumber, message);
+          remindersSent++;
+          results.push({
+            type: 'individual',
+            expenseName: expense.name,
+            messageSid: result.sid,
+            status: result.status
+          });
+        } catch (error) {
+          console.error(`Failed to send reminder for ${expense.name}:`, error);
+          results.push({
+            type: 'individual',
+            expenseName: expense.name,
+            error: error.message
+          });
+        }
+      }
+    }
+
+    // Log reminder activity
+    await supabase.from('recurring_engine_logs').insert({
+      user_email: userId,
+      action: 'whatsapp_reminder_sent',
+      details: {
+        reminderType: type,
+        expenseCount: expenses.length,
+        remindersSent,
+        daysAhead
+      },
+      status: 'success',
+      executed_at: new Date().toISOString()
+    }).catch(err => console.error('Failed to log reminder:', err));
+
+    return res.status(200).json({
+      success: true,
+      remindersSent,
+      expenseCount: expenses.length,
+      type,
+      results
+    });
+
+  } catch (error) {
+    console.error('WhatsApp reminders error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 }

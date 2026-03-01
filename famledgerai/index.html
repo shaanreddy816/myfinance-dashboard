@@ -872,6 +872,28 @@
                 font-size: 16px; /* Prevent zoom on iOS */
             }
         }
+        
+        /* Modern Registration Responsive Styles */
+        @media (max-width: 900px) {
+            #modern-registration > div {
+                flex-direction: column;
+            }
+            #modern-registration > div > div {
+                min-width: 100%;
+                padding: 40px 24px;
+            }
+        }
+        @media (max-width: 600px) {
+            #modern-registration h1 {
+                font-size: 28px !important;
+            }
+            #modern-registration h2 {
+                font-size: 24px !important;
+            }
+            #modern-registration > div > div {
+                padding: 24px 16px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -891,94 +913,288 @@
 
 <!-- AUTH -->
 <div id="auth">
-    <div class="auth-bg"></div>
-    <div class="abox">
-        <div style="display:flex;justify-content:center;margin-bottom:-10px;">
-            <lottie-player
-                src="https://assets2.lottiefiles.com/packages/lf20_06a6pf9i.json"
-                background="transparent"
-                speed="1"
-                style="width:200px;height:200px;"
-                loop autoplay>
-            </lottie-player>
-        </div>
-        <div class="alogo">
-            <div class="atitle">FamLedger<span>AI</span></div>
-            <p style="font-size:12px; color:var(--text3); margin-top:4px;">Your AI-powered family financial coach</p>
-        </div>
-        <div class="atabs">
-            <button class="atab on" onclick="switchAuth('login')">Sign In</button>
-            <button class="atab" onclick="switchAuth('reg')">Register</button>
-        </div>
-        <div id="aform-login">
-            <div class="creds-notice" id="creds-notice-login">
-                <strong>⚙️ Setup Required</strong>
-                Enter your Supabase credentials below or
-                <button onclick="openCredsModal()" style="background:none;border:none;color:var(--accent2);font-size:12px;cursor:pointer;font-family:var(--font);text-decoration:underline;">click here to configure</button>.
-            </div>
-            <input id="l-em" class="ainp" type="email" placeholder="Email address" autocomplete="email">
-            <div id="l-em-error" style="display:none; color:var(--red); font-size:12px; margin:-8px 0 12px 4px; padding:8px 12px; background:var(--red-dim); border-left:3px solid var(--red); border-radius:4px;"></div>
-            <div style="position:relative;">
-                <input id="l-pw" class="ainp" type="password" placeholder="Password" autocomplete="current-password" style="padding-right:45px;">
-                <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('l-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
-            </div>
-            <button class="abtn" id="loginBtn" onclick="doLogin()">Sign In →</button>
-        </div>
-        <div id="aform-reg" style="display:none">
-            <input id="r-nm" class="ainp" placeholder="Your Full Name">
-            <input id="r-spouse" class="ainp" placeholder="Spouse Name (optional)">
-            <div id="r-kids-wrap">
-                <div style="display:flex; gap:6px; align-items:center; margin-bottom:10px;">
-                    <input id="r-kid-1" class="ainp" style="margin-bottom:0; flex:1;" placeholder="Kid 1 Name (optional)">
-                    <button type="button" onclick="addKidField()" style="background:var(--accent-glow); border:1px solid var(--accent); border-radius:var(--radius-sm); padding:8px 12px; color:var(--accent2); font-size:16px; cursor:pointer; font-weight:700; line-height:1;">+</button>
+    <!-- Modern Split-Screen Registration -->
+    <div id="modern-registration" style="display:none; min-height:100vh; background:linear-gradient(135deg, #0b0f1a 0%, #1a2235 100%);">
+        <div style="display:flex; min-height:100vh; flex-wrap:wrap;">
+            
+            <!-- Left Panel - Value Proposition -->
+            <div style="flex:1; min-width:300px; padding:60px 40px; display:flex; flex-direction:column; justify-content:center; background:rgba(0,0,0,0.3);">
+                <div style="max-width:500px; margin:0 auto;">
+                    <div style="margin-bottom:40px;">
+                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+                            <div style="font-size:32px;">💰</div>
+                            <div style="font-size:24px; font-weight:800; color:var(--text);">Fam<span style="color:var(--accent);">Ledger</span>AI</div>
+                        </div>
+                        <h1 style="font-size:36px; font-weight:800; color:var(--text); margin-bottom:16px; line-height:1.2;">
+                            Start your journey to financial freedom today
+                        </h1>
+                        <p style="font-size:18px; color:var(--text2); line-height:1.6;">
+                            Join thousands of Indian families managing their finances smarter with AI-powered insights.
+                        </p>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:20px;">
+                        <div style="display:flex; align-items:start; gap:16px;">
+                            <div style="width:32px; height:32px; background:var(--green-dim); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <span style="font-size:16px;">✓</span>
+                            </div>
+                            <div>
+                                <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:4px;">No credit card required</div>
+                                <div style="font-size:14px; color:var(--text3);">Start free, upgrade when you're ready</div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:start; gap:16px;">
+                            <div style="width:32px; height:32px; background:var(--green-dim); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <span style="font-size:16px;">✓</span>
+                            </div>
+                            <div>
+                                <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:4px;">Complete financial dashboard</div>
+                                <div style="font-size:14px; color:var(--text3);">Track income, expenses, investments, loans & more</div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:start; gap:16px;">
+                            <div style="width:32px; height:32px; background:var(--green-dim); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <span style="font-size:16px;">✓</span>
+                            </div>
+                            <div>
+                                <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:4px;">AI-powered recommendations</div>
+                                <div style="font-size:14px; color:var(--text3);">Get personalized advice for your financial goals</div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:start; gap:16px;">
+                            <div style="width:32px; height:32px; background:var(--green-dim); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <span style="font-size:16px;">✓</span>
+                            </div>
+                            <div>
+                                <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:4px;">WhatsApp reminders</div>
+                                <div style="font-size:14px; color:var(--text3);">Never miss a payment with smart notifications</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:40px; padding-top:40px; border-top:1px solid var(--border);">
+                        <div style="font-size:12px; color:var(--text3); margin-bottom:12px;">TRUSTED BY</div>
+                        <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
+                            <div style="font-size:14px; color:var(--text2);">
+                                <span style="font-size:24px; font-weight:800; color:var(--accent);">1,000+</span><br>
+                                <span style="font-size:12px;">Active Users</span>
+                            </div>
+                            <div style="font-size:14px; color:var(--text2);">
+                                <span style="font-size:24px; font-weight:800; color:var(--green);">₹50Cr+</span><br>
+                                <span style="font-size:12px;">Assets Tracked</span>
+                            </div>
+                            <div style="font-size:14px; color:var(--text2);">
+                                <span style="font-size:24px; font-weight:800; color:var(--purple);">4.8★</span><br>
+                                <span style="font-size:12px;">User Rating</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <input id="r-em" class="ainp" type="email" placeholder="Email address" autocomplete="email">
-            <div id="r-em-error" style="display:none; color:var(--red); font-size:12px; margin:-8px 0 12px 4px; padding:8px 12px; background:var(--red-dim); border-left:3px solid var(--red); border-radius:4px;"></div>
-            <input id="r-age" class="ainp" type="number" placeholder="Age" min="18" max="100">
-            <select id="r-occupation" class="ainp">
-                <option value="">Select Occupation</option>
-                <option value="salaried">Salaried</option>
-                <option value="business">Business Owner</option>
-                <option value="self-employed">Self-employed / Freelancer</option>
-                <option value="retired">Retired</option>
-            </select>
-            <select id="r-income-range" class="ainp">
-                <option value="">Annual Income (approx)</option>
-                <option value="0-3">Up to ₹3 Lakhs</option>
-                <option value="3-6">₹3–6 Lakhs</option>
-                <option value="6-12">₹6–12 Lakhs</option>
-                <option value="12-25">₹12–25 Lakhs</option>
-                <option value="25+">Above ₹25 Lakhs</option>
-            </select>
-            <div class="onboarding">
-                <label>Financial Goals</label>
-                <div id="goal-options">
-                    <span class="goal-option" data-goal="retirement">Retirement</span>
-                    <span class="goal-option" data-goal="child-education">Child Education</span>
-                    <span class="goal-option" data-goal="house">Buy a House</span>
-                    <span class="goal-option" data-goal="car">Buy a Car</span>
-                    <span class="goal-option" data-goal="emergency">Emergency Fund</span>
-                    <span class="goal-option" data-goal="travel">Travel</span>
+
+            <!-- Right Panel - Registration Form -->
+            <div style="flex:1; min-width:300px; padding:60px 40px; display:flex; flex-direction:column; justify-content:center; background:var(--bg2);">
+                <div style="max-width:480px; width:100%; margin:0 auto;">
+                    
+                    <!-- Progress Bar -->
+                    <div style="margin-bottom:32px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="font-size:12px; font-weight:600; color:var(--accent);">STEP 1 OF 3</span>
+                            <span style="font-size:12px; color:var(--text3);">33%</span>
+                        </div>
+                        <div style="height:4px; background:var(--border); border-radius:2px; overflow:hidden;">
+                            <div style="height:100%; width:33%; background:var(--accent); transition:width 0.3s;"></div>
+                        </div>
+                    </div>
+
+                    <h2 style="font-size:28px; font-weight:800; color:var(--text); margin-bottom:8px;">
+                        Create your account
+                    </h2>
+                    <p style="font-size:14px; color:var(--text2); margin-bottom:32px;">
+                        Get started in less than 2 minutes
+                    </p>
+
+                    <!-- Registration Form - Keep existing IDs for compatibility -->
+                    <div id="aform-reg">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                            <div>
+                                <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;">
+                                    First name *
+                                </label>
+                                <input type="text" id="reg-firstname" required class="ainp"
+                                       placeholder="Shantan">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;">
+                                    Last name *
+                                </label>
+                                <input type="text" id="reg-lastname" required class="ainp"
+                                       placeholder="Kumar">
+                            </div>
+                        </div>
+
+                        <!-- Hidden field for full name (for compatibility with doReg) -->
+                        <input type="hidden" id="r-nm">
+
+                        <div style="margin-bottom:16px;">
+                            <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;">
+                                Email address *
+                            </label>
+                            <input type="email" id="r-em" required class="ainp"
+                                   placeholder="you@example.com" autocomplete="email">
+                            <div id="r-em-error" style="display:none; color:var(--red); font-size:12px; margin-top:6px; padding:8px 12px; background:var(--red-dim); border-left:3px solid var(--red); border-radius:4px;"></div>
+                        </div>
+
+                        <div style="margin-bottom:16px;">
+                            <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;">
+                                WhatsApp Number (Optional)
+                            </label>
+                            <div style="display:flex; gap:8px;">
+                                <input type="text" value="+91" disabled
+                                       style="width:60px; padding:12px 16px; background:var(--bg); border:1px solid var(--border2); border-radius:var(--radius-sm); color:var(--text3); font-size:14px; text-align:center;">
+                                <input type="tel" id="reg-whatsapp" pattern="[0-9]{10}" class="ainp"
+                                       style="flex:1; margin-bottom:0;"
+                                       placeholder="9876543210">
+                            </div>
+                            <div style="font-size:11px; color:var(--text3); margin-top:6px; display:flex; align-items:center; gap:4px;">
+                                <span>📱</span> Get payment reminders & alerts
+                            </div>
+                        </div>
+
+                        <!-- Hidden fields for compatibility -->
+                        <input type="hidden" id="r-spouse">
+                        <div id="r-kids-wrap" style="display:none;">
+                            <input id="r-kid-1" class="ainp">
+                        </div>
+                        <input type="hidden" id="r-age" value="30">
+                        <input type="hidden" id="r-occupation" value="salaried">
+                        <input type="hidden" id="r-income-range" value="6-12">
+                        <div id="goal-options" style="display:none;">
+                            <span class="goal-option selected" data-goal="retirement">Retirement</span>
+                        </div>
+                        <div id="risk-options" style="display:none;">
+                            <span class="risk-option selected" data-risk="moderate">⚖️ Moderate</span>
+                        </div>
+
+                        <div style="margin-bottom:24px;">
+                            <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;">
+                                Password *
+                            </label>
+                            <div style="position:relative;">
+                                <input type="password" id="r-pw" required class="ainp"
+                                       placeholder="••••••••" autocomplete="new-password"
+                                       style="padding-right:45px;"
+                                       onfocus="showPasswordRequirements()"
+                                       oninput="validatePassword()">
+                                <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('r-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
+                            </div>
+                            
+                            <!-- Password Requirements -->
+                            <div id="password-requirements" style="display:none; margin-top:12px; padding:12px; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); font-size:12px;">
+                                <div style="color:var(--text3); margin-bottom:8px; font-weight:600;">Your password must contain:</div>
+                                <div id="req-length" style="display:flex; align-items:center; gap:8px; margin-bottom:4px; color:var(--text3);">
+                                    <span>○</span> At least 6 characters
+                                </div>
+                                <div id="req-case" style="display:flex; align-items:center; gap:8px; margin-bottom:4px; color:var(--text3);">
+                                    <span>○</span> Upper & lowercase letters
+                                </div>
+                                <div id="req-number" style="display:flex; align-items:center; gap:8px; color:var(--text3);">
+                                    <span>○</span> At least one number
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden confirm password for compatibility -->
+                        <input type="hidden" id="r-pw2">
+
+                        <!-- Terms Checkbox -->
+                        <div style="margin-bottom:24px;">
+                            <label style="display:flex; align-items:start; gap:12px; cursor:pointer;">
+                                <input type="checkbox" id="reg-terms" required
+                                       style="margin-top:2px; width:18px; height:18px; cursor:pointer;">
+                                <span style="font-size:13px; color:var(--text2); line-height:1.5;">
+                                    By clicking Continue, you agree to our 
+                                    <a href="#" style="color:var(--accent); text-decoration:none;">Terms of Service</a> 
+                                    and 
+                                    <a href="#" style="color:var(--accent); text-decoration:none;">Privacy Policy</a>
+                                </span>
+                            </label>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="button" class="abtn" id="regBtn" onclick="handleModernRegistration()" style="width:100%; padding:14px; font-size:15px; margin-bottom:16px;">
+                            Continue →
+                        </button>
+
+                        <!-- Divider -->
+                        <div style="display:flex; align-items:center; gap:16px; margin:24px 0;">
+                            <div style="flex:1; height:1px; background:var(--border);"></div>
+                            <span style="font-size:12px; color:var(--text3);">OR</span>
+                            <div style="flex:1; height:1px; background:var(--border);"></div>
+                        </div>
+
+                        <!-- Social Login (Optional) -->
+                        <button type="button" onclick="showToast('Google sign-in coming soon!', 'blue')"
+                                style="width:100%; padding:12px; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); color:var(--text); font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:12px; transition:all 0.2s;"
+                                onmouseover="this.style.borderColor='var(--accent)'"
+                                onmouseout="this.style.borderColor='var(--border2)'">
+                            <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.593.102-1.17.282-1.709V4.958H.957C.347 6.173 0 7.548 0 9c0 1.452.348 2.827.957 4.042l3.007-2.335z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+                            Continue with Google
+                        </button>
+
+                        <!-- Sign In Link -->
+                        <div style="text-align:center; margin-top:24px; padding-top:24px; border-top:1px solid var(--border);">
+                            <span style="font-size:14px; color:var(--text2);">
+                                Already have an account? 
+                                <a href="#" onclick="showLoginScreen(); return false;" style="color:var(--accent); text-decoration:none; font-weight:600;">
+                                    Sign in
+                                </a>
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="onboarding" style="margin-bottom:14px;">
-                <label>Risk Tolerance</label>
-                <div id="risk-options">
-                    <span class="risk-option" data-risk="low">🛡️ Low</span>
-                    <span class="risk-option" data-risk="moderate">⚖️ Moderate</span>
-                    <span class="risk-option" data-risk="high">🚀 High</span>
+        </div>
+    </div>
+
+    <!-- Classic Login Screen -->
+    <div id="classic-auth" style="display:block;">
+        <div class="auth-bg"></div>
+        <div class="abox">
+            <div style="display:flex;justify-content:center;margin-bottom:-10px;">
+                <lottie-player
+                    src="https://assets2.lottiefiles.com/packages/lf20_06a6pf9i.json"
+                    background="transparent"
+                    speed="1"
+                    style="width:200px;height:200px;"
+                    loop autoplay>
+                </lottie-player>
+            </div>
+            <div class="alogo">
+                <div class="atitle">FamLedger<span>AI</span></div>
+                <p style="font-size:12px; color:var(--text3); margin-top:4px;">Your AI-powered family financial coach</p>
+            </div>
+            <div class="atabs">
+                <button class="atab on" onclick="switchAuth('login')">Sign In</button>
+                <button class="atab" onclick="switchAuth('reg')">Register</button>
+            </div>
+            <div id="aform-login">
+                <div class="creds-notice" id="creds-notice-login">
+                    <strong>⚙️ Setup Required</strong>
+                    Enter your Supabase credentials below or
+                    <button onclick="openCredsModal()" style="background:none;border:none;color:var(--accent2);font-size:12px;cursor:pointer;font-family:var(--font);text-decoration:underline;">click here to configure</button>.
                 </div>
+                <input id="l-em" class="ainp" type="email" placeholder="Email address" autocomplete="email">
+                <div id="l-em-error" style="display:none; color:var(--red); font-size:12px; margin:-8px 0 12px 4px; padding:8px 12px; background:var(--red-dim); border-left:3px solid var(--red); border-radius:4px;"></div>
+                <div style="position:relative;">
+                    <input id="l-pw" class="ainp" type="password" placeholder="Password" autocomplete="current-password" style="padding-right:45px;">
+                    <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('l-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
+                </div>
+                <button class="abtn" id="loginBtn" onclick="doLogin()">Sign In →</button>
             </div>
-            <div style="position:relative;">
-                <input id="r-pw" class="ainp" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password" style="padding-right:45px;">
-                <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('r-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
-            </div>
-            <div style="position:relative;">
-                <input id="r-pw2" class="ainp" type="password" placeholder="Confirm password" autocomplete="new-password" style="padding-right:45px;">
-                <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('r-pw2', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
-            </div>
-            <button class="abtn" id="regBtn" onclick="doReg()">Create Account →</button>
         </div>
     </div>
 </div>
@@ -1670,6 +1886,7 @@
             <div class="nav-section-label">Finances</div>
             <div class="nav-item" data-page="income"><i class="fas fa-coins"></i> <span>Income</span></div>
             <div class="nav-item" data-page="expenses"><i class="fas fa-receipt"></i> <span>Expenses</span></div>
+            <div class="nav-item" data-page="master-expenses"><i class="fas fa-sync-alt"></i> <span>Recurring Expenses</span></div>
             <div class="nav-item" data-page="investments"><i class="fas fa-chart-line"></i> <span>Investments</span></div>
             <div class="nav-item" data-page="loans"><i class="fas fa-hand-holding-usd"></i> <span>Loans</span></div>
             <div class="nav-item" data-page="insurance"><i class="fas fa-shield-alt"></i> <span>Insurance</span></div>
@@ -1721,6 +1938,7 @@
         <div id="page-overview"        class="page active-page"></div>
         <div id="page-income"          class="page"></div>
         <div id="page-expenses"        class="page"></div>
+        <div id="page-master-expenses" class="page"></div>
         <div id="page-investments"     class="page"></div>
         <div id="page-loans"           class="page"></div>
         <div id="page-insurance"       class="page"></div>
@@ -1946,6 +2164,1780 @@ let currentMonth = (() => { const d=new Date(); return d.getFullYear()+'-'+Strin
 let currentLang = 'en';
 let saveTimer = null;
 let currentUserEmail = '';
+
+// ========== RECURRING EXPENSES DATA MODELS ==========
+
+/**
+ * MasterExpense - Data model for recurring/mandatory expense definitions
+ * Represents expenses that automatically carry forward each month (EMIs, subscriptions, utilities, groceries)
+ */
+class MasterExpense {
+    constructor(data = {}) {
+        // Primary fields
+        this.id = data.id || null;
+        this.family_id = data.family_id || '';
+        this.created_by = data.created_by || '';
+        
+        // Basic expense information
+        this.name = data.name || '';
+        this.amount = data.amount || 0;
+        this.category = data.category || '';
+        this.description = data.description || '';
+        
+        // Expense type and frequency
+        this.expense_type = data.expense_type || 'other'; // 'emi', 'subscription', 'utility', 'grocery', 'other'
+        this.frequency = data.frequency || 'monthly'; // 'monthly', 'annual'
+        
+        // Date range
+        this.start_date = data.start_date || new Date().toISOString().split('T')[0];
+        this.end_date = data.end_date || null;
+        
+        // EMI-specific fields
+        this.is_emi = data.is_emi || false;
+        this.emi_type = data.emi_type || null; // 'house_loan', 'car_loan', 'personal_loan', 'education_loan'
+        this.tenure_months = data.tenure_months || null;
+        this.total_amount = data.total_amount || null;
+        
+        // Subscription-specific fields
+        this.is_subscription = data.is_subscription || false;
+        this.service_name = data.service_name || null;
+        this.renewal_date = data.renewal_date || null;
+        
+        // Lifecycle management
+        this.status = data.status || 'active'; // 'active', 'paused', 'completed', 'cancelled'
+        
+        // Audit fields
+        this.created_at = data.created_at || null;
+        this.updated_at = data.updated_at || null;
+        this.last_modified_by = data.last_modified_by || null;
+    }
+    
+    /**
+     * Validate required fields
+     * @returns {Object} { valid: boolean, errors: string[] }
+     */
+    validateRequiredFields() {
+        const errors = [];
+        
+        if (!this.name || this.name.trim() === '') {
+            errors.push('Expense name is required');
+        }
+        
+        if (!this.amount || this.amount <= 0) {
+            errors.push('Amount must be greater than zero');
+        }
+        
+        if (!this.category || this.category.trim() === '') {
+            errors.push('Category is required');
+        }
+        
+        if (!this.family_id || this.family_id.trim() === '') {
+            errors.push('Family ID is required');
+        }
+        
+        return {
+            valid: errors.length === 0,
+            errors
+        };
+    }
+    
+    /**
+     * Validate amount is positive
+     * @returns {Object} { valid: boolean, error: string }
+     */
+    validateAmount() {
+        if (this.amount <= 0) {
+            return {
+                valid: false,
+                error: 'Amount must be greater than ₹0'
+            };
+        }
+        return { valid: true, error: null };
+    }
+    
+    /**
+     * Validate date range (end_date must be after start_date)
+     * @returns {Object} { valid: boolean, error: string }
+     */
+    validateDateRange() {
+        if (this.end_date) {
+            const start = new Date(this.start_date);
+            const end = new Date(this.end_date);
+            
+            if (end <= start) {
+                return {
+                    valid: false,
+                    error: 'End date must be after start date'
+                };
+            }
+        }
+        return { valid: true, error: null };
+    }
+    
+    /**
+     * Validate EMI-specific fields
+     * @returns {Object} { valid: boolean, errors: string[] }
+     */
+    validateEMI() {
+        const errors = [];
+        
+        if (this.is_emi) {
+            if (!this.start_date) {
+                errors.push('EMI start date is required');
+            }
+            if (!this.end_date) {
+                errors.push('EMI end date is required');
+            }
+            if (!this.amount || this.amount <= 0) {
+                errors.push('EMI monthly amount is required');
+            }
+        }
+        
+        return {
+            valid: errors.length === 0,
+            errors
+        };
+    }
+    
+    /**
+     * Calculate EMI tenure in months
+     * @returns {number} Number of months between start_date and end_date
+     */
+    calculateTenure() {
+        if (!this.start_date || !this.end_date) return 0;
+        
+        const start = new Date(this.start_date);
+        const end = new Date(this.end_date);
+        
+        const years = end.getFullYear() - start.getFullYear();
+        const months = end.getMonth() - start.getMonth();
+        
+        return years * 12 + months;
+    }
+    
+    /**
+     * Calculate total EMI amount
+     * @returns {number} Total amount (monthly amount × tenure)
+     */
+    calculateTotalAmount() {
+        const tenure = this.calculateTenure();
+        return this.amount * tenure;
+    }
+    
+    /**
+     * Validate EMI total amount calculation
+     * @returns {Object} { valid: boolean, error: string }
+     */
+    validateEMITotalAmount() {
+        if (this.is_emi && this.total_amount) {
+            const calculated = this.calculateTotalAmount();
+            const tolerance = 1; // Allow ±1 rupee for rounding
+            
+            if (Math.abs(this.total_amount - calculated) > tolerance) {
+                return {
+                    valid: false,
+                    error: `Total amount mismatch. Expected: ₹${calculated}, Got: ₹${this.total_amount}`
+                };
+            }
+        }
+        return { valid: true, error: null };
+    }
+    
+    /**
+     * Calculate remaining tenure for active EMI
+     * @returns {number} Remaining months until end_date
+     */
+    calculateRemainingTenure() {
+        if (!this.is_emi || !this.end_date) return 0;
+        
+        const today = new Date();
+        const end = new Date(this.end_date);
+        
+        if (end <= today) return 0;
+        
+        const years = end.getFullYear() - today.getFullYear();
+        const months = end.getMonth() - today.getMonth();
+        
+        return Math.max(0, years * 12 + months);
+    }
+    
+    /**
+     * Calculate total remaining amount for active EMI
+     * @returns {number} Remaining amount to be paid
+     */
+    calculateRemainingAmount() {
+        const remainingMonths = this.calculateRemainingTenure();
+        return this.amount * remainingMonths;
+    }
+    
+    /**
+     * Validate all fields
+     * @returns {Object} { valid: boolean, errors: string[] }
+     */
+    validate() {
+        const allErrors = [];
+        
+        // Required fields
+        const requiredValidation = this.validateRequiredFields();
+        if (!requiredValidation.valid) {
+            allErrors.push(...requiredValidation.errors);
+        }
+        
+        // Amount validation
+        const amountValidation = this.validateAmount();
+        if (!amountValidation.valid) {
+            allErrors.push(amountValidation.error);
+        }
+        
+        // Date range validation
+        const dateValidation = this.validateDateRange();
+        if (!dateValidation.valid) {
+            allErrors.push(dateValidation.error);
+        }
+        
+        // EMI validation
+        if (this.is_emi) {
+            const emiValidation = this.validateEMI();
+            if (!emiValidation.valid) {
+                allErrors.push(...emiValidation.errors);
+            }
+            
+            const emiTotalValidation = this.validateEMITotalAmount();
+            if (!emiTotalValidation.valid) {
+                allErrors.push(emiTotalValidation.error);
+            }
+        }
+        
+        return {
+            valid: allErrors.length === 0,
+            errors: allErrors
+        };
+    }
+    
+    /**
+     * Convert to plain object for database storage
+     * @returns {Object} Plain object representation
+     */
+    toJSON() {
+        return {
+            id: this.id,
+            family_id: this.family_id,
+            created_by: this.created_by,
+            name: this.name,
+            amount: this.amount,
+            category: this.category,
+            description: this.description,
+            expense_type: this.expense_type,
+            frequency: this.frequency,
+            start_date: this.start_date,
+            end_date: this.end_date,
+            is_emi: this.is_emi,
+            emi_type: this.emi_type,
+            tenure_months: this.tenure_months,
+            total_amount: this.total_amount,
+            is_subscription: this.is_subscription,
+            service_name: this.service_name,
+            renewal_date: this.renewal_date,
+            status: this.status,
+            created_at: this.created_at,
+            updated_at: this.updated_at,
+            last_modified_by: this.last_modified_by
+        };
+    }
+}
+
+/**
+ * ExpenseEntry - Data model for individual expense entries
+ * Represents both manual expenses and auto-generated entries from master expenses
+ */
+class ExpenseEntry {
+    constructor(data = {}) {
+        // Primary fields
+        this.id = data.id || null;
+        this.family_id = data.family_id || '';
+        this.master_expense_id = data.master_expense_id || null;
+        
+        // Basic expense information
+        this.amount = data.amount || 0;
+        this.category = data.category || '';
+        this.description = data.description || '';
+        this.entry_date = data.entry_date || new Date().toISOString().split('T')[0];
+        
+        // Auto-generation tracking
+        this.auto_generated = data.auto_generated || false;
+        this.manually_adjusted = data.manually_adjusted || false;
+        this.original_amount = data.original_amount || null;
+        
+        // Member tracking
+        this.member_name = data.member_name || null;
+        
+        // Audit fields
+        this.created_at = data.created_at || null;
+        this.updated_at = data.updated_at || null;
+        this.created_by = data.created_by || '';
+        
+        // Notes and attachments
+        this.notes = data.notes || null;
+        this.receipt_url = data.receipt_url || null;
+    }
+    
+    /**
+     * Validate required fields
+     * @returns {Object} { valid: boolean, errors: string[] }
+     */
+    validateRequiredFields() {
+        const errors = [];
+        
+        if (!this.amount || this.amount <= 0) {
+            errors.push('Amount must be greater than zero');
+        }
+        
+        if (!this.category || this.category.trim() === '') {
+            errors.push('Category is required');
+        }
+        
+        if (!this.entry_date) {
+            errors.push('Entry date is required');
+        }
+        
+        if (!this.family_id || this.family_id.trim() === '') {
+            errors.push('Family ID is required');
+        }
+        
+        return {
+            valid: errors.length === 0,
+            errors
+        };
+    }
+    
+    /**
+     * Check if this entry is auto-generated from a master expense
+     * @returns {boolean}
+     */
+    isAutoGenerated() {
+        return this.auto_generated === true && this.master_expense_id !== null;
+    }
+    
+    /**
+     * Check if this is an individual (manual) expense
+     * @returns {boolean}
+     */
+    isIndividual() {
+        return this.auto_generated === false && this.master_expense_id === null;
+    }
+    
+    /**
+     * Check if this entry was manually adjusted after auto-generation
+     * @returns {boolean}
+     */
+    isManuallyAdjusted() {
+        return this.manually_adjusted === true;
+    }
+    
+    /**
+     * Mark this entry as manually adjusted
+     * @param {number} newAmount - The new adjusted amount
+     */
+    markAsAdjusted(newAmount) {
+        if (this.auto_generated && !this.manually_adjusted) {
+            this.original_amount = this.amount;
+        }
+        this.amount = newAmount;
+        this.manually_adjusted = true;
+    }
+    
+    /**
+     * Validate all fields
+     * @returns {Object} { valid: boolean, errors: string[] }
+     */
+    validate() {
+        const allErrors = [];
+        
+        // Required fields
+        const requiredValidation = this.validateRequiredFields();
+        if (!requiredValidation.valid) {
+            allErrors.push(...requiredValidation.errors);
+        }
+        
+        // Validate date format
+        if (this.entry_date && isNaN(Date.parse(this.entry_date))) {
+            allErrors.push('Invalid entry date format');
+        }
+        
+        // Validate auto-generated consistency
+        if (this.auto_generated && !this.master_expense_id) {
+            allErrors.push('Auto-generated expenses must have a master_expense_id');
+        }
+        
+        // Validate individual expense consistency
+        if (!this.auto_generated && this.master_expense_id) {
+            allErrors.push('Individual expenses should not have a master_expense_id');
+        }
+        
+        return {
+            valid: allErrors.length === 0,
+            errors: allErrors
+        };
+    }
+    
+    /**
+     * Convert to plain object for database storage
+     * @returns {Object} Plain object representation
+     */
+    toJSON() {
+        return {
+            id: this.id,
+            family_id: this.family_id,
+            master_expense_id: this.master_expense_id,
+            amount: this.amount,
+            category: this.category,
+            description: this.description,
+            entry_date: this.entry_date,
+            auto_generated: this.auto_generated,
+            manually_adjusted: this.manually_adjusted,
+            original_amount: this.original_amount,
+            member_name: this.member_name,
+            created_at: this.created_at,
+            updated_at: this.updated_at,
+            created_by: this.created_by,
+            notes: this.notes,
+            receipt_url: this.receipt_url
+        };
+    }
+}
+
+// ========== RECURRING EXPENSES SERVICES ==========
+
+/**
+ * MasterExpenseService - Service layer for master expense CRUD operations
+ * Handles all database interactions for recurring/mandatory expenses
+ */
+class MasterExpenseService {
+    constructor(supabaseClient) {
+        this.sb = supabaseClient;
+    }
+    
+    /**
+     * Create a new master expense
+     * @param {string} familyId - Family/user email
+     * @param {string} userId - User email who is creating
+     * @param {Object} expenseData - Master expense data
+     * @returns {Promise<Object>} { success: boolean, data: MasterExpense, error: string }
+     */
+    async create(familyId, userId, expenseData) {
+        try {
+            // Create MasterExpense instance for validation
+            const masterExpense = new MasterExpense({
+                ...expenseData,
+                family_id: familyId,
+                created_by: userId,
+                last_modified_by: userId
+            });
+            
+            // Validate
+            const validation = masterExpense.validate();
+            if (!validation.valid) {
+                return {
+                    success: false,
+                    data: null,
+                    error: validation.errors.join(', ')
+                };
+            }
+            
+            // Calculate EMI fields if applicable
+            if (masterExpense.is_emi) {
+                masterExpense.tenure_months = masterExpense.calculateTenure();
+                masterExpense.total_amount = masterExpense.calculateTotalAmount();
+            }
+            
+            // Insert into database
+            const { data, error } = await this.sb
+                .from('master_expenses')
+                .insert([masterExpense.toJSON()])
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('Master expense creation error:', error);
+                return {
+                    success: false,
+                    data: null,
+                    error: error.message || 'Failed to create master expense'
+                };
+            }
+            
+            return {
+                success: true,
+                data: new MasterExpense(data),
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Master expense creation exception:', err);
+            return {
+                success: false,
+                data: null,
+                error: err.message || 'Unexpected error creating master expense'
+            };
+        }
+    }
+    
+    /**
+     * Update an existing master expense
+     * @param {string} id - Master expense ID
+     * @param {string} familyId - Family/user email (for ownership verification)
+     * @param {string} userId - User email who is updating
+     * @param {Object} updates - Fields to update
+     * @returns {Promise<Object>} { success: boolean, data: MasterExpense, error: string }
+     */
+    async update(id, familyId, userId, updates) {
+        try {
+            // First, get the existing master expense to verify ownership and status
+            const existing = await this.getById(id, familyId);
+            if (!existing.success) {
+                return {
+                    success: false,
+                    data: null,
+                    error: 'Master expense not found or access denied'
+                };
+            }
+            
+            // Prevent editing completed EMIs
+            if (existing.data.is_emi && existing.data.status === 'completed') {
+                return {
+                    success: false,
+                    data: null,
+                    error: 'Cannot edit completed EMI'
+                };
+            }
+            
+            // Merge updates with existing data
+            const updatedData = {
+                ...existing.data.toJSON(),
+                ...updates,
+                last_modified_by: userId,
+                updated_at: new Date().toISOString()
+            };
+            
+            // Create instance for validation
+            const masterExpense = new MasterExpense(updatedData);
+            
+            // Validate
+            const validation = masterExpense.validate();
+            if (!validation.valid) {
+                return {
+                    success: false,
+                    data: null,
+                    error: validation.errors.join(', ')
+                };
+            }
+            
+            // Recalculate EMI fields if applicable
+            if (masterExpense.is_emi) {
+                masterExpense.tenure_months = masterExpense.calculateTenure();
+                masterExpense.total_amount = masterExpense.calculateTotalAmount();
+            }
+            
+            // Update in database
+            const { data, error } = await this.sb
+                .from('master_expenses')
+                .update(masterExpense.toJSON())
+                .eq('id', id)
+                .eq('family_id', familyId)
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('Master expense update error:', error);
+                return {
+                    success: false,
+                    data: null,
+                    error: error.message || 'Failed to update master expense'
+                };
+            }
+            
+            return {
+                success: true,
+                data: new MasterExpense(data),
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Master expense update exception:', err);
+            return {
+                success: false,
+                data: null,
+                error: err.message || 'Unexpected error updating master expense'
+            };
+        }
+    }
+    
+    /**
+     * Get master expenses for a family with optional filters
+     * @param {string} familyId - Family/user email
+     * @param {Object} filters - Optional filters { status, category, expense_type }
+     * @returns {Promise<Object>} { success: boolean, data: MasterExpense[], error: string }
+     */
+    async getByFamily(familyId, filters = {}) {
+        try {
+            let query = this.sb
+                .from('master_expenses')
+                .select('*')
+                .eq('family_id', familyId);
+            
+            // Apply filters
+            if (filters.status) {
+                query = query.eq('status', filters.status);
+            }
+            if (filters.category) {
+                query = query.eq('category', filters.category);
+            }
+            if (filters.expense_type) {
+                query = query.eq('expense_type', filters.expense_type);
+            }
+            
+            // Order by created date (newest first)
+            query = query.order('created_at', { ascending: false });
+            
+            const { data, error } = await query;
+            
+            if (error) {
+                console.error('Master expense query error:', error);
+                return {
+                    success: false,
+                    data: [],
+                    error: error.message || 'Failed to fetch master expenses'
+                };
+            }
+            
+            // Convert to MasterExpense instances and add calculated fields
+            const masterExpenses = (data || []).map(item => {
+                const me = new MasterExpense(item);
+                // Add calculated fields for display
+                if (me.is_emi && me.status === 'active') {
+                    me.remaining_tenure = me.calculateRemainingTenure();
+                    me.remaining_amount = me.calculateRemainingAmount();
+                }
+                return me;
+            });
+            
+            return {
+                success: true,
+                data: masterExpenses,
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Master expense query exception:', err);
+            return {
+                success: false,
+                data: [],
+                error: err.message || 'Unexpected error fetching master expenses'
+            };
+        }
+    }
+    
+    /**
+     * Get a specific master expense by ID
+     * @param {string} id - Master expense ID
+     * @param {string} familyId - Family/user email (for ownership verification)
+     * @returns {Promise<Object>} { success: boolean, data: MasterExpense, error: string }
+     */
+    async getById(id, familyId) {
+        try {
+            const { data, error } = await this.sb
+                .from('master_expenses')
+                .select('*')
+                .eq('id', id)
+                .eq('family_id', familyId)
+                .single();
+            
+            if (error) {
+                console.error('Master expense fetch error:', error);
+                return {
+                    success: false,
+                    data: null,
+                    error: error.message || 'Master expense not found'
+                };
+            }
+            
+            const masterExpense = new MasterExpense(data);
+            
+            // Add calculated fields
+            if (masterExpense.is_emi && masterExpense.status === 'active') {
+                masterExpense.remaining_tenure = masterExpense.calculateRemainingTenure();
+                masterExpense.remaining_amount = masterExpense.calculateRemainingAmount();
+            }
+            
+            return {
+                success: true,
+                data: masterExpense,
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Master expense fetch exception:', err);
+            return {
+                success: false,
+                data: null,
+                error: err.message || 'Unexpected error fetching master expense'
+            };
+        }
+    }
+    
+    /**
+     * Pause a master expense (stop generating monthly entries)
+     * @param {string} id - Master expense ID
+     * @param {string} familyId - Family/user email
+     * @param {string} userId - User email who is pausing
+     * @returns {Promise<Object>} { success: boolean, data: MasterExpense, error: string }
+     */
+    async pause(id, familyId, userId) {
+        return await this.updateStatus(id, familyId, userId, 'paused');
+    }
+    
+    /**
+     * Resume a paused master expense (restart generating monthly entries)
+     * @param {string} id - Master expense ID
+     * @param {string} familyId - Family/user email
+     * @param {string} userId - User email who is resuming
+     * @returns {Promise<Object>} { success: boolean, data: MasterExpense, error: string }
+     */
+    async resume(id, familyId, userId) {
+        return await this.updateStatus(id, familyId, userId, 'active');
+    }
+    
+    /**
+     * Cancel a master expense (permanently stop generating entries)
+     * @param {string} id - Master expense ID
+     * @param {string} familyId - Family/user email
+     * @param {string} userId - User email who is cancelling
+     * @returns {Promise<Object>} { success: boolean, data: MasterExpense, error: string }
+     */
+    async cancel(id, familyId, userId) {
+        return await this.updateStatus(id, familyId, userId, 'cancelled');
+    }
+    
+    /**
+     * Update the status of a master expense
+     * @private
+     * @param {string} id - Master expense ID
+     * @param {string} familyId - Family/user email
+     * @param {string} userId - User email
+     * @param {string} newStatus - New status value
+     * @returns {Promise<Object>} { success: boolean, data: MasterExpense, error: string }
+     */
+    async updateStatus(id, familyId, userId, newStatus) {
+        try {
+            const { data, error } = await this.sb
+                .from('master_expenses')
+                .update({
+                    status: newStatus,
+                    last_modified_by: userId,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .eq('family_id', familyId)
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('Master expense status update error:', error);
+                return {
+                    success: false,
+                    data: null,
+                    error: error.message || 'Failed to update status'
+                };
+            }
+            
+            return {
+                success: true,
+                data: new MasterExpense(data),
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Master expense status update exception:', err);
+            return {
+                success: false,
+                data: null,
+                error: err.message || 'Unexpected error updating status'
+            };
+        }
+    }
+    
+    /**
+     * Create an EMI with automatic tenure calculation
+     * @param {string} familyId - Family/user email
+     * @param {string} userId - User email
+     * @param {Object} emiData - EMI data (must include start_date, end_date, amount)
+     * @returns {Promise<Object>} { success: boolean, data: MasterExpense, error: string }
+     */
+    async createEMI(familyId, userId, emiData) {
+        // Ensure EMI flags are set
+        const emiExpense = {
+            ...emiData,
+            is_emi: true,
+            expense_type: 'emi'
+        };
+        
+        // Use the standard create method which handles tenure calculation
+        return await this.create(familyId, userId, emiExpense);
+    }
+    
+    /**
+     * Get all active EMIs with remaining tenure and amount
+     * @param {string} familyId - Family/user email
+     * @returns {Promise<Object>} { success: boolean, data: Array, error: string }
+     */
+    async getActiveEMIs(familyId) {
+        const result = await this.getByFamily(familyId, {
+            status: 'active',
+            expense_type: 'emi'
+        });
+        
+        if (!result.success) {
+            return result;
+        }
+        
+        // Filter out EMIs that have passed their end date
+        const today = new Date();
+        const activeEMIs = result.data.filter(emi => {
+            if (!emi.end_date) return true;
+            return new Date(emi.end_date) > today;
+        });
+        
+        return {
+            success: true,
+            data: activeEMIs,
+            error: null
+        };
+    }
+    
+    /**
+     * Delete a master expense (soft delete by setting status to cancelled)
+     * @param {string} id - Master expense ID
+     * @param {string} familyId - Family/user email
+     * @param {string} userId - User email
+     * @returns {Promise<Object>} { success: boolean, error: string }
+     */
+    async delete(id, familyId, userId) {
+        // Soft delete by cancelling
+        return await this.cancel(id, familyId, userId);
+    }
+    
+    /**
+     * Get total monthly recurring obligations
+     * @param {string} familyId - Family/user email
+     * @returns {Promise<Object>} { success: boolean, total: number, count: number, error: string }
+     */
+    async getTotalMonthlyObligations(familyId) {
+        try {
+            const result = await this.getByFamily(familyId, { status: 'active' });
+            
+            if (!result.success) {
+                return {
+                    success: false,
+                    total: 0,
+                    count: 0,
+                    error: result.error
+                };
+            }
+            
+            // Filter to only include expenses that haven't ended
+            const today = new Date();
+            const activeExpenses = result.data.filter(me => {
+                if (!me.end_date) return true;
+                return new Date(me.end_date) > today;
+            });
+            
+            const total = activeExpenses.reduce((sum, me) => sum + (me.amount || 0), 0);
+            
+            return {
+                success: true,
+                total,
+                count: activeExpenses.length,
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Total obligations calculation exception:', err);
+            return {
+                success: false,
+                total: 0,
+                count: 0,
+                error: err.message || 'Unexpected error calculating obligations'
+            };
+        }
+    }
+}
+
+/**
+ * ExpenseEntryService - Service layer for expense entry CRUD operations
+ * Handles both manual and auto-generated expense entries
+ */
+class ExpenseEntryService {
+    constructor(supabaseClient) {
+        this.sb = supabaseClient;
+    }
+    
+    /**
+     * Create a manual (individual) expense entry
+     * @param {string} familyId - Family/user email
+     * @param {string} userId - User email
+     * @param {Object} expenseData - Expense entry data
+     * @returns {Promise<Object>} { success: boolean, data: ExpenseEntry, error: string }
+     */
+    async createManual(familyId, userId, expenseData) {
+        try {
+            // Create ExpenseEntry instance
+            const entry = new ExpenseEntry({
+                ...expenseData,
+                family_id: familyId,
+                created_by: userId,
+                auto_generated: false,
+                master_expense_id: null
+            });
+            
+            // Validate
+            const validation = entry.validate();
+            if (!validation.valid) {
+                return {
+                    success: false,
+                    data: null,
+                    error: validation.errors.join(', ')
+                };
+            }
+            
+            // Insert into database
+            const { data, error } = await this.sb
+                .from('expenses')
+                .insert([entry.toJSON()])
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('Expense entry creation error:', error);
+                return {
+                    success: false,
+                    data: null,
+                    error: error.message || 'Failed to create expense entry'
+                };
+            }
+            
+            return {
+                success: true,
+                data: new ExpenseEntry(data),
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Expense entry creation exception:', err);
+            return {
+                success: false,
+                data: null,
+                error: err.message || 'Unexpected error creating expense entry'
+            };
+        }
+    }
+    
+    /**
+     * Create an auto-generated expense entry from a master expense
+     * @param {string} masterExpenseId - Master expense ID
+     * @param {number} month - Month number (1-12)
+     * @param {number} year - Year
+     * @returns {Promise<Object>} { success: boolean, data: ExpenseEntry, error: string }
+     */
+    async createAutoGenerated(masterExpenseId, month, year) {
+        try {
+            // First, get the master expense to copy data from
+            const { data: masterData, error: masterError } = await this.sb
+                .from('master_expenses')
+                .select('*')
+                .eq('id', masterExpenseId)
+                .single();
+            
+            if (masterError || !masterData) {
+                return {
+                    success: false,
+                    data: null,
+                    error: 'Master expense not found'
+                };
+            }
+            
+            const master = new MasterExpense(masterData);
+            
+            // Create entry date (first day of the month)
+            const entryDate = `${year}-${String(month).padStart(2, '0')}-01`;
+            
+            // Create auto-generated entry
+            const entry = new ExpenseEntry({
+                family_id: master.family_id,
+                master_expense_id: masterExpenseId,
+                amount: master.amount,
+                category: master.category,
+                description: `${master.name} (Auto-generated)`,
+                entry_date: entryDate,
+                auto_generated: true,
+                created_by: 'system'
+            });
+            
+            // Validate
+            const validation = entry.validate();
+            if (!validation.valid) {
+                return {
+                    success: false,
+                    data: null,
+                    error: validation.errors.join(', ')
+                };
+            }
+            
+            // Insert into database
+            const { data, error } = await this.sb
+                .from('expenses')
+                .insert([entry.toJSON()])
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('Auto-generated expense creation error:', error);
+                return {
+                    success: false,
+                    data: null,
+                    error: error.message || 'Failed to create auto-generated expense'
+                };
+            }
+            
+            return {
+                success: true,
+                data: new ExpenseEntry(data),
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Auto-generated expense creation exception:', err);
+            return {
+                success: false,
+                data: null,
+                error: err.message || 'Unexpected error creating auto-generated expense'
+            };
+        }
+    }
+    
+    /**
+     * Edit a monthly expense instance (mark as manually adjusted)
+     * @param {string} id - Expense entry ID
+     * @param {string} familyId - Family/user email
+     * @param {number} newAmount - New amount
+     * @returns {Promise<Object>} { success: boolean, data: ExpenseEntry, error: string }
+     */
+    async editMonthlyInstance(id, familyId, newAmount) {
+        try {
+            // Get existing entry
+            const { data: existingData, error: fetchError } = await this.sb
+                .from('expenses')
+                .select('*')
+                .eq('id', id)
+                .eq('family_id', familyId)
+                .single();
+            
+            if (fetchError || !existingData) {
+                return {
+                    success: false,
+                    data: null,
+                    error: 'Expense entry not found'
+                };
+            }
+            
+            const entry = new ExpenseEntry(existingData);
+            
+            // Mark as adjusted
+            entry.markAsAdjusted(newAmount);
+            
+            // Update in database
+            const { data, error } = await this.sb
+                .from('expenses')
+                .update({
+                    amount: entry.amount,
+                    manually_adjusted: entry.manually_adjusted,
+                    original_amount: entry.original_amount,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .eq('family_id', familyId)
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('Expense entry update error:', error);
+                return {
+                    success: false,
+                    data: null,
+                    error: error.message || 'Failed to update expense entry'
+                };
+            }
+            
+            return {
+                success: true,
+                data: new ExpenseEntry(data),
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Expense entry update exception:', err);
+            return {
+                success: false,
+                data: null,
+                error: err.message || 'Unexpected error updating expense entry'
+            };
+        }
+    }
+    
+    /**
+     * Get expenses for a specific month and family
+     * @param {string} familyId - Family/user email
+     * @param {number} month - Month number (1-12)
+     * @param {number} year - Year
+     * @param {boolean} includeAutoGenerated - Whether to include auto-generated expenses
+     * @returns {Promise<Object>} { success: boolean, data: ExpenseEntry[], error: string }
+     */
+    async getByMonthAndFamily(familyId, month, year, includeAutoGenerated = true) {
+        try {
+            // Calculate date range for the month
+            const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+            const endDate = month === 12 
+                ? `${year + 1}-01-01`
+                : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+            
+            let query = this.sb
+                .from('expenses')
+                .select('*, master_expenses(*)')
+                .eq('family_id', familyId)
+                .gte('entry_date', startDate)
+                .lt('entry_date', endDate);
+            
+            // Filter by auto_generated if needed
+            if (!includeAutoGenerated) {
+                query = query.eq('auto_generated', false);
+            }
+            
+            // Order by date and creation time
+            query = query.order('entry_date', { ascending: false })
+                         .order('created_at', { ascending: false });
+            
+            const { data, error } = await query;
+            
+            if (error) {
+                console.error('Expense query error:', error);
+                return {
+                    success: false,
+                    data: [],
+                    error: error.message || 'Failed to fetch expenses'
+                };
+            }
+            
+            // Convert to ExpenseEntry instances
+            const entries = (data || []).map(item => new ExpenseEntry(item));
+            
+            return {
+                success: true,
+                data: entries,
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Expense query exception:', err);
+            return {
+                success: false,
+                data: [],
+                error: err.message || 'Unexpected error fetching expenses'
+            };
+        }
+    }
+    
+    /**
+     * Delete an expense entry
+     * @param {string} id - Expense entry ID
+     * @param {string} familyId - Family/user email
+     * @returns {Promise<Object>} { success: boolean, error: string }
+     */
+    async delete(id, familyId) {
+        try {
+            const { error } = await this.sb
+                .from('expenses')
+                .delete()
+                .eq('id', id)
+                .eq('family_id', familyId);
+            
+            if (error) {
+                console.error('Expense deletion error:', error);
+                return {
+                    success: false,
+                    error: error.message || 'Failed to delete expense'
+                };
+            }
+            
+            return {
+                success: true,
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Expense deletion exception:', err);
+            return {
+                success: false,
+                error: err.message || 'Unexpected error deleting expense'
+            };
+        }
+    }
+    
+    /**
+     * Get expense totals for a month (separated by type)
+     * @param {string} familyId - Family/user email
+     * @param {number} month - Month number (1-12)
+     * @param {number} year - Year
+     * @returns {Promise<Object>} { success: boolean, totals: { recurring, individual, total }, error: string }
+     */
+    async getMonthlyTotals(familyId, month, year) {
+        try {
+            const result = await this.getByMonthAndFamily(familyId, month, year, true);
+            
+            if (!result.success) {
+                return {
+                    success: false,
+                    totals: { recurring: 0, individual: 0, total: 0 },
+                    error: result.error
+                };
+            }
+            
+            const recurring = result.data
+                .filter(e => e.auto_generated)
+                .reduce((sum, e) => sum + (e.amount || 0), 0);
+            
+            const individual = result.data
+                .filter(e => !e.auto_generated)
+                .reduce((sum, e) => sum + (e.amount || 0), 0);
+            
+            return {
+                success: true,
+                totals: {
+                    recurring,
+                    individual,
+                    total: recurring + individual
+                },
+                error: null
+            };
+            
+        } catch (err) {
+            console.error('Monthly totals calculation exception:', err);
+            return {
+                success: false,
+                totals: { recurring: 0, individual: 0, total: 0 },
+                error: err.message || 'Unexpected error calculating totals'
+            };
+        }
+    }
+}
+
+// Initialize service instances
+const masterExpenseService = new MasterExpenseService(sb);
+const expenseEntryService = new ExpenseEntryService(sb);
+
+/**
+ * RecurringExpenseEngine - Automation engine for monthly expense carry-forward
+ * Runs on the first day of each month to generate expense entries from master expenses
+ */
+class RecurringExpenseEngine {
+    constructor(masterExpenseService, expenseEntryService, supabaseClient) {
+        this.masterExpenseService = masterExpenseService;
+        this.expenseEntryService = expenseEntryService;
+        this.sb = supabaseClient;
+        this.maxRetries = 3;
+        this.retryDelays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
+    }
+    
+    /**
+     * Main scheduler - Execute monthly carry-forward
+     * Should be called on the first day of each month
+     * @returns {Promise<Object>} Execution result with metrics
+     */
+    async executeMonthlyCarryForward() {
+        const startTime = Date.now();
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1; // 1-12
+        const currentYear = today.getFullYear();
+        
+        console.log(`[RecurringExpenseEngine] Starting carry-forward for ${currentYear}-${currentMonth}`);
+        
+        const metrics = {
+            execution_date: today.toISOString().split('T')[0],
+            execution_time: today.toISOString(),
+            status: 'success',
+            entries_generated: 0,
+            emis_completed: 0,
+            reminders_sent: 0,
+            errors_encountered: 0,
+            error_details: [],
+            execution_duration_ms: 0
+        };
+        
+        try {
+            // Step 1: Get all active master expenses
+            const activeMasterExpenses = await this.getActiveMasterExpenses(today);
+            console.log(`[RecurringExpenseEngine] Found ${activeMasterExpenses.length} active master expenses`);
+            
+            // Step 2: Generate monthly entries
+            for (const masterExpense of activeMasterExpenses) {
+                try {
+                    await this.generateMonthlyEntry(masterExpense, currentMonth, currentYear);
+                    metrics.entries_generated++;
+                } catch (error) {
+                    console.error(`[RecurringExpenseEngine] Error generating entry for ${masterExpense.name}:`, error);
+                    metrics.errors_encountered++;
+                    metrics.error_details.push({
+                        master_expense_id: masterExpense.id,
+                        master_expense_name: masterExpense.name,
+                        error: error.message
+                    });
+                }
+            }
+            
+            // Step 3: Check for completed EMIs
+            const completedCount = await this.checkAndCompleteEMIs(today);
+            metrics.emis_completed = completedCount;
+            
+            // Step 4: Send subscription renewal reminders
+            const remindersCount = await this.sendRenewalReminders(today);
+            metrics.reminders_sent = remindersCount;
+            
+            // Determine final status
+            if (metrics.errors_encountered > 0) {
+                if (metrics.entries_generated > 0) {
+                    metrics.status = 'partial_success';
+                } else {
+                    metrics.status = 'failed';
+                }
+            }
+            
+        } catch (error) {
+            console.error('[RecurringExpenseEngine] Fatal error during carry-forward:', error);
+            metrics.status = 'failed';
+            metrics.errors_encountered++;
+            metrics.error_details.push({
+                error: error.message,
+                stack: error.stack
+            });
+            
+            // Attempt to handle the error with retry logic
+            await this.handleCarryForwardError(error, metrics);
+        }
+        
+        // Calculate execution duration
+        metrics.execution_duration_ms = Date.now() - startTime;
+        
+        // Log execution to database
+        await this.logExecution(metrics);
+        
+        console.log(`[RecurringExpenseEngine] Completed in ${metrics.execution_duration_ms}ms`);
+        console.log(`[RecurringExpenseEngine] Status: ${metrics.status}`);
+        console.log(`[RecurringExpenseEngine] Entries: ${metrics.entries_generated}, EMIs completed: ${metrics.emis_completed}, Errors: ${metrics.errors_encountered}`);
+        
+        return metrics;
+    }
+    
+    /**
+     * Get all active master expenses that should generate entries
+     * @private
+     * @param {Date} currentDate - Current date
+     * @returns {Promise<Array>} Array of active master expenses
+     */
+    async getActiveMasterExpenses(currentDate) {
+        try {
+            // Query all master expenses with status='active'
+            const { data, error } = await this.sb
+                .from('master_expenses')
+                .select('*')
+                .eq('status', 'active');
+            
+            if (error) {
+                console.error('[RecurringExpenseEngine] Error fetching active master expenses:', error);
+                return [];
+            }
+            
+            // Filter by end_date (null or >= current date)
+            const activeExpenses = (data || []).filter(me => {
+                if (!me.end_date) return true; // No end date = indefinite
+                return new Date(me.end_date) >= currentDate;
+            });
+            
+            return activeExpenses.map(me => new MasterExpense(me));
+            
+        } catch (error) {
+            console.error('[RecurringExpenseEngine] Exception fetching active master expenses:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * Generate a monthly expense entry from a master expense
+     * @private
+     * @param {MasterExpense} masterExpense - Master expense to generate from
+     * @param {number} month - Month number (1-12)
+     * @param {number} year - Year
+     * @returns {Promise<void>}
+     */
+    async generateMonthlyEntry(masterExpense, month, year) {
+        // Check if entry already exists for this month
+        const entryDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        
+        const { data: existing } = await this.sb
+            .from('expenses')
+            .select('id')
+            .eq('master_expense_id', masterExpense.id)
+            .eq('entry_date', entryDate)
+            .maybeSingle();
+        
+        if (existing) {
+            console.log(`[RecurringExpenseEngine] Entry already exists for ${masterExpense.name} in ${year}-${month}`);
+            return;
+        }
+        
+        // Create the entry using the service
+        const result = await this.expenseEntryService.createAutoGenerated(
+            masterExpense.id,
+            month,
+            year
+        );
+        
+        if (!result.success) {
+            throw new Error(`Failed to create entry: ${result.error}`);
+        }
+        
+        console.log(`[RecurringExpenseEngine] Generated entry for ${masterExpense.name}: ₹${masterExpense.amount}`);
+    }
+    
+    /**
+     * Check for EMIs that have reached their end date and mark them as completed
+     * @private
+     * @param {Date} currentDate - Current date
+     * @returns {Promise<number>} Number of EMIs completed
+     */
+    async checkAndCompleteEMIs(currentDate) {
+        try {
+            // Query EMIs where end_date < currentDate and status='active'
+            const { data, error } = await this.sb
+                .from('master_expenses')
+                .select('*')
+                .eq('is_emi', true)
+                .eq('status', 'active')
+                .not('end_date', 'is', null);
+            
+            if (error) {
+                console.error('[RecurringExpenseEngine] Error fetching EMIs:', error);
+                return 0;
+            }
+            
+            let completedCount = 0;
+            
+            for (const emiData of (data || [])) {
+                const emi = new MasterExpense(emiData);
+                const endDate = new Date(emi.end_date);
+                
+                if (endDate < currentDate) {
+                    // Mark as completed
+                    const { error: updateError } = await this.sb
+                        .from('master_expenses')
+                        .update({
+                            status: 'completed',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', emi.id);
+                    
+                    if (updateError) {
+                        console.error(`[RecurringExpenseEngine] Error completing EMI ${emi.name}:`, updateError);
+                    } else {
+                        console.log(`[RecurringExpenseEngine] Completed EMI: ${emi.name}`);
+                        completedCount++;
+                        
+                        // Send completion notification
+                        await this.sendEMICompletionNotification(emi);
+                    }
+                }
+            }
+            
+            return completedCount;
+            
+        } catch (error) {
+            console.error('[RecurringExpenseEngine] Exception checking EMIs:', error);
+            return 0;
+        }
+    }
+    
+    /**
+     * Send renewal reminders for subscriptions expiring within 7 days
+     * @private
+     * @param {Date} currentDate - Current date
+     * @returns {Promise<number>} Number of reminders sent
+     */
+    async sendRenewalReminders(currentDate) {
+        try {
+            // Query subscriptions with renewal_date within 7 days
+            const sevenDaysFromNow = new Date(currentDate);
+            sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+            
+            const { data, error } = await this.sb
+                .from('master_expenses')
+                .select('*')
+                .eq('is_subscription', true)
+                .eq('status', 'active')
+                .not('renewal_date', 'is', null)
+                .gte('renewal_date', currentDate.toISOString().split('T')[0])
+                .lte('renewal_date', sevenDaysFromNow.toISOString().split('T')[0]);
+            
+            if (error) {
+                console.error('[RecurringExpenseEngine] Error fetching subscriptions:', error);
+                return 0;
+            }
+            
+            let remindersCount = 0;
+            
+            for (const subData of (data || [])) {
+                const subscription = new MasterExpense(subData);
+                await this.sendSubscriptionRenewalReminder(subscription);
+                remindersCount++;
+            }
+            
+            return remindersCount;
+            
+        } catch (error) {
+            console.error('[RecurringExpenseEngine] Exception sending reminders:', error);
+            return 0;
+        }
+    }
+    
+    /**
+     * Send EMI completion notification
+     * @private
+     * @param {MasterExpense} emi - Completed EMI
+     * @returns {Promise<void>}
+     */
+    async sendEMICompletionNotification(emi) {
+        try {
+            console.log(`[RecurringExpenseEngine] 🎉 EMI Completed: ${emi.name}`);
+            console.log(`  Total paid: ₹${emi.total_amount}`);
+            console.log(`  Completion date: ${emi.end_date}`);
+            
+            // In a real implementation, this would send an email/push notification
+            // For now, we'll just log it
+            // TODO: Integrate with notification service
+            
+        } catch (error) {
+            console.error('[RecurringExpenseEngine] Error sending EMI completion notification:', error);
+        }
+    }
+    
+    /**
+     * Send subscription renewal reminder
+     * @private
+     * @param {MasterExpense} subscription - Subscription to remind about
+     * @returns {Promise<void>}
+     */
+    async sendSubscriptionRenewalReminder(subscription) {
+        try {
+            console.log(`[RecurringExpenseEngine] 🔔 Subscription Renewal Reminder: ${subscription.service_name || subscription.name}`);
+            console.log(`  Renewal date: ${subscription.renewal_date}`);
+            console.log(`  Amount: ₹${subscription.amount}`);
+            
+            // In a real implementation, this would send an email/push notification
+            // For now, we'll just log it
+            // TODO: Integrate with notification service
+            
+        } catch (error) {
+            console.error('[RecurringExpenseEngine] Error sending renewal reminder:', error);
+        }
+    }
+    
+    /**
+     * Handle carry-forward errors with retry logic
+     * @private
+     * @param {Error} error - The error that occurred
+     * @param {Object} metrics - Current execution metrics
+     * @returns {Promise<void>}
+     */
+    async handleCarryForwardError(error, metrics) {
+        console.error('[RecurringExpenseEngine] Handling carry-forward error:', error);
+        
+        // Log error details
+        metrics.error_details.push({
+            timestamp: new Date().toISOString(),
+            error: error.message,
+            stack: error.stack
+        });
+        
+        // In a production environment, this would:
+        // 1. Send alert to admin
+        // 2. Retry failed operations with exponential backoff
+        // 3. Store failed operations for manual review
+        
+        // For now, we just log it
+        console.error('[RecurringExpenseEngine] Error logged. Manual intervention may be required.');
+    }
+    
+    /**
+     * Log execution results to database
+     * @private
+     * @param {Object} metrics - Execution metrics
+     * @returns {Promise<void>}
+     */
+    async logExecution(metrics) {
+        try {
+            const { error } = await this.sb
+                .from('recurring_engine_logs')
+                .insert([{
+                    execution_date: metrics.execution_date,
+                    execution_time: metrics.execution_time,
+                    status: metrics.status,
+                    entries_generated: metrics.entries_generated,
+                    emis_completed: metrics.emis_completed,
+                    reminders_sent: metrics.reminders_sent,
+                    errors_encountered: metrics.errors_encountered,
+                    error_details: metrics.error_details.length > 0 ? metrics.error_details : null,
+                    execution_duration_ms: metrics.execution_duration_ms
+                }]);
+            
+            if (error) {
+                console.error('[RecurringExpenseEngine] Error logging execution:', error);
+            }
+            
+        } catch (error) {
+            console.error('[RecurringExpenseEngine] Exception logging execution:', error);
+        }
+    }
+    
+    /**
+     * Get the last execution log
+     * @returns {Promise<Object>} Last execution log or null
+     */
+    async getLastExecution() {
+        try {
+            const { data, error } = await this.sb
+                .from('recurring_engine_logs')
+                .select('*')
+                .order('execution_time', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            
+            if (error) {
+                console.error('[RecurringExpenseEngine] Error fetching last execution:', error);
+                return null;
+            }
+            
+            return data;
+            
+        } catch (error) {
+            console.error('[RecurringExpenseEngine] Exception fetching last execution:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Get execution history
+     * @param {number} limit - Number of records to fetch
+     * @returns {Promise<Array>} Array of execution logs
+     */
+    async getExecutionHistory(limit = 10) {
+        try {
+            const { data, error } = await this.sb
+                .from('recurring_engine_logs')
+                .select('*')
+                .order('execution_time', { ascending: false })
+                .limit(limit);
+            
+            if (error) {
+                console.error('[RecurringExpenseEngine] Error fetching execution history:', error);
+                return [];
+            }
+            
+            return data || [];
+            
+        } catch (error) {
+            console.error('[RecurringExpenseEngine] Exception fetching execution history:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * Manual trigger for testing/admin purposes
+     * @param {number} month - Optional month (defaults to current)
+     * @param {number} year - Optional year (defaults to current)
+     * @returns {Promise<Object>} Execution result
+     */
+    async manualTrigger(month = null, year = null) {
+        const today = new Date();
+        const targetMonth = month || (today.getMonth() + 1);
+        const targetYear = year || today.getFullYear();
+        
+        console.log(`[RecurringExpenseEngine] Manual trigger for ${targetYear}-${targetMonth}`);
+        
+        // Temporarily override the date for testing
+        const originalExecute = this.executeMonthlyCarryForward.bind(this);
+        
+        // Execute with custom date
+        const startTime = Date.now();
+        const metrics = {
+            execution_date: `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`,
+            execution_time: new Date().toISOString(),
+            status: 'success',
+            entries_generated: 0,
+            emis_completed: 0,
+            reminders_sent: 0,
+            errors_encountered: 0,
+            error_details: [],
+            execution_duration_ms: 0
+        };
+        
+        try {
+            const activeMasterExpenses = await this.getActiveMasterExpenses(today);
+            
+            for (const masterExpense of activeMasterExpenses) {
+                try {
+                    await this.generateMonthlyEntry(masterExpense, targetMonth, targetYear);
+                    metrics.entries_generated++;
+                } catch (error) {
+                    console.error(`[RecurringExpenseEngine] Error generating entry:`, error);
+                    metrics.errors_encountered++;
+                    metrics.error_details.push({
+                        master_expense_id: masterExpense.id,
+                        error: error.message
+                    });
+                }
+            }
+            
+            if (metrics.errors_encountered > 0 && metrics.entries_generated === 0) {
+                metrics.status = 'failed';
+            } else if (metrics.errors_encountered > 0) {
+                metrics.status = 'partial_success';
+            }
+            
+        } catch (error) {
+            metrics.status = 'failed';
+            metrics.errors_encountered++;
+            metrics.error_details.push({ error: error.message });
+        }
+        
+        metrics.execution_duration_ms = Date.now() - startTime;
+        await this.logExecution(metrics);
+        
+        return metrics;
+    }
+}
+
+// Initialize recurring expense engine
+const recurringExpenseEngine = new RecurringExpenseEngine(
+    masterExpenseService,
+    expenseEntryService,
+    sb
+);
 
 // Performance optimization: Memoization cache
 const computeCache = {
@@ -4119,10 +6111,116 @@ function populateProfileSelector() {
 function showAuth() { $('auth').style.display='flex'; $('app').style.display='none'; clearTimeout(inactivityTimer); }
 
 window.switchAuth = mode => {
-    $('aform-login').style.display = mode==='login' ? 'block' : 'none';
-    $('aform-reg').style.display   = mode==='reg'   ? 'block' : 'none';
+    if (mode === 'reg') {
+        // Show modern registration screen
+        document.getElementById('classic-auth').style.display = 'none';
+        document.getElementById('modern-registration').style.display = 'block';
+    } else {
+        // Show classic login screen
+        document.getElementById('classic-auth').style.display = 'block';
+        document.getElementById('modern-registration').style.display = 'none';
+    }
+    
+    // Update tabs in classic auth
     document.querySelectorAll('.atab').forEach((b,i) => b.classList.toggle('on', (mode==='login'&&i===0)||(mode==='reg'&&i===1)));
 };
+
+// Show login screen from modern registration
+window.showLoginScreen = () => {
+    document.getElementById('modern-registration').style.display = 'none';
+    document.getElementById('classic-auth').style.display = 'block';
+    switchAuth('login');
+};
+
+// Password validation for modern registration
+window.showPasswordRequirements = () => {
+    const reqDiv = document.getElementById('password-requirements');
+    if (reqDiv) reqDiv.style.display = 'block';
+};
+
+window.validatePassword = () => {
+    const password = document.getElementById('r-pw')?.value || '';
+    
+    // Length check (6+ chars for compatibility with existing system)
+    const lengthValid = password.length >= 6;
+    updateRequirement('req-length', lengthValid);
+    
+    // Case check
+    const caseValid = /[a-z]/.test(password) && /[A-Z]/.test(password);
+    updateRequirement('req-case', caseValid);
+    
+    // Number check
+    const numberValid = /[0-9]/.test(password);
+    updateRequirement('req-number', numberValid);
+};
+
+function updateRequirement(id, isValid) {
+    const element = document.getElementById(id);
+    if (!element) return;
+    
+    if (isValid) {
+        element.style.color = 'var(--green)';
+        const span = element.querySelector('span');
+        if (span) span.textContent = '✓';
+    } else {
+        element.style.color = 'var(--text3)';
+        const span = element.querySelector('span');
+        if (span) span.textContent = '○';
+    }
+}
+
+// Handle modern registration form
+window.handleModernRegistration = async () => {
+    const firstname = document.getElementById('reg-firstname')?.value?.trim() || '';
+    const lastname = document.getElementById('reg-lastname')?.value?.trim() || '';
+    const email = document.getElementById('r-em')?.value?.trim() || '';
+    const whatsapp = document.getElementById('reg-whatsapp')?.value?.trim() || '';
+    const password = document.getElementById('r-pw')?.value || '';
+    const termsChecked = document.getElementById('reg-terms')?.checked || false;
+    
+    // Validation
+    if (!firstname || !lastname) {
+        showToast('❌ Please enter your first and last name', 'red');
+        return;
+    }
+    
+    if (!email) {
+        showToast('❌ Please enter your email address', 'red');
+        return;
+    }
+    
+    if (!password || password.length < 6) {
+        showToast('❌ Password must be at least 6 characters', 'red');
+        return;
+    }
+    
+    if (!termsChecked) {
+        showToast('❌ Please agree to the Terms of Service', 'red');
+        return;
+    }
+    
+    // Combine first and last name for compatibility with existing system
+    const fullName = `${firstname} ${lastname}`;
+    
+    // Set hidden fields for compatibility with doReg function
+    document.getElementById('r-nm').value = fullName;
+    document.getElementById('r-pw2').value = password; // Set confirm password same as password
+    
+    // Set default values for required fields
+    document.getElementById('r-age').value = '30';
+    document.getElementById('r-occupation').value = 'salaried';
+    document.getElementById('r-income-range').value = '6-12';
+    
+    // Store WhatsApp number in user metadata (will be added to doReg later)
+    if (whatsapp) {
+        // Store temporarily for use in doReg
+        window.tempWhatsAppNumber = whatsapp;
+    }
+    
+    // Call the existing doReg function
+    await doReg();
+};
+
 
 window.doLogin = async () => {
     const email = $('l-em').value.trim();
@@ -4244,7 +6342,30 @@ window.doReg = async () => {
     }
     
     try {
-        const { data, error } = await sb.auth.signUp({ email, password:pass, options:{ data:{ name, age, occupation, incomeRange, goals, risk } } });
+        // Get WhatsApp number if provided from modern registration
+        const whatsappNumber = window.tempWhatsAppNumber || '';
+        
+        const { data, error } = await sb.auth.signUp({ 
+            email, 
+            password:pass, 
+            options:{ 
+                data:{ 
+                    name, 
+                    age, 
+                    occupation, 
+                    incomeRange, 
+                    goals, 
+                    risk,
+                    whatsapp_number: whatsappNumber ? `+91${whatsappNumber}` : null
+                } 
+            } 
+        });
+        
+        // Clear temp WhatsApp number
+        if (window.tempWhatsAppNumber) {
+            delete window.tempWhatsAppNumber;
+        }
+        
         if(error) {
             // Show user-friendly error message below email field
             let errorMessage = 'Unable to create account. ';
@@ -4463,7 +6584,7 @@ if (!document.getElementById('congrats-animations')) {
 
 // ========== NAVIGATION ==========
 const pageTitles    = { overview:'Overview', income:'Income', expenses:'Expenses', investments:'Investments', loans:'Loans', insurance:'Insurance', schemes:'Gov. Schemes', recommendations:'Recommendations', advisor:'AI Advisor', settings:'Settings', nri:'NRI Planner', plan:'Autopilot', education:'Financial Education', family:'Family', accounts: 'Bank Accounts'  };
-const pageSubtitles = { overview:'Financial health at a glance', income:'Your income sources', expenses:'Track your spending', investments:'Your investment portfolio', loans:'Active loans & EMIs', insurance:'Coverage & protection', schemes:'Government benefit schemes', recommendations:'Personalised for you', advisor:'AI-powered coaching', settings:'Your profile & preferences', nri:'Plan your return to India', plan:'Full financial autopilot', education:'Learn & calculate smart finances', family:'Family finance insights', accounts: 'Manage your linked accounts' };
+const pageSubtitles = { overview:'Financial health at a glance', income:'Your income sources', expenses:'Track your spending', 'master-expenses':'Manage recurring & mandatory expenses', investments:'Your investment portfolio', loans:'Active loans & EMIs', insurance:'Coverage & protection', schemes:'Government benefit schemes', recommendations:'Personalised for you', advisor:'AI-powered coaching', settings:'Your profile & preferences', nri:'Plan your return to India', plan:'Full financial autopilot', education:'Learn & calculate smart finances', family:'Family finance insights', accounts: 'Manage your linked accounts' };
 
 document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', function() {
@@ -4504,6 +6625,7 @@ async function renderCurrentPage() {
         case 'overview':        renderOverview();            break;
         case 'income':          renderIncome();              break;
         case 'expenses':        renderExpenses();            break;
+        case 'master-expenses': await renderMasterExpenses(); break;
         case 'investments':     renderInvestments();         break;
         case 'loans':           renderLoans();               break;
         case 'insurance':       renderInsurance();           break;
@@ -5214,6 +7336,569 @@ window.addInvestment = cat => {
     if(!userData.investments[cat]) userData.investments[cat]=[];
     userData.investments[cat].push({ id:'inv-'+Date.now(), name:'New Entry', value:0 });
     debounceSave(); renderInvestments();
+};
+
+// ========== RECURRING EXPENSES PAGE ==========
+async function renderMasterExpenses() {
+    if (!currentUserEmail) {
+        sh('page-master-expenses', emptyState('Please log in to manage recurring expenses.', '🔐 Log In', 'doLogin'));
+        return;
+    }
+
+    // Fetch master expenses
+    const result = await masterExpenseService.getByFamily(currentUserEmail, {});
+    
+    if (!result.success) {
+        sh('page-master-expenses', `
+            <div class="card" style="background:var(--red-dim); border-color:var(--red);">
+                <div style="color:var(--red); font-size:14px;">❌ Error loading recurring expenses: ${result.error}</div>
+            </div>
+        `);
+        return;
+    }
+
+    const masterExpenses = result.data || [];
+    const activeExpenses = masterExpenses.filter(me => me.status === 'active');
+    const pausedExpenses = masterExpenses.filter(me => me.status === 'paused');
+    const completedExpenses = masterExpenses.filter(me => me.status === 'completed');
+    
+    // Calculate totals
+    const totalMonthly = activeExpenses.reduce((sum, me) => sum + (me.amount || 0), 0);
+    const emiCount = activeExpenses.filter(me => me.is_emi).length;
+    const subscriptionCount = activeExpenses.filter(me => me.is_subscription).length;
+    
+    // Get total remaining for EMIs
+    const totalEMIRemaining = activeExpenses
+        .filter(me => me.is_emi)
+        .reduce((sum, me) => sum + (me.remaining_amount || 0), 0);
+
+    // Render master expenses by category
+    const renderMasterExpenseCard = (me) => {
+        const statusBadge = me.status === 'active' ? '<span class="badge badge-green">Active</span>' :
+                           me.status === 'paused' ? '<span class="badge badge-yellow">Paused</span>' :
+                           me.status === 'completed' ? '<span class="badge badge-blue">Completed</span>' :
+                           '<span class="badge badge-red">Cancelled</span>';
+        
+        const typeIcon = me.expense_type === 'emi' ? '🏦' :
+                        me.expense_type === 'subscription' ? '📱' :
+                        me.expense_type === 'utility' ? '💡' :
+                        me.expense_type === 'grocery' ? '🛒' : '💰';
+        
+        const emiInfo = me.is_emi ? `
+            <div style="font-size:11px; color:var(--text3); margin-top:4px;">
+                <div>Tenure: ${me.tenure_months} months | Remaining: ${me.remaining_tenure || 0} months</div>
+                <div>Total: ${fl(me.total_amount)} | Remaining: ${fl(me.remaining_amount || 0)}</div>
+                <div>End Date: ${me.end_date}</div>
+            </div>
+        ` : '';
+        
+        const subscriptionInfo = me.is_subscription ? `
+            <div style="font-size:11px; color:var(--text3); margin-top:4px;">
+                <div>Service: ${me.service_name || 'N/A'}</div>
+                <div>Renewal: ${me.renewal_date || 'N/A'}</div>
+                <div>Frequency: ${me.frequency}</div>
+            </div>
+        ` : '';
+        
+        const controls = me.status === 'active' ? `
+            <button class="snap-btn" onclick="pauseMasterExpense('${me.id}')" style="font-size:11px; padding:4px 10px;">⏸️ Pause</button>
+            <button class="snap-btn" onclick="editMasterExpense('${me.id}')" style="font-size:11px; padding:4px 10px;">✏️ Edit</button>
+            <button class="snap-btn" onclick="cancelMasterExpense('${me.id}')" style="font-size:11px; padding:4px 10px; color:var(--red);">❌ Cancel</button>
+        ` : me.status === 'paused' ? `
+            <button class="snap-btn" onclick="resumeMasterExpense('${me.id}')" style="font-size:11px; padding:4px 10px;">▶️ Resume</button>
+            <button class="snap-btn" onclick="cancelMasterExpense('${me.id}')" style="font-size:11px; padding:4px 10px; color:var(--red);">❌ Cancel</button>
+        ` : '';
+        
+        return `
+            <div class="card" style="margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                            <span style="font-size:18px;">${typeIcon}</span>
+                            <span style="font-size:15px; font-weight:700; color:var(--text);">${me.name}</span>
+                            ${statusBadge}
+                        </div>
+                        <div style="font-size:13px; color:var(--text2);">${me.category} • ${me.expense_type}</div>
+                        ${me.description ? `<div style="font-size:12px; color:var(--text3); margin-top:4px;">${me.description}</div>` : ''}
+                        ${emiInfo}
+                        ${subscriptionInfo}
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:20px; font-weight:800; font-family:var(--mono); color:var(--accent);">${ff(me.amount)}</div>
+                        <div style="font-size:11px; color:var(--text3);">per month</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    ${controls}
+                </div>
+            </div>
+        `;
+    };
+
+    const activeHtml = activeExpenses.length > 0 
+        ? activeExpenses.map(renderMasterExpenseCard).join('')
+        : '<p style="color:var(--text3); font-size:13px; padding:10px 0;">No active recurring expenses.</p>';
+    
+    const pausedHtml = pausedExpenses.length > 0
+        ? pausedExpenses.map(renderMasterExpenseCard).join('')
+        : '';
+    
+    const completedHtml = completedExpenses.length > 0
+        ? completedExpenses.map(renderMasterExpenseCard).join('')
+        : '';
+
+    sh('page-master-expenses', `
+        <div class="grid-4" style="margin-bottom:18px;">
+            <div class="kpi-card red">
+                <div class="kpi-label">Total Monthly Recurring</div>
+                <div class="kpi-value">${fl(totalMonthly)}</div>
+                <div class="kpi-sub">${activeExpenses.length} active expenses</div>
+            </div>
+            <div class="kpi-card yellow">
+                <div class="kpi-label">Active EMIs</div>
+                <div class="kpi-value">${emiCount}</div>
+                <div class="kpi-sub">Remaining: ${fl(totalEMIRemaining)}</div>
+            </div>
+            <div class="kpi-card purple">
+                <div class="kpi-label">Subscriptions</div>
+                <div class="kpi-value">${subscriptionCount}</div>
+                <div class="kpi-sub">Active services</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-label">Paused</div>
+                <div class="kpi-value">${pausedExpenses.length}</div>
+                <div class="kpi-sub">Temporarily stopped</div>
+            </div>
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <button class="ebtn" onclick="showAddMasterExpenseModal()">➕ Add Recurring Expense</button>
+            <button class="snap-btn" onclick="showAddEMIModal()" style="margin-left:8px;">🏦 Add EMI</button>
+            <button class="snap-btn" onclick="testCarryForward()" style="margin-left:8px;">🔄 Test Carry-Forward</button>
+            <button class="snap-btn" onclick="testWhatsAppReminder()" style="margin-left:8px; background:var(--green-dim); color:var(--green);">📱 Test WhatsApp</button>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span class="icon">✅</span> Active Recurring Expenses</div>
+            ${activeHtml}
+        </div>
+
+        ${pausedHtml ? `
+        <div class="card">
+            <div class="card-title"><span class="icon">⏸️</span> Paused Expenses</div>
+            ${pausedHtml}
+        </div>
+        ` : ''}
+
+        ${completedHtml ? `
+        <div class="card">
+            <div class="card-title"><span class="icon">✅</span> Completed Expenses</div>
+            ${completedHtml}
+        </div>
+        ` : ''}
+    `);
+}
+
+// Master Expense Management Functions
+window.showAddMasterExpenseModal = () => {
+    const modalHtml = `
+        <div class="modal-overlay" id="masterExpenseModal" onclick="if(event.target===this) closeMasterExpenseModal()">
+            <div class="modal-content" style="max-width:600px;">
+                <h2 style="margin-bottom:20px;">Add Recurring Expense</h2>
+                
+                <div class="form-group">
+                    <label class="form-label">Expense Name *</label>
+                    <input type="text" id="me-name" class="onboarding-input" placeholder="e.g., Monthly Groceries">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Monthly Amount (₹) *</label>
+                    <input type="number" id="me-amount" class="onboarding-input" placeholder="15000" min="1">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Category *</label>
+                    <select id="me-category" class="onboarding-input">
+                        <option value="">Select category</option>
+                        <option value="housing">Housing</option>
+                        <option value="transportation">Transportation</option>
+                        <option value="utilities">Utilities</option>
+                        <option value="groceries">Groceries</option>
+                        <option value="insurance">Insurance</option>
+                        <option value="entertainment">Entertainment</option>
+                        <option value="education">Education</option>
+                        <option value="healthcare">Healthcare</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Expense Type *</label>
+                    <select id="me-type" class="onboarding-input" onchange="toggleExpenseTypeFields()">
+                        <option value="other">Regular Recurring</option>
+                        <option value="utility">Utility Bill</option>
+                        <option value="grocery">Grocery</option>
+                        <option value="subscription">Subscription</option>
+                    </select>
+                </div>
+                
+                <div id="subscription-fields" style="display:none;">
+                    <div class="form-group">
+                        <label class="form-label">Service Name</label>
+                        <input type="text" id="me-service-name" class="onboarding-input" placeholder="e.g., Netflix">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Renewal Date</label>
+                        <input type="date" id="me-renewal-date" class="onboarding-input">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="me-description" class="onboarding-input" rows="2" placeholder="Optional notes"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" id="me-start-date" class="onboarding-input" value="${new Date().toISOString().split('T')[0]}">
+                </div>
+                
+                <div style="display:flex; gap:10px; margin-top:24px;">
+                    <button class="ebtn" onclick="saveMasterExpense()" style="flex:1;">Save</button>
+                    <button class="snap-btn" onclick="closeMasterExpenseModal()" style="flex:1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.showAddEMIModal = () => {
+    const modalHtml = `
+        <div class="modal-overlay" id="emiModal" onclick="if(event.target===this) closeEMIModal()">
+            <div class="modal-content" style="max-width:600px;">
+                <h2 style="margin-bottom:20px;">Add EMI</h2>
+                
+                <div class="form-group">
+                    <label class="form-label">EMI Name *</label>
+                    <input type="text" id="emi-name" class="onboarding-input" placeholder="e.g., Home Loan EMI">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Monthly EMI Amount (₹) *</label>
+                    <input type="number" id="emi-amount" class="onboarding-input" placeholder="35000" min="1" onchange="calculateEMITotals()">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">EMI Type *</label>
+                    <select id="emi-type" class="onboarding-input">
+                        <option value="house_loan">Home Loan</option>
+                        <option value="car_loan">Car Loan</option>
+                        <option value="personal_loan">Personal Loan</option>
+                        <option value="education_loan">Education Loan</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Start Date *</label>
+                    <input type="date" id="emi-start-date" class="onboarding-input" onchange="calculateEMITotals()">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">End Date *</label>
+                    <input type="date" id="emi-end-date" class="onboarding-input" onchange="calculateEMITotals()">
+                </div>
+                
+                <div id="emi-calculations" style="background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:12px; margin:16px 0; display:none;">
+                    <div style="font-size:12px; color:var(--text3); margin-bottom:8px;">EMI Summary:</div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="font-size:13px; color:var(--text2);">Tenure:</span>
+                        <span style="font-size:13px; font-weight:600; color:var(--text);" id="emi-tenure-display">—</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="font-size:13px; color:var(--text2);">Total Amount:</span>
+                        <span style="font-size:13px; font-weight:600; color:var(--accent);" id="emi-total-display">—</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="emi-description" class="onboarding-input" rows="2" placeholder="Optional notes"></textarea>
+                </div>
+                
+                <div style="display:flex; gap:10px; margin-top:24px;">
+                    <button class="ebtn" onclick="saveEMI()" style="flex:1;">Save EMI</button>
+                    <button class="snap-btn" onclick="closeEMIModal()" style="flex:1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.toggleExpenseTypeFields = () => {
+    const type = $('me-type').value;
+    const subFields = $('subscription-fields');
+    if (subFields) {
+        subFields.style.display = type === 'subscription' ? 'block' : 'none';
+    }
+};
+
+window.calculateEMITotals = () => {
+    const amount = parseFloat($('emi-amount')?.value || 0);
+    const startDate = $('emi-start-date')?.value;
+    const endDate = $('emi-end-date')?.value;
+    
+    if (amount > 0 && startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        const years = end.getFullYear() - start.getFullYear();
+        const months = end.getMonth() - start.getMonth();
+        const tenure = years * 12 + months;
+        
+        if (tenure > 0) {
+            const total = amount * tenure;
+            $('emi-tenure-display').textContent = `${tenure} months (${(tenure/12).toFixed(1)} years)`;
+            $('emi-total-display').textContent = fl(total);
+            $('emi-calculations').style.display = 'block';
+        }
+    }
+};
+
+window.saveMasterExpense = async () => {
+    const name = $('me-name').value.trim();
+    const amount = parseFloat($('me-amount').value);
+    const category = $('me-category').value;
+    const expenseType = $('me-type').value;
+    const description = $('me-description').value.trim();
+    const startDate = $('me-start-date').value;
+    
+    if (!name || !amount || !category) {
+        showToast('Please fill in all required fields', 'red');
+        return;
+    }
+    
+    const expenseData = {
+        name,
+        amount,
+        category,
+        expense_type: expenseType,
+        description,
+        start_date: startDate,
+        is_subscription: expenseType === 'subscription',
+        service_name: expenseType === 'subscription' ? $('me-service-name').value : null,
+        renewal_date: expenseType === 'subscription' ? $('me-renewal-date').value : null
+    };
+    
+    const result = await masterExpenseService.create(currentUserEmail, currentUserEmail, expenseData);
+    
+    if (result.success) {
+        showToast('✅ Recurring expense added successfully!', 'green');
+        closeMasterExpenseModal();
+        renderCurrentPage();
+    } else {
+        showToast(`❌ Error: ${result.error}`, 'red');
+    }
+};
+
+window.saveEMI = async () => {
+    const name = $('emi-name').value.trim();
+    const amount = parseFloat($('emi-amount').value);
+    const emiType = $('emi-type').value;
+    const startDate = $('emi-start-date').value;
+    const endDate = $('emi-end-date').value;
+    const description = $('emi-description').value.trim();
+    
+    if (!name || !amount || !startDate || !endDate) {
+        showToast('Please fill in all required fields', 'red');
+        return;
+    }
+    
+    const emiData = {
+        name,
+        amount,
+        category: emiType === 'house_loan' ? 'housing' : 'transportation',
+        emi_type: emiType,
+        start_date: startDate,
+        end_date: endDate,
+        description
+    };
+    
+    const result = await masterExpenseService.createEMI(currentUserEmail, currentUserEmail, emiData);
+    
+    if (result.success) {
+        showToast('✅ EMI added successfully!', 'green');
+        closeEMIModal();
+        renderCurrentPage();
+    } else {
+        showToast(`❌ Error: ${result.error}`, 'red');
+    }
+};
+
+window.closeMasterExpenseModal = () => {
+    const modal = $('masterExpenseModal');
+    if (modal) modal.remove();
+};
+
+window.closeEMIModal = () => {
+    const modal = $('emiModal');
+    if (modal) modal.remove();
+};
+
+window.pauseMasterExpense = async (id) => {
+    if (!confirm('Pause this recurring expense? It will stop generating monthly entries.')) return;
+    
+    const result = await masterExpenseService.pause(id, currentUserEmail, currentUserEmail);
+    if (result.success) {
+        showToast('✅ Expense paused', 'yellow');
+        renderCurrentPage();
+    } else {
+        showToast(`❌ Error: ${result.error}`, 'red');
+    }
+};
+
+window.resumeMasterExpense = async (id) => {
+    const result = await masterExpenseService.resume(id, currentUserEmail, currentUserEmail);
+    if (result.success) {
+        showToast('✅ Expense resumed', 'green');
+        renderCurrentPage();
+    } else {
+        showToast(`❌ Error: ${result.error}`, 'red');
+    }
+};
+
+window.cancelMasterExpense = async (id) => {
+    if (!confirm('Cancel this recurring expense? This action cannot be undone.')) return;
+    
+    const result = await masterExpenseService.cancel(id, currentUserEmail, currentUserEmail);
+    if (result.success) {
+        showToast('✅ Expense cancelled', 'red');
+        renderCurrentPage();
+    } else {
+        showToast(`❌ Error: ${result.error}`, 'red');
+    }
+};
+
+window.editMasterExpense = async (id) => {
+    showToast('Edit functionality coming soon!', 'yellow');
+    // TODO: Implement edit modal
+};
+
+window.testCarryForward = async () => {
+    if (!confirm('Run carry-forward for current month? This will generate expense entries from active recurring expenses.')) return;
+    
+    showToast('Running carry-forward...', 'blue');
+    
+    const today = new Date();
+    const result = await recurringExpenseEngine.manualTrigger(today.getMonth() + 1, today.getFullYear());
+    
+    if (result.status === 'success') {
+        showToast(`✅ Carry-forward complete! Generated ${result.entries_generated} entries`, 'green');
+    } else if (result.status === 'partial_success') {
+        showToast(`⚠️ Partial success: ${result.entries_generated} entries, ${result.errors_encountered} errors`, 'yellow');
+    } else {
+        showToast(`❌ Carry-forward failed: ${result.errors_encountered} errors`, 'red');
+    }
+    
+    // Refresh the expenses page to show new entries
+    setTimeout(() => {
+        document.querySelector('[data-page="expenses"]').click();
+    }, 2000);
+};
+
+// ========== WHATSAPP INTEGRATION ==========
+
+/**
+ * Test WhatsApp reminder - sends a test message to user's WhatsApp number
+ */
+window.testWhatsAppReminder = async () => {
+    if (!currentUserEmail) {
+        showToast('❌ Please log in first', 'red');
+        return;
+    }
+    
+    // Check if user has WhatsApp number
+    const whatsappNumber = userData.profile?.whatsapp_number;
+    
+    if (!whatsappNumber) {
+        if (confirm('No WhatsApp number found in your profile. Would you like to add one now?')) {
+            document.querySelector('[data-page="settings"]').click();
+            showToast('💡 Add your WhatsApp number in Profile Settings', 'blue');
+        }
+        return;
+    }
+    
+    if (!confirm(`Send test WhatsApp message to ${whatsappNumber}?`)) return;
+    
+    showToast('📱 Sending test message...', 'blue');
+    
+    try {
+        const response = await fetch('/api/whatsapp/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                to: whatsappNumber,
+                userName: userData.profile?.name || 'User'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('✅ Test message sent! Check your WhatsApp', 'green');
+        } else {
+            showToast(`❌ Failed to send: ${result.error}`, 'red');
+            console.error('WhatsApp test error:', result);
+        }
+    } catch (error) {
+        console.error('WhatsApp test error:', error);
+        showToast('❌ Failed to send test message', 'red');
+    }
+};
+
+/**
+ * Send WhatsApp reminders for upcoming recurring expenses
+ * @param {number} daysAhead - Number of days to look ahead (default: 7)
+ * @param {string} type - Type of reminder: 'consolidated' or 'individual'
+ */
+window.sendWhatsAppReminders = async (daysAhead = 7, type = 'consolidated') => {
+    if (!currentUserEmail) {
+        showToast('❌ Please log in first', 'red');
+        return;
+    }
+    
+    showToast('📱 Sending reminders...', 'blue');
+    
+    try {
+        const response = await fetch('/api/whatsapp/reminders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: currentUserEmail,
+                daysAhead,
+                type
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            if (result.remindersSent > 0) {
+                showToast(`✅ Sent ${result.remindersSent} reminder(s) for ${result.expenseCount} expense(s)`, 'green');
+            } else {
+                showToast('ℹ️ No upcoming expenses found', 'blue');
+            }
+        } else {
+            showToast(`❌ ${result.error}`, 'red');
+            console.error('WhatsApp reminders error:', result);
+        }
+    } catch (error) {
+        console.error('WhatsApp reminders error:', error);
+        showToast('❌ Failed to send reminders', 'red');
+    }
 };
 
 // ========== LOANS PAGE ==========

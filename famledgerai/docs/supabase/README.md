@@ -21,6 +21,34 @@ Supabase configuration, error handling, database management, and user administra
 - [SQL Queries](./SUPABASE_ERROR_HANDLING.md#sql-queries-for-common-scenarios)
 - [Rate Limiting](./SUPABASE_ERROR_HANDLING.md#rate-limiting--prevention)
 
+### [RECURRING_EXPENSES_MIGRATION.sql](./RECURRING_EXPENSES_MIGRATION.sql)
+**Purpose**: SQL migration script for recurring expenses feature  
+**Last Updated**: March 1, 2026  
+**Key Topics**:
+- Creates master_expenses table for recurring expense definitions
+- Creates expenses table for individual expense entries
+- Creates recurring_engine_logs table for tracking carry-forward execution
+- Includes indexes, triggers, and RLS policies
+- Sample data and verification queries
+
+**Quick Links**:
+- [Setup Guide](./RECURRING_EXPENSES_SETUP_GUIDE.md)
+- [Feature Requirements](../../.kiro/specs/recurring-expenses-auto-carry-forward/requirements.md)
+
+### [RECURRING_EXPENSES_SETUP_GUIDE.md](./RECURRING_EXPENSES_SETUP_GUIDE.md)
+**Purpose**: Step-by-step guide for setting up recurring expenses database schema  
+**Last Updated**: March 1, 2026  
+**Key Topics**:
+- Database setup instructions
+- Schema overview and table descriptions
+- Verification queries
+- Troubleshooting common issues
+- Testing queries for development
+
+**Quick Links**:
+- [Migration Script](./RECURRING_EXPENSES_MIGRATION.sql)
+- [Feature Design](../../.kiro/specs/recurring-expenses-auto-carry-forward/design.md)
+
 ---
 
 ## 🔧 Quick Reference
