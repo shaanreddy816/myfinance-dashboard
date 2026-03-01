@@ -31,6 +31,7 @@
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/[...catchall].js" },
+    { "source": "/icon-generator.html", "destination": "/icon-generator.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
