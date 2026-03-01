@@ -3670,6 +3670,44 @@ window.enrollScheme = name => {
     }
 };
 
+// Fix broken scheme URLs in database (run once)
+window.fixSchemeUrls = async () => {
+    try {
+        // Fix PMJJBY URL
+        const { error: error1 } = await sb
+            .from('schemes')
+            .update({ official_url: 'https://www.india.gov.in/spotlight/pradhan-mantri-jeevan-jyoti-bima-yojana' })
+            .eq('name', 'Pradhan Mantri Jeevan Jyoti Bima Yojana');
+        
+        if (error1) console.error('Error updating PMJJBY:', error1);
+        else console.log('✅ Fixed PMJJBY URL');
+        
+        // Fix PMSBY URL
+        const { error: error2 } = await sb
+            .from('schemes')
+            .update({ official_url: 'https://www.india.gov.in/spotlight/pradhan-mantri-suraksha-bima-yojana' })
+            .eq('name', 'Pradhan Mantri Suraksha Bima Yojana');
+        
+        if (error2) console.error('Error updating PMSBY:', error2);
+        else console.log('✅ Fixed PMSBY URL');
+        
+        // Fix APY URL
+        const { error: error3 } = await sb
+            .from('schemes')
+            .update({ official_url: 'https://www.india.gov.in/spotlight/atal-pension-yojana' })
+            .eq('name', 'Atal Pension Yojana');
+        
+        if (error3) console.error('Error updating APY:', error3);
+        else console.log('✅ Fixed APY URL');
+        
+        showToast('Scheme URLs updated successfully!');
+        renderRecommendations();
+    } catch (e) {
+        console.error('Error fixing URLs:', e);
+        showToast('Failed to update URLs', 'red');
+    }
+};
+
 // ========== ADVISOR PAGE ==========
 async function renderAdvisor() {
     if(!userData.profile.age) { sh('page-advisor', emptyState('Complete your profile to get AI advice','⚙️ Settings','goSettings')); return; }
