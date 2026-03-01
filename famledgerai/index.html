@@ -1212,7 +1212,7 @@
                                        autocomplete="new-password"
                                        style="padding-right:45px;"
                                        onfocus="showPasswordRequirements()"
-                                       oninput="validatePassword()">
+                                       oninput="validatePassword(); validatePasswordMatch();">
                                 <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('r-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
                             </div>
                             
@@ -1231,8 +1231,31 @@
                             </div>
                         </div>
 
-                        <!-- Hidden confirm password for compatibility -->
-                        <input type="hidden" id="r-pw2">
+                        <!-- Confirm Password -->
+                        <div style="margin-bottom:24px;">
+                            <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;">
+                                Confirm Password *
+                            </label>
+                            <div style="position:relative;">
+                                <input type="password" id="r-pw2" required class="ainp"
+                                       autocomplete="new-password"
+                                       style="padding-right:45px;"
+                                       oninput="validatePasswordMatch()">
+                                <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('r-pw2', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
+                            </div>
+                            
+                            <!-- Password Match Indicator -->
+                            <div id="password-match-indicator" style="display:none; margin-top:8px; font-size:12px;">
+                                <div id="match-success" style="display:none; color:#10b981; display:flex; align-items:center; gap:6px;">
+                                    <i class="fas fa-check-circle"></i> Passwords match
+                                </div>
+                                <div id="match-error" style="display:none; color:#ef4444; display:flex; align-items:center; gap:6px;">
+                                    <i class="fas fa-times-circle"></i> Passwords do not match
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden confirm password for compatibility - REMOVED, now using r-pw2 above -->
 
                         <!-- Terms Checkbox -->
                         <div style="margin-bottom:24px;">
@@ -6508,6 +6531,33 @@ function updateRequirement(id, isValid) {
     }
 }
 
+// Validate password match
+window.validatePasswordMatch = () => {
+    const password = document.getElementById('r-pw')?.value || '';
+    const confirmPassword = document.getElementById('r-pw2')?.value || '';
+    const indicator = document.getElementById('password-match-indicator');
+    const matchSuccess = document.getElementById('match-success');
+    const matchError = document.getElementById('match-error');
+    
+    if (!indicator || !matchSuccess || !matchError) return;
+    
+    // Only show indicator if user has typed in confirm password field
+    if (confirmPassword.length === 0) {
+        indicator.style.display = 'none';
+        return;
+    }
+    
+    indicator.style.display = 'block';
+    
+    if (password === confirmPassword && password.length > 0) {
+        matchSuccess.style.display = 'flex';
+        matchError.style.display = 'none';
+    } else {
+        matchSuccess.style.display = 'none';
+        matchError.style.display = 'flex';
+    }
+};
+
 // Handle modern registration form
 window.handleModernRegistration = async () => {
     const firstname = document.getElementById('reg-firstname')?.value?.trim() || '';
@@ -6516,6 +6566,7 @@ window.handleModernRegistration = async () => {
     const countryCode = document.getElementById('reg-country-code')?.value?.trim() || '+91';
     const whatsapp = document.getElementById('reg-whatsapp')?.value?.trim() || '';
     const password = document.getElementById('r-pw')?.value || '';
+    const confirmPassword = document.getElementById('r-pw2')?.value || '';
     const termsChecked = document.getElementById('reg-terms')?.checked || false;
     
     // Validation
@@ -6534,6 +6585,27 @@ window.handleModernRegistration = async () => {
         return;
     }
     
+    // Validate password requirements
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    
+    if (!hasUpperCase || !hasLowerCase) {
+        showToast('❌ Password must contain both uppercase and lowercase letters', 'red');
+        return;
+    }
+    
+    if (!hasNumber) {
+        showToast('❌ Password must contain at least one number', 'red');
+        return;
+    }
+    
+    // Check if passwords match
+    if (password !== confirmPassword) {
+        showToast('❌ Passwords do not match', 'red');
+        return;
+    }
+    
     if (!termsChecked) {
         showToast('❌ Please agree to the Terms of Service', 'red');
         return;
@@ -6544,7 +6616,6 @@ window.handleModernRegistration = async () => {
     
     // Set hidden fields for compatibility with doReg function
     document.getElementById('r-nm').value = fullName;
-    document.getElementById('r-pw2').value = password; // Set confirm password same as password
     
     // Set default values for required fields
     document.getElementById('r-age').value = '30';
