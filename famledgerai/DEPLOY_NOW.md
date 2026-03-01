@@ -22,8 +22,8 @@ TWILIO_AUTH_TOKEN=your_auth_token_here    ← Replace this
 
 **Example** (don't use these - use YOUR credentials):
 ```env
-TWILIO_ACCOUNT_SID=AC1234567890abcdef1234567890abcdef
-TWILIO_AUTH_TOKEN=1234567890abcdef1234567890abcdef
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ### Step 3: Get Supabase Service Role Key (1 minute)
