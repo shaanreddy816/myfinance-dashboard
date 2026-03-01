@@ -34,6 +34,7 @@ Development guides, implementation details, and technical documentation.
 Test reports, QA summaries, and testing guides.
 
 **Contents**:
+- Rate Limit Testing Guide (NEW)
 - Error Handling Test Report
 - QA Test Report
 - QA Summary
@@ -104,6 +105,7 @@ Deployment guides for web, Android, and iOS platforms.
 - [Supabase Error Handling](./supabase/SUPABASE_ERROR_HANDLING.md)
 
 ### For QA/Testers
+- [Rate Limit Testing Guide](./testing/RATE_LIMIT_TESTING_GUIDE.md) ⭐ NEW
 - [Error Handling Test Report](./testing/ERROR_HANDLING_TEST_REPORT.md)
 - [QA Test Report](./testing/QA_TEST_REPORT.md)
 - [Performance Report](./testing/PERFORMANCE_REPORT.md)
@@ -130,7 +132,7 @@ Deployment guides for web, Android, and iOS platforms.
 |----------|-------|--------------|
 | Design | 5 | March 1, 2026 |
 | Development | 1 | March 1, 2026 |
-| Testing | 5 | March 1, 2026 |
+| Testing | 6 | March 1, 2026 |
 | Errors & Fixes | 2 | March 1, 2026 |
 | Security | 0 | - |
 | Supabase | 1 | March 1, 2026 |

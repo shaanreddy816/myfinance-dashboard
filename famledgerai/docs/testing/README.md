@@ -4,6 +4,22 @@ Test reports, QA summaries, testing guides, and quality assurance documentation 
 
 ## 📄 Documents
 
+### [RATE_LIMIT_TESTING_GUIDE.md](./RATE_LIMIT_TESTING_GUIDE.md) ⭐
+**Purpose**: Comprehensive guide for testing without hitting Supabase rate limits  
+**Last Updated**: March 1, 2026  
+**Key Topics**:
+- Understanding IP-based rate limiting
+- Email alias strategies for unlimited testing
+- Local Supabase setup (no rate limits)
+- Different IP address techniques
+- Automated testing workflows
+- Troubleshooting rate limit issues
+- Production rate limit handling
+
+**⚠️ MUST READ**: If you're getting "Too many registration attempts" errors during testing, this guide has all the solutions.
+
+---
+
 ### [ERROR_HANDLING_TEST_REPORT.md](./ERROR_HANDLING_TEST_REPORT.md)
 **Purpose**: Comprehensive regression and business testing for error handling improvements  
 **Last Updated**: March 1, 2026  

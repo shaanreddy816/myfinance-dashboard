@@ -334,45 +334,114 @@ ALTER SEQUENCE IF EXISTS user_data_id_seq RESTART WITH 1;
 
 ## Rate Limiting & Prevention
 
+### ⚠️ IMPORTANT: Rate Limits Apply Per IP Address
+
+**Common Issue**: "I'm using different users but still getting rate limit errors"
+
+**Why**: Supabase rate limits are based on **IP address**, not user email. If you test multiple registrations from the same computer/network, you'll hit the limit even with different email addresses.
+
+**Solution**: See our comprehensive [Rate Limit Testing Guide](../testing/RATE_LIMIT_TESTING_GUIDE.md) for detailed strategies.
+
+---
+
 ### Supabase Default Rate Limits
 
-| Action | Free Tier | Pro Tier |
-|--------|-----------|----------|
-| Auth requests | 30/hour per IP | Configurable |
-| Email sends | 3/hour per email | Configurable |
-| API requests | 500/second | Configurable |
+| Action | Free Tier | Pro Tier | Scope |
+|--------|-----------|----------|-------|
+| Registration | 3-5/hour | Configurable | **Per IP** |
+| Login attempts | 30/hour | Configurable | **Per IP** |
+| Email sends | 3/hour | Configurable | Per email |
+| API requests | 500/second | Configurable | Per IP |
 
-### How to Avoid Rate Limits During Testing
+**Key Point**: Rate limits track your **IP address**, not your email. Testing from the same location with different emails will still hit the limit.
 
-1. **Use Email Aliases**:
-   ```
-   test+1@gmail.com
-   test+2@gmail.com
-   test+3@gmail.com
-   ```
-   Gmail ignores everything after `+`, so all go to `test@gmail.com`
+---
 
-2. **Wait Between Tests**:
-   - Wait 2-3 minutes between registration attempts
-   - Clear browser cache between tests
-   - Use incognito mode for fresh sessions
+### Quick Solutions for Testing
 
-3. **Use Different IP Addresses**:
-   - Test from different devices
-   - Use mobile hotspot
-   - Use VPN (but may cause other issues)
+#### Solution 1: Email Aliases (Recommended) ⭐
+```
+test+1@gmail.com
+test+2@gmail.com
+test+3@gmail.com
+test+qa1@gmail.com
+test+dev1@gmail.com
+```
+Gmail ignores everything after `+`, so all emails go to `test@gmail.com`, but Supabase sees them as different users.
 
-4. **Local Development**:
-   ```bash
-   # Run Supabase locally (no rate limits)
-   npx supabase init
-   npx supabase start
-   ```
+**Important**: This helps with email uniqueness but doesn't bypass IP-based rate limits. Space out your attempts!
 
-5. **Upgrade to Pro Plan**:
-   - Increase rate limits
-   - Custom rate limit rules
-   - Better for production apps
+#### Solution 2: Wait Between Attempts
+```
+Registration 1: 10:00 AM ✅
+Wait 2-3 minutes...
+Registration 2: 10:03 AM ✅
+Wait 2-3 minutes...
+Registration 3: 10:06 AM ✅
+```
+
+#### Solution 3: Use Different IP Addresses
+- **Mobile Hotspot**: Connect to your phone's hotspot (different IP)
+- **VPN**: Connect to VPN for different IP
+- **Different Network**: Use office WiFi, coffee shop, etc.
+
+#### Solution 4: Local Supabase (Best for Heavy Testing)
+```bash
+# Run Supabase locally with NO rate limits
+npm install -g supabase
+supabase init
+supabase start
+
+# Update .env to use local instance
+VITE_SUPABASE_URL=http://localhost:54321
+```
+
+#### Solution 5: Wait for Rate Limit Reset
+- Rate limits reset after 60 minutes
+- Wait 10-15 minutes for partial reset
+- Check status with SQL query (see below)
+
+---
+
+### Check Your Rate Limit Status
+
+```sql
+-- See how many registrations from your IP in last hour
+SELECT 
+  COUNT(*) as registrations_last_hour,
+  MAX(created_at) as last_registration
+FROM auth.users
+WHERE created_at > NOW() - INTERVAL '1 hour';
+
+-- If count >= 5, you're likely at the rate limit
+-- Wait until last_registration + 1 hour
+```
+
+---
+
+### For Production Apps
+
+If real users are hitting rate limits:
+
+1. **Upgrade to Pro Plan**: Increase limits in Supabase Dashboard
+2. **Implement Retry Logic**: Auto-retry after delay
+3. **Add Queue System**: Space out registrations automatically
+4. **Monitor Metrics**: Track rate limit hits
+5. **Contact Support**: Request custom limits for your use case
+
+---
+
+### Detailed Testing Guide
+
+For comprehensive strategies on testing without hitting rate limits, see:
+📖 [Rate Limit Testing Guide](../testing/RATE_LIMIT_TESTING_GUIDE.md)
+
+Topics covered:
+- Email alias strategies
+- Local Supabase setup
+- Automated testing approaches
+- Load testing techniques
+- Troubleshooting rate limit issues
 
 ---
 
