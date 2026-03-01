@@ -8125,22 +8125,33 @@ class OnboardingWizard {
         // Restore Phase 1 data
         if (onboardingState.data.basicInfo) {
             const bi = onboardingState.data.basicInfo;
-            if (bi.name) document.getElementById('onb-name').value = bi.name;
-            if (bi.age) document.getElementById('onb-age').value = bi.age;
-            if (bi.gender) document.getElementById('onb-gender').value = bi.gender;
-            if (bi.maritalStatus) {
-                document.getElementById('onb-marital').value = bi.maritalStatus;
+            const nameEl = document.getElementById('onb-name');
+            const ageEl = document.getElementById('onb-age');
+            const genderEl = document.getElementById('onb-gender');
+            const maritalEl = document.getElementById('onb-marital');
+            const occupationEl = document.getElementById('onb-occupation');
+            const cityEl = document.getElementById('onb-city');
+            
+            if (nameEl && bi.name) nameEl.value = bi.name;
+            if (ageEl && bi.age) ageEl.value = bi.age;
+            if (genderEl && bi.gender) genderEl.value = bi.gender;
+            if (maritalEl && bi.maritalStatus) {
+                maritalEl.value = bi.maritalStatus;
                 // Trigger change event to show/hide spouse section
                 const event = new Event('change');
-                document.getElementById('onb-marital').dispatchEvent(event);
+                maritalEl.dispatchEvent(event);
             }
-            if (bi.occupation) document.getElementById('onb-occupation').value = bi.occupation;
-            if (bi.city) document.getElementById('onb-city').value = bi.city;
+            if (occupationEl && bi.occupation) occupationEl.value = bi.occupation;
+            if (cityEl && bi.city) cityEl.value = bi.city;
             
             if (bi.spouse?.name) {
-                document.getElementById('onb-spouse-name').value = bi.spouse.name;
-                if (bi.spouse.age) document.getElementById('onb-spouse-age').value = bi.spouse.age;
-                if (bi.spouse.occupation) document.getElementById('onb-spouse-occupation').value = bi.spouse.occupation;
+                const spouseNameEl = document.getElementById('onb-spouse-name');
+                const spouseAgeEl = document.getElementById('onb-spouse-age');
+                const spouseOccupationEl = document.getElementById('onb-spouse-occupation');
+                
+                if (spouseNameEl) spouseNameEl.value = bi.spouse.name;
+                if (spouseAgeEl && bi.spouse.age) spouseAgeEl.value = bi.spouse.age;
+                if (spouseOccupationEl && bi.spouse.occupation) spouseOccupationEl.value = bi.spouse.occupation;
             }
             
             // Restore children
@@ -8149,9 +8160,13 @@ class OnboardingWizard {
                     addChild();
                     const lastChild = document.querySelector('#children-list .dynamic-group:last-child');
                     if (lastChild) {
-                        lastChild.querySelector('[data-field="name"]').value = child.name || '';
-                        if (child.age) lastChild.querySelector('[data-field="age"]').value = child.age;
-                        if (child.grade) lastChild.querySelector('[data-field="grade"]').value = child.grade;
+                        const nameInput = lastChild.querySelector('[data-field="name"]');
+                        const ageInput = lastChild.querySelector('[data-field="age"]');
+                        const gradeInput = lastChild.querySelector('[data-field="grade"]');
+                        
+                        if (nameInput) nameInput.value = child.name || '';
+                        if (ageInput && child.age) ageInput.value = child.age;
+                        if (gradeInput && child.grade) gradeInput.value = child.grade;
                     }
                 });
             }
@@ -8162,9 +8177,13 @@ class OnboardingWizard {
                     addParent();
                     const lastParent = document.querySelector('#parents-list .dynamic-group:last-child');
                     if (lastParent) {
-                        lastParent.querySelector('[data-field="name"]').value = parent.name || '';
-                        if (parent.age) lastParent.querySelector('[data-field="age"]').value = parent.age;
-                        if (parent.healthStatus) lastParent.querySelector('[data-field="health"]').value = parent.healthStatus;
+                        const nameInput = lastParent.querySelector('[data-field="name"]');
+                        const ageInput = lastParent.querySelector('[data-field="age"]');
+                        const healthInput = lastParent.querySelector('[data-field="health"]');
+                        
+                        if (nameInput) nameInput.value = parent.name || '';
+                        if (ageInput && parent.age) ageInput.value = parent.age;
+                        if (healthInput && parent.healthStatus) healthInput.value = parent.healthStatus;
                     }
                 });
             }
@@ -8185,123 +8204,176 @@ class OnboardingWizard {
         // Restore Phase 2 data
         if (onboardingState.data.income) {
             const inc = onboardingState.data.income;
-            if (inc.salary) document.getElementById('onb-salary').value = inc.salary;
-            if (inc.bonus) document.getElementById('onb-bonus').value = inc.bonus;
-            if (inc.rental) document.getElementById('onb-rental').value = inc.rental;
-            if (inc.business) document.getElementById('onb-business').value = inc.business;
-            if (inc.freelancing) document.getElementById('onb-freelancing').value = inc.freelancing;
-            if (inc.investmentReturns) document.getElementById('onb-investment-returns').value = inc.investmentReturns;
-            if (inc.other) document.getElementById('onb-other-income').value = inc.other;
-            if (inc.spouseIncome) document.getElementById('onb-spouse-income').value = inc.spouseIncome;
+            const salaryEl = document.getElementById('onb-salary');
+            const bonusEl = document.getElementById('onb-bonus');
+            const rentalEl = document.getElementById('onb-rental');
+            const businessEl = document.getElementById('onb-business');
+            const freelancingEl = document.getElementById('onb-freelancing');
+            const investmentReturnsEl = document.getElementById('onb-investment-returns');
+            const otherEl = document.getElementById('onb-other-income');
+            const spouseIncomeEl = document.getElementById('onb-spouse-income');
+            
+            if (salaryEl && inc.salary) salaryEl.value = inc.salary;
+            if (bonusEl && inc.bonus) bonusEl.value = inc.bonus;
+            if (rentalEl && inc.rental) rentalEl.value = inc.rental;
+            if (businessEl && inc.business) businessEl.value = inc.business;
+            if (freelancingEl && inc.freelancing) freelancingEl.value = inc.freelancing;
+            if (investmentReturnsEl && inc.investmentReturns) investmentReturnsEl.value = inc.investmentReturns;
+            if (otherEl && inc.other) otherEl.value = inc.other;
+            if (spouseIncomeEl && inc.spouseIncome) spouseIncomeEl.value = inc.spouseIncome;
             
             this.calculateTotalIncome();
         }
         
         // Restore Phase 3 data (expenses)
         if (onboardingState.data.expenses) {
-            const exp = onboardingState.data.expenses;
-            
-            // Housing
-            if (exp.housing) {
-                if (exp.housing.type) {
-                    const radio = document.querySelector(`input[name="housing-type"][value="${exp.housing.type}"]`);
-                    if (radio) {
-                        radio.checked = true;
-                        toggleHousingType();
-                    }
-                }
-                if (exp.housing.emi) document.getElementById('exp-housing-emi').value = exp.housing.emi;
-                if (exp.housing.rent) document.getElementById('exp-housing-rent').value = exp.housing.rent;
-                if (exp.housing.propertyTax) document.getElementById('exp-property-tax').value = exp.housing.propertyTax;
-                if (exp.housing.maintenance) document.getElementById('exp-maintenance').value = exp.housing.maintenance;
-                if (exp.housing.insurance) document.getElementById('exp-home-insurance').value = exp.housing.insurance;
-            }
-            
-            // Transportation
-            if (exp.transportation) {
-                if (exp.transportation.carEMI) document.getElementById('exp-car-emi').value = exp.transportation.carEMI;
-                if (exp.transportation.petrol) document.getElementById('exp-petrol').value = exp.transportation.petrol;
-                if (exp.transportation.insurance) document.getElementById('exp-car-insurance').value = exp.transportation.insurance;
-                if (exp.transportation.maintenance) document.getElementById('exp-car-maintenance').value = exp.transportation.maintenance;
-                if (exp.transportation.publicTransport) document.getElementById('exp-public-transport').value = exp.transportation.publicTransport;
-            }
-            
-            // Insurance
-            if (exp.insurance) {
-                if (exp.insurance.health) document.getElementById('exp-health-insurance').value = exp.insurance.health;
-                if (exp.insurance.term) document.getElementById('exp-term-insurance').value = exp.insurance.term;
-                if (exp.insurance.personalAccident) document.getElementById('exp-personal-accident').value = exp.insurance.personalAccident;
-            }
-            
-            // Utilities
-            if (exp.utilities) {
-                if (exp.utilities.electricity) document.getElementById('exp-electricity').value = exp.utilities.electricity;
-                if (exp.utilities.water) document.getElementById('exp-water').value = exp.utilities.water;
-                if (exp.utilities.gas) document.getElementById('exp-gas').value = exp.utilities.gas;
-                if (exp.utilities.internet) document.getElementById('exp-internet').value = exp.utilities.internet;
-                if (exp.utilities.mobile) document.getElementById('exp-mobile').value = exp.utilities.mobile;
-                if (exp.utilities.ott) document.getElementById('exp-ott').value = exp.utilities.ott;
-            }
-            
-            // Food
-            if (exp.food) {
-                if (exp.food.groceries) document.getElementById('exp-groceries').value = exp.food.groceries;
-                if (exp.food.vegetables) document.getElementById('exp-vegetables').value = exp.food.vegetables;
-                if (exp.food.dining) document.getElementById('exp-dining').value = exp.food.dining;
-                if (exp.food.delivery) document.getElementById('exp-delivery').value = exp.food.delivery;
-            }
-            
-            // Children expenses
-            if (exp.children && exp.children.length > 0) {
-                exp.children.forEach((childExp, index) => {
-                    if (childExp.schoolFees) document.getElementById(`exp-child-${index}-school`).value = childExp.schoolFees;
-                    if (childExp.tuition) document.getElementById(`exp-child-${index}-tuition`).value = childExp.tuition;
-                    if (childExp.sports) document.getElementById(`exp-child-${index}-sports`).value = childExp.sports;
-                    if (childExp.transport) document.getElementById(`exp-child-${index}-transport`).value = childExp.transport;
-                    if (childExp.books) document.getElementById(`exp-child-${index}-books`).value = childExp.books;
-                });
-            }
-            
-            // Healthcare
-            if (exp.healthcare) {
-                if (exp.healthcare.medicines) document.getElementById('exp-medicines').value = exp.healthcare.medicines;
-                if (exp.healthcare.consultations) document.getElementById('exp-consultations').value = exp.healthcare.consultations;
-                if (exp.healthcare.gym) document.getElementById('exp-gym').value = exp.healthcare.gym;
-                if (exp.healthcare.supplements) document.getElementById('exp-supplements').value = exp.healthcare.supplements;
-                if (exp.healthcare.emergencyFund) document.getElementById('exp-emergency-fund').value = exp.healthcare.emergencyFund;
-            }
-            
-            // Lifestyle
-            if (exp.lifestyle) {
-                if (exp.lifestyle.outings) document.getElementById('exp-outings').value = exp.lifestyle.outings;
-                if (exp.lifestyle.entertainment) document.getElementById('exp-entertainment').value = exp.lifestyle.entertainment;
-                if (exp.lifestyle.shopping) document.getElementById('exp-shopping').value = exp.lifestyle.shopping;
-                if (exp.lifestyle.hobbies) document.getElementById('exp-hobbies').value = exp.lifestyle.hobbies;
-            }
-            
-            // Investments
-            if (exp.investments) {
-                if (exp.investments.sip) document.getElementById('exp-sip').value = exp.investments.sip;
-                if (exp.investments.ppf) document.getElementById('exp-ppf').value = exp.investments.ppf;
-                if (exp.investments.stocks) document.getElementById('exp-stocks').value = exp.investments.stocks;
-                if (exp.investments.educationFund) document.getElementById('exp-education-fund').value = exp.investments.educationFund;
-                if (exp.investments.retirementFund) document.getElementById('exp-retirement-fund').value = exp.investments.retirementFund;
-            }
-            
-            // Miscellaneous
-            if (exp.miscellaneous) {
-                if (exp.miscellaneous.domesticHelp) document.getElementById('exp-domestic-help').value = exp.miscellaneous.domesticHelp;
-                if (exp.miscellaneous.pets) document.getElementById('exp-pets').value = exp.miscellaneous.pets;
-                if (exp.miscellaneous.charity) document.getElementById('exp-charity').value = exp.miscellaneous.charity;
-            }
-            
-            // Trigger calculations
-            setTimeout(() => {
-                if (this.currentPhase === 3) {
-                    this.updateExpenseCalculations();
-                }
-            }, 100);
+            this.restoreExpenseData();
         }
+    }
+    
+    restoreExpenseData() {
+        const exp = onboardingState.data.expenses;
+        if (!exp) return;
+        
+        // Housing
+        if (exp.housing) {
+            if (exp.housing.type) {
+                const radio = document.querySelector(`input[name="housing-type"][value="${exp.housing.type}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    toggleHousingType();
+                }
+            }
+            const housingFields = {
+                'exp-housing-emi': exp.housing.emi,
+                'exp-housing-rent': exp.housing.rent,
+                'exp-property-tax': exp.housing.propertyTax,
+                'exp-maintenance': exp.housing.maintenance,
+                'exp-home-insurance': exp.housing.insurance
+            };
+            this.setFieldValues(housingFields);
+        }
+        
+        // Transportation
+        if (exp.transportation) {
+            const transportFields = {
+                'exp-car-emi': exp.transportation.carEMI,
+                'exp-petrol': exp.transportation.petrol,
+                'exp-car-insurance': exp.transportation.insurance,
+                'exp-car-maintenance': exp.transportation.maintenance,
+                'exp-public-transport': exp.transportation.publicTransport
+            };
+            this.setFieldValues(transportFields);
+        }
+        
+        // Insurance
+        if (exp.insurance) {
+            const insuranceFields = {
+                'exp-health-insurance': exp.insurance.health,
+                'exp-term-insurance': exp.insurance.term,
+                'exp-personal-accident': exp.insurance.personalAccident
+            };
+            this.setFieldValues(insuranceFields);
+        }
+        
+        // Utilities
+        if (exp.utilities) {
+            const utilityFields = {
+                'exp-electricity': exp.utilities.electricity,
+                'exp-water': exp.utilities.water,
+                'exp-gas': exp.utilities.gas,
+                'exp-internet': exp.utilities.internet,
+                'exp-mobile': exp.utilities.mobile,
+                'exp-ott': exp.utilities.ott
+            };
+            this.setFieldValues(utilityFields);
+        }
+        
+        // Food
+        if (exp.food) {
+            const foodFields = {
+                'exp-groceries': exp.food.groceries,
+                'exp-vegetables': exp.food.vegetables,
+                'exp-dining': exp.food.dining,
+                'exp-delivery': exp.food.delivery
+            };
+            this.setFieldValues(foodFields);
+        }
+        
+        // Children expenses
+        if (exp.children && exp.children.length > 0) {
+            exp.children.forEach((childExp, index) => {
+                const childFields = {
+                    [`exp-child-${index}-school`]: childExp.schoolFees,
+                    [`exp-child-${index}-tuition`]: childExp.tuition,
+                    [`exp-child-${index}-sports`]: childExp.sports,
+                    [`exp-child-${index}-transport`]: childExp.transport,
+                    [`exp-child-${index}-books`]: childExp.books
+                };
+                this.setFieldValues(childFields);
+            });
+        }
+        
+        // Healthcare
+        if (exp.healthcare) {
+            const healthcareFields = {
+                'exp-medicines': exp.healthcare.medicines,
+                'exp-consultations': exp.healthcare.consultations,
+                'exp-gym': exp.healthcare.gym,
+                'exp-supplements': exp.healthcare.supplements,
+                'exp-emergency-fund': exp.healthcare.emergencyFund
+            };
+            this.setFieldValues(healthcareFields);
+        }
+        
+        // Lifestyle
+        if (exp.lifestyle) {
+            const lifestyleFields = {
+                'exp-outings': exp.lifestyle.outings,
+                'exp-entertainment': exp.lifestyle.entertainment,
+                'exp-shopping': exp.lifestyle.shopping,
+                'exp-hobbies': exp.lifestyle.hobbies
+            };
+            this.setFieldValues(lifestyleFields);
+        }
+        
+        // Investments
+        if (exp.investments) {
+            const investmentFields = {
+                'exp-sip': exp.investments.sip,
+                'exp-ppf': exp.investments.ppf,
+                'exp-stocks': exp.investments.stocks,
+                'exp-education-fund': exp.investments.educationFund,
+                'exp-retirement-fund': exp.investments.retirementFund
+            };
+            this.setFieldValues(investmentFields);
+        }
+        
+        // Miscellaneous
+        if (exp.miscellaneous) {
+            const miscFields = {
+                'exp-domestic-help': exp.miscellaneous.domesticHelp,
+                'exp-pets': exp.miscellaneous.pets,
+                'exp-charity': exp.miscellaneous.charity
+            };
+            this.setFieldValues(miscFields);
+        }
+        
+        // Trigger calculations
+        setTimeout(() => {
+            if (this.currentPhase === 3) {
+                this.updateExpenseCalculations();
+            }
+        }, 100);
+    }
+    
+    setFieldValues(fields) {
+        Object.entries(fields).forEach(([id, value]) => {
+            if (value) {
+                const el = document.getElementById(id);
+                if (el) el.value = value;
+            }
+        });
     }
 
     calculateTotalIncome() {
