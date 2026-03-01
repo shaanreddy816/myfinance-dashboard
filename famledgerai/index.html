@@ -8662,9 +8662,10 @@ function renderLoans() {
             </p>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <label class="snap-btn" style="cursor:pointer;">
-                    <i class="fas fa-file-pdf" style="color:var(--red);"></i> Upload PDF
-                    <input type="file" accept=".pdf" onchange="handleLoanPdfUpload(this)" style="display:none;">
+                    <i class="fas fa-file-upload" style="color:var(--accent);"></i> Upload Statement
+                    <input type="file" accept=".pdf,.png,.jpg,.jpeg" onchange="handleLoanPdfUpload(this)" style="display:none;">
                 </label>
+                <p style="font-size:11px; color:var(--text3); margin-top:6px;">Accepts PDF, PNG, JPG files</p>
                 <button class="snap-btn" onclick="showAddLoanModal()"><i class="fas fa-plus"></i> Add Manually</button>
             </div>
             <div id="loan-pdf-status" style="margin-top:10px; font-size:12px;"></div>
@@ -8717,20 +8718,61 @@ window.handleLoanPdfUpload = async (input) => {
     const file = input.files[0];
     if(!file) return;
     const statusEl = document.getElementById('loan-pdf-status');
-    if(statusEl) statusEl.innerHTML = '⏳ Reading PDF...';
+    if(statusEl) statusEl.innerHTML = '⏳ Reading file...';
 
     try {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';
-        for(let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            fullText += content.items.map(item => item.str).join(' ') + '\n';
+        const fileType = file.type;
+        
+        // Handle PDF files
+        if (fileType === 'application/pdf') {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            for(let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                fullText += content.items.map(item => item.str).join(' ') + '\n';
+            }
+        }
+        // Handle image files (PNG, JPG, JPEG)
+        else if (fileType.startsWith('image/')) {
+            if(statusEl) statusEl.innerHTML = '🔍 Extracting text from image (OCR)...';
+            
+            // Load Tesseract.js if not already loaded
+            if (!window.Tesseract) {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js';
+                document.head.appendChild(script);
+                await new Promise((resolve) => { script.onload = resolve; });
+            }
+            
+            // Convert file to image URL
+            const imageUrl = URL.createObjectURL(file);
+            
+            // Perform OCR
+            const { data: { text } } = await Tesseract.recognize(
+                imageUrl,
+                'eng',
+                {
+                    logger: m => {
+                        if (m.status === 'recognizing text' && statusEl) {
+                            statusEl.innerHTML = `🔍 OCR Progress: ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                }
+            );
+            
+            fullText = text;
+            URL.revokeObjectURL(imageUrl);
+        }
+        else {
+            if(statusEl) statusEl.innerHTML = '❌ Unsupported file type. Please upload PDF, PNG, or JPG.';
+            input.value = '';
+            return;
         }
 
         if(fullText.trim().length < 30) {
-            if(statusEl) statusEl.innerHTML = '❌ Could not extract text from PDF. It may be a scanned image.';
+            if(statusEl) statusEl.innerHTML = '❌ Could not extract text. The image may be too blurry or the PDF may be a scanned image without text layer.';
             input.value = ''; return;
         }
 
@@ -8742,12 +8784,15 @@ window.handleLoanPdfUpload = async (input) => {
             body: JSON.stringify({ pdfText: fullText })
         });
 
-        if(!res.ok) throw new Error('API error ' + res.status);
+        if(!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.detail || errorData.error || 'API error ' + res.status);
+        }
         const loan = await res.json();
 
         userData.loans.push({
             id: 'loan-' + Date.now(),
-            label: loan.label || file.name.replace('.pdf',''),
+            label: loan.label || file.name.replace(/\.(pdf|png|jpg|jpeg)$/i, ''),
             lender: loan.lender || '',
             loanType: loan.loanType || 'other',
             principal: loan.principal || 0,
@@ -8773,8 +8818,8 @@ window.handleLoanPdfUpload = async (input) => {
         if(statusEl) statusEl.innerHTML = `✅ Added: ${loan.label || 'Loan'} — Outstanding ${fl(loan.outstanding||0)}, EMI ${fl(loan.emi||0)}, Rate ${loan.rate||0}%`;
         renderLoans();
     } catch(e) {
-        console.error('Loan PDF parse error:', e);
-        if(statusEl) statusEl.innerHTML = '❌ Failed to parse PDF: ' + e.message;
+        console.error('Loan file parse error:', e);
+        if(statusEl) statusEl.innerHTML = '❌ Failed to parse: ' + e.message + '. Try adding manually.';
     }
     input.value = '';
 };
