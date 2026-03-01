@@ -1264,48 +1264,393 @@ async function renderBudgetCoach() {
 }
 
 async function renderNriPlanner() {
-    // If we already have a stored plan, show the form + existing results
     const storedHtml = window.lastNriPlanHtml ? `<div id="nri-results">${window.lastNriPlanHtml}</div>` : '<div id="nri-results"></div>';
 
     const formHtml = `
-        <div class="card">
-            <div class="card-title"><span class="icon">✈️</span> NRI Planner</div>
-            <p style="font-size:13px; color:var(--text2); margin-bottom:16px; line-height:1.6;">
-                Plan your financial transition back to India — taxes, investments, accounts & more.
+        <div class="card" style="background:linear-gradient(135deg, var(--bg2), var(--bg3)); border-color:var(--accent);">
+            <div class="card-title"><span class="icon">🇮🇳</span> Return to India Expense Planner</div>
+            <p style="font-size:14px; color:var(--text); margin-bottom:8px; font-weight:600;">
+                Plan your complete monthly expenses before moving back to India
             </p>
+            <p style="font-size:12px; color:var(--text2); margin-bottom:20px; line-height:1.6;">
+                Get detailed cost breakdowns for housing, education, transportation, insurance, and daily expenses across major Indian cities.
+            </p>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span class="icon">📍</span> Location & Family Details</div>
             <div class="grid-2">
                 <div>
-                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Current Country of Residence</label>
-                    <input id="nri-country" class="modal-inp" value="US" placeholder="US, UK, UAE...">
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Target City in India</label>
+                    <select id="nri-city" class="modal-inp">
+                        <option value="bangalore">Bangalore</option>
+                        <option value="mumbai">Mumbai</option>
+                        <option value="delhi">Delhi NCR</option>
+                        <option value="hyderabad">Hyderabad</option>
+                        <option value="pune">Pune</option>
+                        <option value="chennai">Chennai</option>
+                        <option value="kolkata">Kolkata</option>
+                        <option value="ahmedabad">Ahmedabad</option>
+                    </select>
                 </div>
                 <div>
                     <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Planned Return Year</label>
-                    <input id="nri-year" class="modal-inp" type="number" value="2028" min="2025" max="2040">
+                    <input id="nri-year" class="modal-inp" type="number" value="2027" min="2025" max="2040">
                 </div>
                 <div>
-                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Foreign Annual Income (₹ equivalent)</label>
-                    <input id="nri-foreign-income" class="modal-inp" type="number" value="5000000" placeholder="e.g. 5000000">
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Number of Adults</label>
+                    <input id="nri-adults" class="modal-inp" type="number" value="2" min="1" max="10">
                 </div>
                 <div>
-                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Expected Indian Annual Income (₹)</label>
-                    <input id="nri-income" class="modal-inp" type="number" value="2500000" placeholder="e.g. 2500000">
-                </div>
-                <div>
-                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Total Foreign Assets (₹ equivalent)</label>
-                    <input id="nri-assets" class="modal-inp" type="number" value="10000000" placeholder="e.g. 10000000">
-                </div>
-                <div>
-                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">NRE/NRO Account Balance (₹)</label>
-                    <input id="nri-nre-balance" class="modal-inp" type="number" value="0" placeholder="e.g. 1000000">
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Number of Children</label>
+                    <input id="nri-children" class="modal-inp" type="number" value="1" min="0" max="10">
                 </div>
             </div>
-            <button class="primary-btn" id="nri-btn" type="button" onclick="calculateNriPlan()">
-                🧮 Get NRI Plan
-            </button>
         </div>
+
+        <div class="card">
+            <div class="card-title"><span class="icon">🏠</span> Housing Preference</div>
+            <div class="grid-2">
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Housing Type</label>
+                    <select id="nri-housing" class="modal-inp">
+                        <option value="rent">Rent</option>
+                        <option value="buy">Buy (EMI)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Property Size</label>
+                    <select id="nri-property-size" class="modal-inp">
+                        <option value="2bhk">2 BHK</option>
+                        <option value="3bhk">3 BHK</option>
+                        <option value="4bhk">4 BHK</option>
+                        <option value="villa">Villa/Independent House</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span class="icon">🚗</span> Transportation</div>
+            <div class="grid-2">
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Car Ownership</label>
+                    <select id="nri-car" class="modal-inp">
+                        <option value="none">No Car</option>
+                        <option value="one">One Car</option>
+                        <option value="two">Two Cars</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Car Type</label>
+                    <select id="nri-car-type" class="modal-inp">
+                        <option value="hatchback">Hatchback (₹5-8L)</option>
+                        <option value="sedan">Sedan (₹10-15L)</option>
+                        <option value="suv">SUV (₹15-25L)</option>
+                        <option value="luxury">Luxury (₹30L+)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span class="icon">🎓</span> Education (if children)</div>
+            <div class="grid-2">
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">School Type</label>
+                    <select id="nri-school" class="modal-inp">
+                        <option value="none">No School-Age Children</option>
+                        <option value="government">Government School</option>
+                        <option value="private">Private School</option>
+                        <option value="international">International School</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Number in School</label>
+                    <input id="nri-school-count" class="modal-inp" type="number" value="1" min="0" max="10">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span class="icon">💼</span> Lifestyle Preferences</div>
+            <div class="grid-2">
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Lifestyle Level</label>
+                    <select id="nri-lifestyle" class="modal-inp">
+                        <option value="basic">Basic (Essential only)</option>
+                        <option value="moderate">Moderate (Comfortable)</option>
+                        <option value="premium">Premium (High-end)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Domestic Help</label>
+                    <select id="nri-help" class="modal-inp">
+                        <option value="none">None</option>
+                        <option value="parttime">Part-time Maid</option>
+                        <option value="fulltime">Full-time Maid</option>
+                        <option value="multiple">Cook + Maid + Driver</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button class="primary-btn" id="nri-btn" type="button" onclick="calculateReturnToIndiaPlan()" style="width:100%; padding:14px; font-size:15px;">
+            🧮 Calculate Complete Monthly Expenses
+        </button>
         ${storedHtml}
     `;
     sh('page-nri', formHtml);
+}
+
+window.calculateReturnToIndiaPlan = async function() {
+    const btn = document.getElementById('nri-btn');
+    if (btn) { btn.textContent = '⏳ Calculating...'; btn.disabled = true; }
+
+    window.lastNriPlanHtml = null;
+    sh('nri-results', '<div class="loading-state"><div class="spinner"></div><p>Calculating detailed expenses for your return to India...</p></div>');
+
+    try {
+        // Get all inputs
+        const city = document.getElementById('nri-city')?.value || 'bangalore';
+        const returnYear = parseInt(document.getElementById('nri-year')?.value || '2027');
+        const adults = parseInt(document.getElementById('nri-adults')?.value || '2');
+        const children = parseInt(document.getElementById('nri-children')?.value || '1');
+        const housing = document.getElementById('nri-housing')?.value || 'rent';
+        const propertySize = document.getElementById('nri-property-size')?.value || '3bhk';
+        const car = document.getElementById('nri-car')?.value || 'one';
+        const carType = document.getElementById('nri-car-type')?.value || 'sedan';
+        const school = document.getElementById('nri-school')?.value || 'private';
+        const schoolCount = parseInt(document.getElementById('nri-school-count')?.value || '1');
+        const lifestyle = document.getElementById('nri-lifestyle')?.value || 'moderate';
+        const help = document.getElementById('nri-help')?.value || 'parttime';
+
+        const payload = {
+            city, returnYear, adults, children, housing, propertySize,
+            car, carType, school, schoolCount, lifestyle, help
+        };
+
+        const res = await fetch('/api/nri/return-expenses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        renderReturnToIndiaResults(data);
+
+    } catch (e) {
+        console.error('Return to India plan error:', e);
+        // Fallback to client-side calculation
+        const fallbackData = calculateExpensesFallback();
+        renderReturnToIndiaResults(fallbackData);
+    } finally {
+        const btn = document.getElementById('nri-btn');
+        if (btn) { btn.textContent = '🧮 Calculate Complete Monthly Expenses'; btn.disabled = false; }
+    }
+};
+
+function calculateExpensesFallback() {
+    const city = document.getElementById('nri-city')?.value || 'bangalore';
+    const returnYear = parseInt(document.getElementById('nri-year')?.value || '2027');
+    const adults = parseInt(document.getElementById('nri-adults')?.value || '2');
+    const children = parseInt(document.getElementById('nri-children')?.value || '1');
+    const housing = document.getElementById('nri-housing')?.value || 'rent';
+    const propertySize = document.getElementById('nri-property-size')?.value || '3bhk';
+    const car = document.getElementById('nri-car')?.value || 'one';
+    const carType = document.getElementById('nri-car-type')?.value || 'sedan';
+    const school = document.getElementById('nri-school')?.value || 'private';
+    const schoolCount = parseInt(document.getElementById('nri-school-count')?.value || '1');
+    const lifestyle = document.getElementById('nri-lifestyle')?.value || 'moderate';
+    const help = document.getElementById('nri-help')?.value || 'parttime';
+
+    // City-wise cost multipliers (Bangalore = 1.0 base)
+    const cityMultipliers = {
+        bangalore: 1.0,
+        mumbai: 1.4,
+        delhi: 1.2,
+        hyderabad: 0.9,
+        pune: 1.0,
+        chennai: 0.85,
+        kolkata: 0.75,
+        ahmedabad: 0.8
+    };
+    const cityMult = cityMultipliers[city] || 1.0;
+
+    // Housing costs (monthly)
+    const rentCosts = {
+        '2bhk': 25000, '3bhk': 40000, '4bhk': 60000, 'villa': 80000
+    };
+    const emiCosts = {
+        '2bhk': 45000, '3bhk': 70000, '4bhk': 100000, 'villa': 150000
+    };
+    const housingCost = (housing === 'rent' ? rentCosts[propertySize] : emiCosts[propertySize]) * cityMult;
+
+    // School fees (monthly average)
+    const schoolCosts = {
+        none: 0, government: 2000, private: 15000, international: 50000
+    };
+    const schoolFees = schoolCosts[school] * schoolCount * cityMult;
+
+    // Car expenses
+    const carEMI = car === 'none' ? 0 : car === 'one' ? 
+        (carType === 'hatchback' ? 8000 : carType === 'sedan' ? 15000 : carType === 'suv' ? 25000 : 40000) :
+        (carType === 'hatchback' ? 16000 : carType === 'sedan' ? 30000 : carType === 'suv' ? 50000 : 80000);
+    
+    const petrolCost = car === 'none' ? 0 : car === 'one' ? 8000 : 15000;
+    const carInsurance = car === 'none' ? 0 : car === 'one' ? 1500 : 3000;
+    const carMaintenance = car === 'none' ? 0 : car === 'one' ? 2000 : 4000;
+
+    // Insurance
+    const healthInsurance = (adults * 1500 + children * 800) * (lifestyle === 'premium' ? 1.5 : lifestyle === 'moderate' ? 1.0 : 0.7);
+    const termInsurance = adults * 2000;
+
+    // Domestic help
+    const helpCosts = {
+        none: 0, parttime: 5000, fulltime: 12000, multiple: 30000
+    };
+    const domesticHelp = helpCosts[help];
+
+    // Groceries & food
+    const groceries = (adults * 8000 + children * 5000) * (lifestyle === 'premium' ? 1.3 : lifestyle === 'moderate' ? 1.0 : 0.8);
+    const diningOut = lifestyle === 'premium' ? 15000 : lifestyle === 'moderate' ? 8000 : 3000;
+
+    // Utilities
+    const electricity = 3000 * (propertySize === 'villa' ? 1.5 : propertySize === '4bhk' ? 1.3 : 1.0);
+    const water = 1000;
+    const internet = 1500;
+    const gas = 1200;
+
+    // Entertainment & misc
+    const entertainment = lifestyle === 'premium' ? 20000 : lifestyle === 'moderate' ? 10000 : 5000;
+    const clothing = (adults * 3000 + children * 2000) * (lifestyle === 'premium' ? 1.5 : 1.0);
+    const healthcare = (adults + children) * 2000;
+    const miscellaneous = 10000 * (lifestyle === 'premium' ? 1.5 : lifestyle === 'moderate' ? 1.0 : 0.7);
+
+    const expenses = {
+        housing: { rent: housing === 'rent' ? housingCost : 0, emi: housing === 'buy' ? housingCost : 0, maintenance: 3000 },
+        education: { schoolFees, books: schoolCount * 1000, activities: schoolCount * 2000 },
+        transportation: { carEMI, petrol: petrolCost, carInsurance, maintenance: carMaintenance, publicTransport: 2000 },
+        insurance: { health: healthInsurance, term: termInsurance, home: 1000 },
+        utilities: { electricity, water, internet, gas },
+        food: { groceries, diningOut },
+        household: { domesticHelp, repairs: 2000 },
+        lifestyle: { entertainment, clothing, healthcare, miscellaneous }
+    };
+
+    const categoryTotals = {
+        housing: Object.values(expenses.housing).reduce((a,b)=>a+b,0),
+        education: Object.values(expenses.education).reduce((a,b)=>a+b,0),
+        transportation: Object.values(expenses.transportation).reduce((a,b)=>a+b,0),
+        insurance: Object.values(expenses.insurance).reduce((a,b)=>a+b,0),
+        utilities: Object.values(expenses.utilities).reduce((a,b)=>a+b,0),
+        food: Object.values(expenses.food).reduce((a,b)=>a+b,0),
+        household: Object.values(expenses.household).reduce((a,b)=>a+b,0),
+        lifestyle: Object.values(expenses.lifestyle).reduce((a,b)=>a+b,0)
+    };
+
+    const monthlyTotal = Object.values(categoryTotals).reduce((a,b)=>a+b,0);
+    const annualTotal = monthlyTotal * 12;
+
+    // Inflation adjustment for future years
+    const yearsUntilReturn = returnYear - new Date().getFullYear();
+    const inflationRate = 0.065; // 6.5% average
+    const inflationMultiplier = Math.pow(1 + inflationRate, yearsUntilReturn);
+    const adjustedMonthly = monthlyTotal * inflationMultiplier;
+    const adjustedAnnual = annualTotal * inflationMultiplier;
+
+    return {
+        city: city.charAt(0).toUpperCase() + city.slice(1),
+        returnYear,
+        adults,
+        children,
+        expenses,
+        categoryTotals,
+        monthlyTotal,
+        annualTotal,
+        inflationMultiplier,
+        adjustedMonthly,
+        adjustedAnnual,
+        recommendations: [
+            `Your estimated monthly expenses in ${returnYear}: ₹${fl(adjustedMonthly)}`,
+            `Recommended monthly income: ₹${fl(adjustedMonthly * 1.5)} (50% savings buffer)`,
+            `Emergency fund target: ₹${fl(adjustedMonthly * 12)} (12 months)`,
+            `Consider ${housing === 'rent' ? 'buying' : 'renting'} if ${housing === 'rent' ? 'rent exceeds ₹50K/month' : 'EMI burden is high'}`,
+            school === 'international' ? 'International schools are expensive - consider premium private schools' : '',
+            car === 'two' ? 'Two cars significantly increase costs - consider ride-sharing for one' : '',
+            lifestyle === 'premium' ? 'Premium lifestyle adds 30-50% to costs - moderate lifestyle saves ₹50K+/month' : ''
+        ].filter(Boolean)
+    };
+}
+
+function renderReturnToIndiaResults(data) {
+    const resultsDiv = document.getElementById('nri-results');
+    if (!resultsDiv) return;
+
+    const html = `
+        <div class="card" style="background:linear-gradient(135deg, var(--bg2), var(--bg3)); border-color:var(--accent);">
+            <div class="card-title"><span class="icon">📊</span> Your Complete Expense Breakdown</div>
+            <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
+                <div><div style="font-size:11px; color:var(--text3);">City</div><div style="font-family:var(--mono); font-size:18px; font-weight:800; color:var(--accent2);">${data.city}</div></div>
+                <div><div style="font-size:11px; color:var(--text3);">Return Year</div><div style="font-family:var(--mono); font-size:18px; font-weight:800;">${data.returnYear}</div></div>
+                <div><div style="font-size:11px; color:var(--text3);">Family Size</div><div style="font-family:var(--mono); font-size:18px; font-weight:800;">${data.adults + data.children} people</div></div>
+            </div>
+            <div style="background:var(--accent-glow); border:1px solid var(--accent); border-radius:var(--radius-sm); padding:20px; margin-bottom:16px;">
+                <div style="font-size:13px; color:var(--text3); margin-bottom:8px;">Total Monthly Expenses (${data.returnYear})</div>
+                <div style="font-size:32px; font-weight:800; color:var(--text); font-family:var(--mono);">${fl(data.adjustedMonthly)}</div>
+                <div style="font-size:12px; color:var(--text2); margin-top:4px;">Annual: ${fl(data.adjustedAnnual)} | Today's value: ${fl(data.monthlyTotal)}</div>
+            </div>
+        </div>
+
+        ${Object.entries(data.categoryTotals).map(([category, total]) => {
+            const icon = {
+                housing: '🏠', education: '🎓', transportation: '🚗',
+                insurance: '🛡️', utilities: '⚡', food: '🍽️',
+                household: '🧹', lifestyle: '🎭'
+            }[category];
+            const details = data.expenses[category];
+            return `
+                <div class="card">
+                    <div class="card-title">${icon} ${category.charAt(0).toUpperCase() + category.slice(1)}</div>
+                    <div style="background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:12px; margin-bottom:12px;">
+                        <div style="font-size:24px; font-weight:800; font-family:var(--mono); color:var(--text);">${fl(total)}/month</div>
+                    </div>
+                    ${Object.entries(details).map(([item, cost]) => `
+                        <div class="row-flex">
+                            <span class="row-label">${item.replace(/([A-Z])/g, ' $1').trim()}</span>
+                            <span class="row-value">${ff(cost)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }).join('')}
+
+        <div class="card">
+            <div class="card-title"><span class="icon">💡</span> Key Recommendations</div>
+            ${data.recommendations.map((rec, i) => `
+                <div style="background:var(--bg3); border-left:3px solid var(--accent); border-radius:var(--radius-sm); padding:12px; margin-bottom:10px;">
+                    <div style="font-size:13px; color:var(--text); line-height:1.6;">${i + 1}. ${rec}</div>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="card" style="background:var(--yellow-dim); border:1px solid var(--yellow);">
+            <div style="font-size:12px; color:var(--text); line-height:1.7;">
+                <strong>📌 Important Notes:</strong><br>
+                • Costs are estimates based on ${data.city} averages and may vary by locality<br>
+                • Inflation adjusted at 6.5% annually till ${data.returnYear}<br>
+                • One-time costs (furniture, deposits, vehicle purchase) not included<br>
+                • Actual expenses depend on lifestyle choices and family needs<br>
+                • Consider 20-30% buffer for unexpected expenses
+            </div>
+        </div>
+    `;
+
+    window.lastNriPlanHtml = html;
+    sh('nri-results', html);
 }
 
 window.calculateNriPlan = async function() {
