@@ -12272,63 +12272,85 @@ window.toggleHousingType = () => {
     }
 };
 
+// Helper function to collect all onboarding data
+function collectOnboardingData() {
+    return {
+        // Phase 1: Basic Info
+        name: document.getElementById('onb-name')?.value || '',
+        age: parseInt(document.getElementById('onb-age')?.value) || 0,
+        gender: document.getElementById('onb-gender')?.value || '',
+        marital_status: document.getElementById('onb-marital')?.value || '',
+        occupation: document.getElementById('onb-occupation')?.value === 'other' 
+            ? document.getElementById('onb-occupation-other')?.value 
+            : document.getElementById('onb-occupation')?.value || '',
+        city: document.getElementById('onb-city')?.value || '',
+        
+        // Spouse info
+        spouse_name: document.getElementById('onb-spouse-name')?.value || null,
+        spouse_age: parseInt(document.getElementById('onb-spouse-age')?.value) || null,
+        spouse_occupation: document.getElementById('onb-spouse-occupation')?.value === 'other'
+            ? document.getElementById('onb-spouse-occupation-other')?.value
+            : document.getElementById('onb-spouse-occupation')?.value || null,
+        
+        // Phase 2: Income
+        monthly_income: parseFloat(document.getElementById('income-salary')?.value) || 0,
+        spouse_income: parseFloat(document.getElementById('income-spouse')?.value) || 0,
+        rental_income: parseFloat(document.getElementById('income-rental')?.value) || 0,
+        business_income: parseFloat(document.getElementById('income-business')?.value) || 0,
+        other_income: parseFloat(document.getElementById('income-other')?.value) || 0,
+        
+        // Phase 4: Assets & Liabilities
+        assets: {
+            cash: parseFloat(document.getElementById('asset-cash')?.value) || 0,
+            fd: parseFloat(document.getElementById('asset-fd')?.value) || 0,
+            investments: parseFloat(document.getElementById('asset-investments')?.value) || 0,
+            retirement: parseFloat(document.getElementById('asset-retirement')?.value) || 0,
+            property: parseFloat(document.getElementById('asset-property')?.value) || 0,
+            gold: parseFloat(document.getElementById('asset-gold')?.value) || 0,
+            vehicle: parseFloat(document.getElementById('asset-vehicle')?.value) || 0,
+            other: parseFloat(document.getElementById('asset-other')?.value) || 0
+        },
+        liabilities: {
+            home_loan: parseFloat(document.getElementById('liability-home-loan')?.value) || 0,
+            car_loan: parseFloat(document.getElementById('liability-car-loan')?.value) || 0,
+            personal_loan: parseFloat(document.getElementById('liability-personal-loan')?.value) || 0,
+            education_loan: parseFloat(document.getElementById('liability-education-loan')?.value) || 0,
+            credit_card: parseFloat(document.getElementById('liability-credit-card')?.value) || 0,
+            other: parseFloat(document.getElementById('liability-other')?.value) || 0
+        }
+    };
+}
+
 // Complete onboarding
 async function completeOnboarding() {
     showToast('Saving your profile...');
     
     try {
-        // Collect all onboarding data
-        const onboardingData = {
-            // Phase 1: Basic Info
-            name: document.getElementById('onb-name')?.value || '',
-            age: parseInt(document.getElementById('onb-age')?.value) || 0,
-            gender: document.getElementById('onb-gender')?.value || '',
-            marital_status: document.getElementById('onb-marital')?.value || '',
-            occupation: document.getElementById('onb-occupation')?.value === 'other' 
-                ? document.getElementById('onb-occupation-other')?.value 
-                : document.getElementById('onb-occupation')?.value || '',
-            city: document.getElementById('onb-city')?.value || '',
-            
-            // Spouse info
-            spouse_name: document.getElementById('onb-spouse-name')?.value || null,
-            spouse_age: parseInt(document.getElementById('onb-spouse-age')?.value) || null,
-            spouse_occupation: document.getElementById('onb-spouse-occupation')?.value === 'other'
-                ? document.getElementById('onb-spouse-occupation-other')?.value
-                : document.getElementById('onb-spouse-occupation')?.value || null,
-            
-            // Phase 2: Income
-            monthly_income: parseFloat(document.getElementById('income-salary')?.value) || 0,
-            spouse_income: parseFloat(document.getElementById('income-spouse')?.value) || 0,
-            rental_income: parseFloat(document.getElementById('income-rental')?.value) || 0,
-            business_income: parseFloat(document.getElementById('income-business')?.value) || 0,
-            other_income: parseFloat(document.getElementById('income-other')?.value) || 0,
-            
-            // Phase 4: Assets & Liabilities
-            assets: {
-                cash: parseFloat(document.getElementById('asset-cash')?.value) || 0,
-                fd: parseFloat(document.getElementById('asset-fd')?.value) || 0,
-                investments: parseFloat(document.getElementById('asset-investments')?.value) || 0,
-                retirement: parseFloat(document.getElementById('asset-retirement')?.value) || 0,
-                property: parseFloat(document.getElementById('asset-property')?.value) || 0,
-                gold: parseFloat(document.getElementById('asset-gold')?.value) || 0,
-                vehicle: parseFloat(document.getElementById('asset-vehicle')?.value) || 0,
-                other: parseFloat(document.getElementById('asset-other')?.value) || 0
-            },
-            liabilities: {
-                home_loan: parseFloat(document.getElementById('liability-home-loan')?.value) || 0,
-                car_loan: parseFloat(document.getElementById('liability-car-loan')?.value) || 0,
-                personal_loan: parseFloat(document.getElementById('liability-personal-loan')?.value) || 0,
-                education_loan: parseFloat(document.getElementById('liability-education-loan')?.value) || 0,
-                credit_card: parseFloat(document.getElementById('liability-credit-card')?.value) || 0,
-                other: parseFloat(document.getElementById('liability-other')?.value) || 0
-            }
-        };
+        // Check if user is authenticated
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        // Save to user metadata in Supabase
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
+        if (sessionError || !session) {
+            console.warn('No active session during onboarding completion');
+            // Save to localStorage for now, will sync when user logs in
+            localStorage.setItem('onboarding_completed', 'true');
+            localStorage.setItem('pending_onboarding_data', JSON.stringify({
+                timestamp: new Date().toISOString(),
+                data: collectOnboardingData()
+            }));
+            
+            showToast('✅ Profile saved locally! Will sync when you log in.', 'green');
+            
+            setTimeout(() => {
+                document.getElementById('onboarding-wizard').style.display = 'none';
+                showApp();
+            }, 1500);
+            return;
+        }
         
-        const userId = userData.user.id;
+        // User is authenticated, proceed with normal save
+        const onboardingData = collectOnboardingData();
+        
+        const userId = session.user.id;
         
         // Update user metadata
         const { error: updateError } = await supabase.auth.updateUser({
