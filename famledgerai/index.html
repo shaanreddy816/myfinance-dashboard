@@ -6923,9 +6923,11 @@ async function renderFamily() {
 
 // ========== SUPABASE DATA ==========
 async function loadUserData(email) {
+    console.log('loadUserData called for:', email);
     const { data, error } = await sb.from('user_data').select('*').eq('email', email).maybeSingle();
     if(error) { console.error('Load error:', error); return; }
     if(data) {
+        console.log('Loaded user data from Supabase:', { profile: data.profile?.name, hasIncome: !!data.income, hasExpenses: !!data.expenses });
         userData = {
             profile:     data.profile     || {},
             income:      data.income      || { husband:0, wife:0, rental:0, rentalActive:false },
@@ -6939,6 +6941,7 @@ async function loadUserData(email) {
             termCover:   data.profile?.termCover || data.insurance?.termCover || 0
         };
     } else {
+        console.log('No user data found in Supabase for:', email, '- creating empty record');
         await saveUserData(email);
     }
 
@@ -7116,6 +7119,7 @@ async function loadUserData(email) {
 
 async function saveUserData(email) {
     if(!email) return;
+    console.log('saveUserData called for:', email, '| profile.name:', userData.profile?.name, '| profile.age:', userData.profile?.age);
     const { error } = await sb.from('user_data').upsert({
         email,
         profile:     { ...userData.profile, liquidSavings: userData.liquidSavings, termCover: userData.termCover },
@@ -7151,6 +7155,10 @@ async function checkSession() {
         if (session) {
             currentUserEmail = session.user.email;
             await loadUserData(currentUserEmail);
+            // If user has profile data, mark onboarding as done
+            if (userData.profile?.name) {
+                localStorage.setItem('onboarding_completed', 'true');
+            }
             showApp();
             resetInactivity();
         } else {
@@ -7564,6 +7572,11 @@ window.doLogin = async () => {
         currentUserEmail = data.user.email;
         await loadUserData(currentUserEmail);
         
+        // If user has profile data, mark onboarding as done (prevents re-triggering)
+        if (userData.profile?.name) {
+            localStorage.setItem('onboarding_completed', 'true');
+        }
+        
         // Check for pending onboarding data and sync it
         await syncPendingOnboardingData();
         
@@ -7894,72 +7907,18 @@ window.doReg = async () => {
             console.log('Email verification required - user will need to log in after verification');
         }
 
-        userData = { profile:{ name, age, occupation, incomeRange, goals, risk, spouseName, kids, familyMembers }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
+        userData = { profile:{ name, age, occupation, incomeRange, goals, risk, spouseName, kids, familyMembers, whatsapp_number: whatsappNumber || '' }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{}, byMonth:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
         currentUserEmail = email;
         await saveUserData(email);
         
-        // Pre-populate onboarding data with registration info
-        onboardingState.data.basicInfo = {
-            name: name,
-            age: age,
-            gender: '', // Not collected in registration
-            maritalStatus: spouseName ? 'married' : 'single',
-            occupation: occupation,
-            city: '', // Not collected in registration
-            cityTier: 3,
-            spouse: spouseName ? {
-                name: spouseName,
-                age: null,
-                occupation: ''
-            } : null,
-            children: kids.map((kidName, index) => ({
-                name: kidName,
-                age: null,
-                grade: ''
-            })),
-            parents: []
-        };
-        
-        // Pre-populate goals from registration
-        if (goals && goals.length > 0) {
-            onboardingState.data.goals = goals.map(goalType => {
-                const goalTemplates = {
-                    'retirement': { name: 'Retirement Fund', amount: 10000000, timeline: 20, priority: 'high' },
-                    'child-education': { name: 'Children Education', amount: 2000000, timeline: 10, priority: 'high' },
-                    'home': { name: 'Home Purchase', amount: 5000000, timeline: 7, priority: 'high' },
-                    'car': { name: 'Car Purchase', amount: 1000000, timeline: 3, priority: 'medium' },
-                    'emergency': { name: 'Emergency Fund', amount: 500000, timeline: 1, priority: 'high' },
-                    'vacation': { name: 'Dream Vacation', amount: 300000, timeline: 2, priority: 'low' }
-                };
-                const template = goalTemplates[goalType] || { name: goalType, amount: 1000000, timeline: 5, priority: 'medium' };
-                return {
-                    id: 'goal-' + Date.now() + '-' + Math.random(),
-                    name: template.name,
-                    targetAmount: template.amount,
-                    timeline: template.timeline,
-                    priority: template.priority,
-                    category: template.timeline < 3 ? 'short' : template.timeline <= 7 ? 'medium' : 'long'
-                };
-            });
-        }
-        
-        // Save pre-populated data to localStorage
-        try {
-            localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(onboardingState));
-        } catch (e) {
-            console.error('Error saving onboarding data:', e);
-        }
+        // Mark onboarding as completed since we collected key data during registration
+        localStorage.setItem('onboarding_completed', 'true');
         
         // Show congratulations message
         showCongratulationsModal(name);
         
         setTimeout(() => {
-            // Check if onboarding is required
-            if (checkOnboardingRequired()) {
-                showOnboarding();
-            } else {
-                showApp();
-            }
+            showApp();
             resetInactivity();
         }, 3000);
     } catch(e) {
