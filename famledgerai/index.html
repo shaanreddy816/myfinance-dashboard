@@ -7879,7 +7879,14 @@ window.doReg = async () => {
     }
 };
 
-window.doLogout = async () => { await sb.auth.signOut(); showAuth(); };
+window.doLogout = async () => { 
+    // Clear all user data from memory before signing out
+    userData = { profile:{}, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{}, byMonth:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
+    currentUserEmail = '';
+    computeCache.invalidate();
+    await sb.auth.signOut(); 
+    showAuth(); 
+};
 
 // ========== PASSWORD VISIBILITY TOGGLE ==========
 window.togglePasswordVisibility = (inputId, iconEl) => {
@@ -12878,14 +12885,22 @@ let isRegistering = false; // Flag to prevent onAuthStateChange from interfering
 window.onload = () => {
     checkSession();
     sb.auth.onAuthStateChange((event, session) => {
+        console.log('onAuthStateChange:', event, 'isRegistering:', isRegistering, 'email:', session?.user?.email);
         if(isRegistering) {
             console.log('Skipping onAuthStateChange during registration');
             return;
         }
-        if(event==='SIGNED_IN') {
-            currentUserEmail = session.user.email;
-            loadUserData(currentUserEmail).then(()=>{ showApp(); resetInactivity(); });
+        if(event==='SIGNED_IN' && session) {
+            // Only reload data if it's a different user than what's already loaded
+            const newEmail = session.user.email;
+            if(newEmail !== currentUserEmail || !userData.profile?.name) {
+                currentUserEmail = newEmail;
+                loadUserData(currentUserEmail).then(()=>{ showApp(); resetInactivity(); });
+            }
         } else if(event==='SIGNED_OUT') {
+            // Reset userData to empty on sign out
+            userData = { profile:{}, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{}, byMonth:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
+            currentUserEmail = '';
             showAuth();
         }
     });
