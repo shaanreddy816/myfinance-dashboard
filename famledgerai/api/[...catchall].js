@@ -997,46 +997,65 @@ function parseInsuranceWithRegex(text) {
   const secureBenefitMatch = t.match(/(?:secure\s*benefit)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
   const secureBenefit = secureBenefitMatch ? parseFloat(secureBenefitMatch[1].replace(/,/g, '')) : 0;
 
-  // Premium — HDFC Ergo: "Base Premium (A)" is the key field
-  // Also handle "Premium Details (₹)" section
-  const premiumPatterns = [
-    /Base\s*Premium\s*\(?A?\)?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /(?:premium\s*details?)\s*\(₹\)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /(?:total\s*premium)\s*(?:\(₹\))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /(?:net\s*premium|gross\s*premium)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /(?:annual|yearly)\s*premium\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /premium\s*(?:amount|payable)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /(?:amount\s*payable|installment)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i
-  ];
+  // Detect family floater
+  const isFamilyFloater = /family\s*floater/i.test(t);
+
+  // Premium — For family floater, sum ALL amounts on the "Total Premium (E-F)" row
+  // HDFC Ergo format: "Total Premium (E-F)  48,551  20,803" → 48551 + 20803 = 69354
   let premium = 0;
-  for (const p of premiumPatterns) {
-    const m = t.match(p);
-    if (m) {
-      const val = parseFloat(m[1].replace(/,/g, ''));
-      if (val > 100) { premium = val; break; }
+
+  // Strategy 1: Line-by-line — find "Total Premium" row and sum all numbers on it
+  const premLines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  for (let i = 0; i < premLines.length; i++) {
+    const ln = premLines[i];
+    // "Total Premium (E-F)" or "Total Premium" row — sum all numbers
+    if (/total\s*premium\s*\(?[A-Z]?\s*[\-–]?\s*[A-Z]?\)?/i.test(ln)) {
+      const allNums = ln.match(/[\d,]{3,}(?:\.\d+)?/g);
+      if (allNums && allNums.length > 0) {
+        if (isFamilyFloater && allNums.length > 1) {
+          // Family floater: sum all member premiums
+          premium = allNums.reduce((sum, n) => sum + parseFloat(n.replace(/,/g, '')), 0);
+        } else {
+          // Single member: take the first value
+          premium = parseFloat(allNums[0].replace(/,/g, ''));
+        }
+        if (premium > 100) break;
+      }
     }
   }
-  // Fallback: search line by line for "Base Premium" or "Premium Details" header row
-  // then grab the number from the NEXT line (data row)
+
+  // Strategy 2: "Base Premium (A)" row — sum all if family floater
   if (premium === 0) {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    for (let i = 0; i < lines.length; i++) {
-      if (/Base\s*Premium|Premium\s*Details?\s*\(₹\)/i.test(lines[i])) {
-        // Check current line for a number first
-        const numInLine = lines[i].match(/([\d,]{4,}(?:\.\d+)?)/);
-        if (numInLine) {
-          const v = parseFloat(numInLine[1].replace(/,/g, ''));
-          if (v > 100) { premium = v; break; }
-        }
-        // Check next few lines for the data row
-        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-          const numMatch = lines[j].match(/([\d,]{4,}(?:\.\d+)?)/);
-          if (numMatch) {
-            const v = parseFloat(numMatch[1].replace(/,/g, ''));
-            if (v > 100) { premium = v; break; }
+    for (let i = 0; i < premLines.length; i++) {
+      if (/Base\s*Premium\s*\(?A?\)?/i.test(premLines[i])) {
+        const allNums = premLines[i].match(/[\d,]{3,}(?:\.\d+)?/g);
+        if (allNums && allNums.length > 0) {
+          if (isFamilyFloater && allNums.length > 1) {
+            premium = allNums.reduce((sum, n) => sum + parseFloat(n.replace(/,/g, '')), 0);
+          } else {
+            premium = parseFloat(allNums[0].replace(/,/g, ''));
           }
+          if (premium > 100) break;
         }
-        if (premium > 0) break;
+      }
+    }
+  }
+
+  // Strategy 3: Regex patterns on flattened text (single value)
+  if (premium === 0) {
+    const premiumPatterns = [
+      /(?:total\s*premium)\s*(?:\([A-Z\-–\s]+\))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+      /Base\s*Premium\s*\(?A?\)?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+      /(?:net\s*premium|gross\s*premium)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+      /(?:annual|yearly)\s*premium\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+      /premium\s*(?:amount|payable)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+      /(?:amount\s*payable|installment)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i
+    ];
+    for (const p of premiumPatterns) {
+      const m = t.match(p);
+      if (m) {
+        const val = parseFloat(m[1].replace(/,/g, ''));
+        if (val > 100) { premium = val; break; }
       }
     }
   }
@@ -1079,17 +1098,39 @@ function parseInsuranceWithRegex(text) {
   }
   if (!label && insurer) label = insurer + ' ' + policyType.charAt(0).toUpperCase() + policyType.slice(1) + ' Policy';
 
-  // Nominees
-  const nomineePatterns = [
-    /(?:nominee)\s*(?:name)?\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|Relationship|,|\n|$)/i,
-    /(?:nominee)\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/i
-  ];
+  // Nominees — extract from "Nominee Name" field in table or standalone
+  // Strategy: look for "Nominee" header in table, then grab the name from data rows
   let nominees = null;
-  for (const p of nomineePatterns) {
-    const m = t.match(p);
-    if (m && m[1].trim().length > 2) { nominees = m[1].trim(); break; }
+  let nomineeRel = null;
+
+  // First try line-by-line: find a line with "Nominee" header, then grab name from next data line
+  for (let li = 0; li < lines.length; li++) {
+    const ln = lines[li];
+    // Look for "Nominee Name" as a standalone field (not inside table header)
+    const nmStandalone = ln.match(/(?:nominee)\s*(?:name)?\s*[:\-.]?\s+([A-Za-z][A-Za-z\s\.]{2,40})(?:\s{2,}|$)/i);
+    if (nmStandalone && !/insured\s*person/i.test(ln) && nmStandalone[1].trim().length > 2) {
+      const val = nmStandalone[1].trim();
+      // Make sure it's not just "Name" from "Nominee Name" header
+      if (!/^name$/i.test(val)) { nominees = val; break; }
+    }
   }
+
+  // Fallback: regex on flattened text — look for Nominee Name followed by actual name
+  if (!nominees) {
+    const nomineePatterns = [
+      /nominee\s*name\s*[:\-.]?\s*\n?\s*([A-Za-z][A-Za-z\s\.]{2,40})(?:\s{2,}|Relationship|,|\n|$)/i,
+      /nominee\s*[:\-.]?\s*([A-Za-z][A-Za-z\s\.]{2,40})(?:\s{2,}|Relationship|,|\n|$)/i
+    ];
+    for (const p of nomineePatterns) {
+      const m = t.match(p);
+      if (m && m[1].trim().length > 2 && !/^name$/i.test(m[1].trim())) {
+        nominees = m[1].trim(); break;
+      }
+    }
+  }
+
   const nomineeRelMatch = t.match(/(?:relationship\s*(?:with|of)\s*nominee)\s*[:\-.]?\s*([A-Za-z\s]+?)(?:\s{2,}|First|,|\n|$)/i);
+  if (nomineeRelMatch) nomineeRel = nomineeRelMatch[1].trim();
 
   // Deductible
   const deductibleMatch = t.match(/(?:deductible|co[\s-]?pay(?:ment)?)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
@@ -1133,7 +1174,16 @@ function parseInsuranceWithRegex(text) {
       const genderMatch = line.match(/\b(male|female|m|f)\b/i);
       const ageMatch = line.match(/\b(\d{1,2})\b(?=\s)/);
       const dobMatch = line.match(/(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/);
-      const nomineeMatch = line.match(/(?:nominee\s*(?:name)?)\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|$)/i);
+      // After DOB, remaining text may contain nominee name and sum insured
+      // Try to extract nominee name from the data row
+      let rowNomineeName = null;
+      // In HDFC Ergo, after DOB there's nominee name then relationship then sum insured
+      // e.g. "... 01/01/1990 Jane Doe Spouse 1500000 1500000"
+      if (dobMatch) {
+        const afterDob = line.substring(line.indexOf(dobMatch[0]) + dobMatch[0].length).trim();
+        const nomFromRow = afterDob.match(/^([A-Za-z][A-Za-z\s\.]{2,30}?)(?:\s+(?:self|spouse|son|daughter|father|mother|husband|wife|child|parent|brother|sister)\b|\s{2,}|\s+\d)/i);
+        if (nomFromRow) rowNomineeName = nomFromRow[1].trim();
+      }
 
       // Extract name — first sequence of letters before relationship keyword
       let name = nameMatch ? nameMatch[1].trim() : null;
@@ -1150,8 +1200,11 @@ function parseInsuranceWithRegex(text) {
           relationship,
           gender: genderMatch ? genderMatch[1] : '',
           age: ageMatch ? ageMatch[1] : '',
-          dob: dobMatch ? dobMatch[1] : ''
+          dob: dobMatch ? dobMatch[1] : '',
+          nomineeName: rowNomineeName || ''
         });
+        // Use first found nominee name from table rows
+        if (!nominees && rowNomineeName) nominees = rowNomineeName;
       }
     }
   }
@@ -1246,7 +1299,7 @@ function parseInsuranceWithRegex(text) {
   if (customerIdMatch) additionalParts.push('Customer ID: ' + customerIdMatch[1].trim());
   if (policyTypeMatch) additionalParts.push('Policy Type: ' + policyTypeMatch[1].trim());
   if (firstInceptionMatch) additionalParts.push('First Inception: ' + firstInceptionMatch[1]);
-  if (nomineeRelMatch) additionalParts.push('Nominee Relationship: ' + nomineeRelMatch[1].trim());
+  if (nomineeRel) additionalParts.push('Nominee Relationship: ' + nomineeRel);
 
   // Payment frequency
   let paymentFrequency = 'annual';
@@ -1292,7 +1345,7 @@ function parseInsuranceWithRegex(text) {
     sumInsured: cover,
     expiry: endDate || null,
     startDate: startDate || null,
-    nominees: nominees || null,
+    nominees: nominees ? (nomineeRel ? nominees + ' (' + nomineeRel + ')' : nominees) : null,
     policyTerm,
     paymentFrequency,
     deductible,
