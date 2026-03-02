@@ -614,7 +614,12 @@
         #landing { display: none; }
 
         /* ========== LANDING PAGE (PocketGuard-inspired) ========== */
+        /* ========== LOTTO ANIMATION LANDING PAGE ========== */
         .landing-page { min-height:100vh; background:var(--bg); overflow-x:hidden; }
+
+        /* Floating Lotto Particles Canvas */
+        #lotto-particles { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+
         .landing-nav {
             display:flex; align-items:center; justify-content:space-between;
             padding:18px 48px; position:fixed; top:0; left:0; right:0; z-index:200;
@@ -623,11 +628,13 @@
         }
         .landing-nav-logo { display:flex; align-items:center; gap:10px; }
         .landing-nav-logo .ln-icon {
-            width:36px; height:36px; background:linear-gradient(135deg,#3b7eff,#7c3aed);
-            border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px;
+            width:36px; height:36px; background:linear-gradient(135deg,#f59e0b,#ef4444);
+            border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px;
+            animation:lottoBallSpin 3s ease-in-out infinite;
+            box-shadow:0 0 20px rgba(245,158,11,0.4);
         }
         .landing-nav-logo .ln-text { font-size:18px; font-weight:700; color:var(--text); }
-        .landing-nav-logo .ln-text span { color:var(--accent); }
+        .landing-nav-logo .ln-text span { color:#f59e0b; }
         .landing-nav-links { display:flex; align-items:center; gap:8px; }
         .landing-nav-links .ln-link {
             padding:8px 18px; font-size:13px; font-weight:600; color:var(--text2);
@@ -636,109 +643,241 @@
         }
         .landing-nav-links .ln-link:hover { color:var(--text); background:rgba(255,255,255,0.04); }
         .landing-nav-links .ln-cta {
-            padding:9px 22px; font-size:13px; font-weight:700; color:white;
-            background:linear-gradient(135deg,#3b7eff,#6366f1); border:none; border-radius:8px;
+            padding:9px 22px; font-size:13px; font-weight:700; color:#0b0f1a;
+            background:linear-gradient(135deg,#f59e0b,#fbbf24); border:none; border-radius:8px;
             cursor:pointer; font-family:var(--font); transition:all 0.15s;
-            box-shadow:0 2px 12px rgba(59,126,255,0.25);
+            box-shadow:0 2px 12px rgba(245,158,11,0.35);
         }
-        .landing-nav-links .ln-cta:hover { box-shadow:0 4px 20px rgba(59,126,255,0.4); transform:translateY(-1px); }
+        .landing-nav-links .ln-cta:hover { box-shadow:0 4px 24px rgba(245,158,11,0.5); transform:translateY(-1px); }
 
+        /* Hero with Lotto Machine Background */
         .landing-hero {
-            padding:140px 48px 80px; text-align:center; position:relative;
-            background:radial-gradient(ellipse at 50% 0%, rgba(59,126,255,0.08) 0%, transparent 60%),
-                        radial-gradient(ellipse at 80% 50%, rgba(124,58,237,0.06) 0%, transparent 50%);
+            padding:160px 48px 100px; text-align:center; position:relative; z-index:2;
+            background:
+                radial-gradient(ellipse at 50% 20%, rgba(245,158,11,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 20% 80%, rgba(239,68,68,0.08) 0%, transparent 40%),
+                radial-gradient(ellipse at 80% 60%, rgba(167,139,250,0.08) 0%, transparent 40%);
+        }
+        .landing-hero::before {
+            content:''; position:absolute; top:80px; left:50%; transform:translateX(-50%);
+            width:600px; height:600px; border-radius:50%;
+            background:radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%);
+            animation:heroGlow 4s ease-in-out infinite alternate;
+            pointer-events:none;
         }
         .landing-hero-badge {
-            display:inline-flex; align-items:center; gap:8px; padding:6px 16px;
-            background:rgba(59,126,255,0.08); border:1px solid rgba(59,126,255,0.15);
-            border-radius:20px; font-size:12px; font-weight:600; color:var(--accent2); margin-bottom:24px;
+            display:inline-flex; align-items:center; gap:8px; padding:8px 20px;
+            background:linear-gradient(135deg, rgba(245,158,11,0.15), rgba(239,68,68,0.1));
+            border:1px solid rgba(245,158,11,0.3);
+            border-radius:24px; font-size:12px; font-weight:700; color:#fbbf24; margin-bottom:28px;
+            animation:badgePulse 2s ease-in-out infinite;
+            text-transform:uppercase; letter-spacing:1px;
         }
         .landing-hero h1 {
-            font-size:52px; font-weight:800; color:var(--text); line-height:1.15;
-            max-width:720px; margin:0 auto 20px; letter-spacing:-1.5px;
+            font-size:56px; font-weight:900; color:var(--text); line-height:1.1;
+            max-width:780px; margin:0 auto 24px; letter-spacing:-2px;
+            position:relative;
         }
         .landing-hero h1 .hero-gradient {
-            background:linear-gradient(135deg,#3b7eff,#a78bfa);
+            background:linear-gradient(135deg,#f59e0b,#ef4444,#a78bfa,#f59e0b);
+            background-size:300% 300%;
             -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+            animation:gradientShift 4s ease infinite;
         }
         .landing-hero p {
-            font-size:18px; color:var(--text2); max-width:560px; margin:0 auto 36px; line-height:1.6;
+            font-size:18px; color:var(--text2); max-width:580px; margin:0 auto 40px; line-height:1.7;
         }
-        .landing-hero-ctas { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+        .landing-hero-ctas { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
         .landing-hero-ctas .hero-btn-primary {
-            padding:14px 32px; font-size:15px; font-weight:700; color:white;
-            background:linear-gradient(135deg,#3b7eff,#5b21b6); border:none; border-radius:10px;
+            padding:16px 36px; font-size:16px; font-weight:800; color:#0b0f1a;
+            background:linear-gradient(135deg,#f59e0b,#fbbf24); border:none; border-radius:12px;
             cursor:pointer; font-family:var(--font); transition:all 0.2s;
-            box-shadow:0 4px 20px rgba(59,126,255,0.3);
+            box-shadow:0 4px 24px rgba(245,158,11,0.4);
+            position:relative; overflow:hidden;
         }
-        .landing-hero-ctas .hero-btn-primary:hover { box-shadow:0 6px 28px rgba(59,126,255,0.45); transform:translateY(-2px); }
+        .landing-hero-ctas .hero-btn-primary::after {
+            content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%;
+            background:linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+            animation:btnShine 3s ease-in-out infinite;
+        }
+        .landing-hero-ctas .hero-btn-primary:hover { box-shadow:0 8px 36px rgba(245,158,11,0.6); transform:translateY(-3px) scale(1.02); }
         .landing-hero-ctas .hero-btn-secondary {
-            padding:14px 32px; font-size:15px; font-weight:600; color:var(--text2);
-            background:transparent; border:1px solid rgba(255,255,255,0.1); border-radius:10px;
+            padding:16px 36px; font-size:16px; font-weight:600; color:var(--text2);
+            background:transparent; border:1px solid rgba(245,158,11,0.3); border-radius:12px;
             cursor:pointer; font-family:var(--font); transition:all 0.15s;
         }
-        .landing-hero-ctas .hero-btn-secondary:hover { border-color:var(--accent); color:var(--text); }
+        .landing-hero-ctas .hero-btn-secondary:hover { border-color:#f59e0b; color:#fbbf24; }
 
+        /* Lotto Ball Slot Machine Stats */
         .landing-stats {
-            display:flex; justify-content:center; gap:48px; padding:40px 48px;
-            border-top:1px solid rgba(255,255,255,0.04); border-bottom:1px solid rgba(255,255,255,0.04);
+            display:flex; justify-content:center; gap:48px; padding:50px 48px;
+            border-top:1px solid rgba(245,158,11,0.1); border-bottom:1px solid rgba(245,158,11,0.1);
+            position:relative; z-index:2;
+            background:linear-gradient(180deg, rgba(245,158,11,0.03) 0%, transparent 100%);
         }
-        .landing-stat { text-align:center; }
-        .landing-stat .ls-num { font-size:28px; font-weight:800; color:var(--text); font-family:var(--mono); }
-        .landing-stat .ls-num .ls-accent { color:var(--accent); }
-        .landing-stat .ls-label { font-size:12px; color:var(--text3); margin-top:4px; text-transform:uppercase; letter-spacing:0.8px; }
+        .landing-stat { text-align:center; position:relative; }
+        .landing-stat .ls-num {
+            font-size:36px; font-weight:900; color:var(--text); font-family:var(--mono);
+            position:relative; display:inline-block;
+        }
+        .landing-stat .ls-num .ls-accent { color:#f59e0b; }
+        .landing-stat .ls-label { font-size:11px; color:var(--text3); margin-top:6px; text-transform:uppercase; letter-spacing:1px; font-weight:600; }
+        .landing-stat .lotto-ball {
+            width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+            margin:0 auto 10px; font-size:20px; font-weight:900; color:#0b0f1a;
+            position:relative; cursor:default;
+        }
+        .landing-stat:nth-child(1) .lotto-ball { background:linear-gradient(135deg,#f59e0b,#fbbf24); box-shadow:0 4px 20px rgba(245,158,11,0.4), inset 0 -3px 6px rgba(0,0,0,0.15); }
+        .landing-stat:nth-child(2) .lotto-ball { background:linear-gradient(135deg,#ef4444,#f87171); box-shadow:0 4px 20px rgba(239,68,68,0.4), inset 0 -3px 6px rgba(0,0,0,0.15); }
+        .landing-stat:nth-child(3) .lotto-ball { background:linear-gradient(135deg,#3b82f6,#60a5fa); box-shadow:0 4px 20px rgba(59,130,246,0.4), inset 0 -3px 6px rgba(0,0,0,0.15); }
+        .landing-stat:nth-child(4) .lotto-ball { background:linear-gradient(135deg,#a78bfa,#c4b5fd); box-shadow:0 4px 20px rgba(167,139,250,0.4), inset 0 -3px 6px rgba(0,0,0,0.15); }
+        .lotto-ball::after {
+            content:''; position:absolute; top:6px; left:12px; width:20px; height:10px;
+            background:rgba(255,255,255,0.35); border-radius:50%; transform:rotate(-20deg);
+        }
 
+        /* Features with Reveal Animation */
         .landing-features {
-            padding:80px 48px; max-width:1100px; margin:0 auto;
+            padding:100px 48px; max-width:1100px; margin:0 auto; position:relative; z-index:2;
         }
-        .landing-features-header {
-            text-align:center; margin-bottom:56px;
-        }
+        .landing-features-header { text-align:center; margin-bottom:64px; }
         .landing-features-header h2 {
-            font-size:32px; font-weight:800; color:var(--text); margin-bottom:12px; letter-spacing:-0.5px;
+            font-size:36px; font-weight:900; color:var(--text); margin-bottom:14px; letter-spacing:-0.5px;
         }
         .landing-features-header p { font-size:16px; color:var(--text2); }
         .landing-features-grid {
             display:grid; grid-template-columns:repeat(3,1fr); gap:24px;
         }
         .landing-feature-card {
-            background:rgba(17,24,39,0.5); border:1px solid rgba(255,255,255,0.06);
-            border-radius:16px; padding:28px; transition:all 0.2s;
+            background:rgba(17,24,39,0.6); border:1px solid rgba(255,255,255,0.06);
+            border-radius:20px; padding:32px; transition:all 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+            position:relative; overflow:hidden;
+            opacity:0; transform:translateY(40px);
         }
-        .landing-feature-card:hover { border-color:rgba(59,126,255,0.2); transform:translateY(-4px); box-shadow:0 12px 32px rgba(0,0,0,0.3); }
+        .landing-feature-card.revealed { opacity:1; transform:translateY(0); }
+        .landing-feature-card::before {
+            content:''; position:absolute; top:0; left:0; right:0; height:3px;
+            background:linear-gradient(90deg, transparent, #f59e0b, transparent);
+            opacity:0; transition:opacity 0.3s;
+        }
+        .landing-feature-card:hover::before { opacity:1; }
+        .landing-feature-card:hover {
+            border-color:rgba(245,158,11,0.3); transform:translateY(-8px) scale(1.02);
+            box-shadow:0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(245,158,11,0.08);
+        }
         .landing-feature-icon {
-            width:44px; height:44px; border-radius:12px; display:flex; align-items:center;
-            justify-content:center; font-size:20px; margin-bottom:16px;
+            width:52px; height:52px; border-radius:50%; display:flex; align-items:center;
+            justify-content:center; font-size:24px; margin-bottom:18px;
+            position:relative;
         }
-        .landing-feature-card h3 { font-size:16px; font-weight:700; color:var(--text); margin-bottom:8px; }
-        .landing-feature-card p { font-size:13px; color:var(--text3); line-height:1.6; }
+        .landing-feature-card h3 { font-size:17px; font-weight:700; color:var(--text); margin-bottom:10px; }
+        .landing-feature-card p { font-size:13px; color:var(--text3); line-height:1.7; }
 
+        /* NRI Questions Section */
         .landing-cta-section {
-            padding:80px 48px; text-align:center;
-            background:radial-gradient(ellipse at 50% 100%, rgba(59,126,255,0.06) 0%, transparent 60%);
+            padding:100px 48px; text-align:center; position:relative; z-index:2;
+            background:radial-gradient(ellipse at 50% 100%, rgba(245,158,11,0.06) 0%, transparent 60%);
         }
-        .landing-cta-section h2 { font-size:32px; font-weight:800; color:var(--text); margin-bottom:12px; }
+        .landing-cta-section h2 { font-size:36px; font-weight:900; color:var(--text); margin-bottom:14px; }
         .landing-cta-section p { font-size:16px; color:var(--text2); margin-bottom:32px; max-width:500px; margin-left:auto; margin-right:auto; }
+        .nri-q-card {
+            background:rgba(17,24,39,0.5); border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:24px;
+            transition:all 0.3s; position:relative; overflow:hidden;
+            opacity:0; transform:translateY(30px);
+        }
+        .nri-q-card.revealed { opacity:1; transform:translateY(0); }
+        .nri-q-card:hover { border-color:rgba(245,158,11,0.25); transform:translateY(-4px); box-shadow:0 12px 32px rgba(0,0,0,0.3); }
+        .nri-q-card::after {
+            content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+            background:linear-gradient(90deg, transparent, #f59e0b, transparent); opacity:0; transition:opacity 0.3s;
+        }
+        .nri-q-card:hover::after { opacity:1; }
+
+        /* Jackpot CTA Section */
+        .jackpot-cta {
+            padding:100px 48px; text-align:center; position:relative; z-index:2;
+            background:radial-gradient(ellipse at 50% 50%, rgba(245,158,11,0.08) 0%, transparent 50%);
+        }
+        .jackpot-cta h2 { font-size:40px; font-weight:900; color:var(--text); margin-bottom:14px; }
+        .jackpot-cta p { font-size:16px; color:var(--text2); margin-bottom:36px; max-width:500px; margin-left:auto; margin-right:auto; }
+        .jackpot-badge {
+            display:inline-flex; align-items:center; gap:10px; padding:12px 28px;
+            background:linear-gradient(135deg, rgba(245,158,11,0.12), rgba(239,68,68,0.08));
+            border:1px solid rgba(245,158,11,0.25); border-radius:30px;
+            margin-bottom:28px; animation:badgePulse 2.5s ease-in-out infinite;
+        }
+        .jackpot-badge span { font-size:14px; font-weight:700; color:#fbbf24; letter-spacing:0.5px; }
 
         .landing-footer {
-            padding:32px 48px; border-top:1px solid rgba(255,255,255,0.04);
+            padding:32px 48px; border-top:1px solid rgba(245,158,11,0.08);
             display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;
+            position:relative; z-index:2;
         }
         .landing-footer-text { font-size:12px; color:var(--text3); }
         .landing-footer-links { display:flex; gap:20px; }
         .landing-footer-links a { font-size:12px; color:var(--text3); text-decoration:none; transition:color 0.15s; }
-        .landing-footer-links a:hover { color:var(--accent2); }
+        .landing-footer-links a:hover { color:#f59e0b; }
+
+        /* ========== LOTTO KEYFRAME ANIMATIONS ========== */
+        @keyframes lottoBallSpin {
+            0%,100% { transform:rotate(0deg) scale(1); }
+            25% { transform:rotate(5deg) scale(1.05); }
+            50% { transform:rotate(0deg) scale(1); }
+            75% { transform:rotate(-5deg) scale(1.05); }
+        }
+        @keyframes heroGlow {
+            0% { opacity:0.5; transform:translateX(-50%) scale(0.9); }
+            100% { opacity:1; transform:translateX(-50%) scale(1.1); }
+        }
+        @keyframes badgePulse {
+            0%,100% { box-shadow:0 0 0 0 rgba(245,158,11,0.2); }
+            50% { box-shadow:0 0 20px 4px rgba(245,158,11,0.15); }
+        }
+        @keyframes gradientShift {
+            0% { background-position:0% 50%; }
+            50% { background-position:100% 50%; }
+            100% { background-position:0% 50%; }
+        }
+        @keyframes btnShine {
+            0% { transform:translateX(-100%) rotate(45deg); }
+            30%,100% { transform:translateX(100%) rotate(45deg); }
+        }
+        @keyframes ballBounce {
+            0%,100% { transform:translateY(0); }
+            50% { transform:translateY(-12px); }
+        }
+        @keyframes confettiFall {
+            0% { transform:translateY(-10px) rotate(0deg); opacity:1; }
+            100% { transform:translateY(100vh) rotate(720deg); opacity:0; }
+        }
+        @keyframes slotSpin {
+            0% { transform:translateY(-100%); }
+            100% { transform:translateY(0); }
+        }
+        @keyframes numberReveal {
+            0% { opacity:0; transform:scale(0.3) rotateY(90deg); }
+            60% { transform:scale(1.15) rotateY(-10deg); }
+            100% { opacity:1; transform:scale(1) rotateY(0deg); }
+        }
+        @keyframes floatUp {
+            0% { opacity:0; transform:translateY(60px); }
+            100% { opacity:1; transform:translateY(0); }
+        }
 
         @media(max-width:768px) {
             .landing-nav { padding:14px 20px; }
             .landing-nav-links .ln-link { display:none; }
-            .landing-hero { padding:110px 20px 60px; }
-            .landing-hero h1 { font-size:32px; }
+            .landing-hero { padding:120px 20px 70px; }
+            .landing-hero h1 { font-size:34px; letter-spacing:-1px; }
             .landing-hero p { font-size:15px; }
-            .landing-stats { gap:24px; padding:30px 20px; flex-wrap:wrap; }
-            .landing-features { padding:50px 20px; }
+            .landing-stats { gap:20px; padding:30px 20px; flex-wrap:wrap; }
+            .landing-stat .lotto-ball { width:48px; height:48px; font-size:16px; }
+            .landing-stat .ls-num { font-size:28px; }
+            .landing-features { padding:60px 20px; }
             .landing-features-grid { grid-template-columns:1fr; }
-            .landing-cta-section { padding:50px 20px; }
+            .landing-cta-section { padding:60px 20px; }
+            .jackpot-cta { padding:60px 20px; }
+            .jackpot-cta h2 { font-size:28px; }
             .landing-footer { padding:24px 20px; }
         }
 
@@ -1142,96 +1281,99 @@
 
 <!-- LANDING PAGE -->
 <div id="landing" class="landing-page">
+    <canvas id="lotto-particles"></canvas>
     <nav class="landing-nav">
         <div class="landing-nav-logo">
-            <div class="ln-icon">💰</div>
+            <div class="ln-icon">🎱</div>
             <div class="ln-text">Fam<span>Ledger</span>AI</div>
         </div>
         <div class="landing-nav-links">
             <button class="ln-link" onclick="document.getElementById('landing-features').scrollIntoView({behavior:'smooth'})">Features</button>
             <button class="ln-link" onclick="document.getElementById('landing-compare').scrollIntoView({behavior:'smooth'})">NRI Questions</button>
             <button class="ln-link" onclick="goToAuth('login')">Sign In</button>
-            <button class="ln-cta" onclick="goToAuth('reg')">Get Started Free</button>
+            <button class="ln-cta" onclick="goToAuth('reg')">🎰 Get Started Free</button>
         </div>
     </nav>
 
     <section class="landing-hero">
-        <div class="landing-hero-badge">🇮🇳 Built for NRIs · Powered by AI</div>
-        <h1>Moving back to India?<br><span class="hero-gradient">We'll help you figure it all out.</span></h1>
-        <p>Rent or buy? Which health insurance? What about term cover? NRE vs NRO? Tax implications? FamLedgerAI is the AI-powered financial co-pilot built specifically for NRIs planning their return to India.</p>
+        <div class="landing-hero-badge">🇮🇳 BUILT FOR NRIs · POWERED BY AI · YOUR LUCKY MOVE</div>
+        <h1>Moving back to India?<br><span class="hero-gradient">Hit the jackpot on every decision.</span></h1>
+        <p>Rent or buy? Which health insurance? Term cover? NRE vs NRO? Tax traps? Stop gambling with your finances. FamLedgerAI is the AI co-pilot that turns your India move into a winning hand.</p>
         <div class="landing-hero-ctas">
-            <button class="hero-btn-primary" onclick="goToAuth('reg')">Start Planning Free →</button>
+            <button class="hero-btn-primary" onclick="goToAuth('reg')">🎯 Start Planning Free →</button>
             <button class="hero-btn-secondary" onclick="goToAuth('login')">Sign In</button>
         </div>
+        <!-- Floating Lotto Balls in Hero -->
+        <div id="hero-floating-balls" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:hidden; z-index:0;"></div>
     </section>
 
     <section class="landing-stats">
         <div class="landing-stat">
-            <div class="ls-num">18<span class="ls-accent">M+</span></div>
+            <div class="lotto-ball" style="animation:ballBounce 2s ease-in-out infinite 0s;">18M</div>
             <div class="ls-label">NRIs Worldwide</div>
         </div>
         <div class="landing-stat">
-            <div class="ls-num">73<span class="ls-accent">%</span></div>
+            <div class="lotto-ball" style="animation:ballBounce 2s ease-in-out infinite 0.3s;">73%</div>
             <div class="ls-label">Plan to Return</div>
         </div>
         <div class="landing-stat">
-            <div class="ls-num">50<span class="ls-accent">+</span></div>
+            <div class="lotto-ball" style="animation:ballBounce 2s ease-in-out infinite 0.6s;">50+</div>
             <div class="ls-label">Relocation Tools</div>
         </div>
         <div class="landing-stat">
-            <div class="ls-num">3</div>
+            <div class="lotto-ball" style="animation:ballBounce 2s ease-in-out infinite 0.9s;">3</div>
             <div class="ls-label">AI Models</div>
         </div>
     </section>
 
     <section class="landing-features" id="landing-features">
         <div class="landing-features-header">
-            <h2>Every question you have about moving back. Answered.</h2>
+            <h2>Every question you have about moving back. <span style="color:#f59e0b;">Answered.</span></h2>
             <p>From housing to insurance to taxes — we cover the decisions that keep NRIs up at night.</p>
         </div>
         <div class="landing-features-grid">
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:rgba(59,126,255,0.1);">🏠</div>
+                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(59,126,255,0.15),rgba(59,126,255,0.05)); border:1px solid rgba(59,126,255,0.2);">�</div>
                 <h3>Rent vs Buy Analysis</h3>
                 <p>Should you rent first or buy immediately? Our AI compares EMI vs rent, property appreciation, stamp duty, and your financial runway to give you a clear answer.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:rgba(16,217,142,0.1);">🏥</div>
+                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(16,217,142,0.15),rgba(16,217,142,0.05)); border:1px solid rgba(16,217,142,0.2);">🏥</div>
                 <h3>Health Insurance Finder</h3>
                 <p>Indian health insurance is confusing. Upload your current policy or start fresh — we compare plans, check port-in options, and flag waiting period traps.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:rgba(244,73,92,0.1);">🛡️</div>
+                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(244,73,92,0.15),rgba(244,73,92,0.05)); border:1px solid rgba(244,73,92,0.2);">🛡️</div>
                 <h3>Term Insurance Guide</h3>
                 <p>How much cover do you actually need? We calculate based on your family size, liabilities, lifestyle, and India's cost of living — not generic rules of thumb.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:rgba(167,139,250,0.1);">🏦</div>
+                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(167,139,250,0.15),rgba(167,139,250,0.05)); border:1px solid rgba(167,139,250,0.2);">🏦</div>
                 <h3>NRE / NRO Account Planning</h3>
                 <p>When to convert NRE to resident? How to handle NRO repatriation? Tax on NRE FD interest post-return? We break down the banking transition step by step.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:rgba(245,197,66,0.1);">📋</div>
+                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(245,197,66,0.15),rgba(245,197,66,0.05)); border:1px solid rgba(245,197,66,0.2);">📋</div>
                 <h3>DTAA Tax Optimizer</h3>
                 <p>Double Taxation Avoidance Agreements are complex. We help you understand which income gets taxed where, FBAR/FATCA obligations, and how to stay compliant in both countries.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:rgba(6,182,212,0.1);">🌆</div>
+                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(6,182,212,0.15),rgba(6,182,212,0.05)); border:1px solid rgba(6,182,212,0.2);">🌆</div>
                 <h3>City Comparison Tool</h3>
                 <p>Bangalore vs Hyderabad vs Pune? Compare cost of living, school quality, healthcare access, air quality, and job markets — tailored for returning NRIs.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:rgba(16,217,142,0.1);">🩺</div>
+                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(16,217,142,0.15),rgba(16,217,142,0.05)); border:1px solid rgba(16,217,142,0.2);">🩺</div>
                 <h3>Financial Health Score</h3>
                 <p>A 0-100 score from 7 dimensions — cashflow, EMI load, emergency fund, debt, insurance, credit, and investments. Know exactly where you stand before the move.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:rgba(244,73,92,0.1);">🤖</div>
+                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(244,73,92,0.15),rgba(244,73,92,0.05)); border:1px solid rgba(244,73,92,0.2);">🤖</div>
                 <h3>Multi-AI Financial Advisor</h3>
                 <p>Three AI models (Claude, GPT, Gemini) work together to give you personalized advice on investments, loans, insurance, and relocation budgeting.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:rgba(167,139,250,0.1);">👨‍👩‍👧‍👦</div>
+                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(167,139,250,0.15),rgba(167,139,250,0.05)); border:1px solid rgba(167,139,250,0.2);">👨‍👩‍👧‍👦</div>
                 <h3>Full Family Finance</h3>
                 <p>Track finances for your entire family — spouse, kids, parents. Combined net worth, per-member expenses, and family-wide insurance coverage analysis.</p>
             </div>
@@ -1240,47 +1382,52 @@
 
     <!-- NRI Pain Points / Why Us Section -->
     <section class="landing-cta-section" id="landing-compare" style="padding-bottom:40px;">
-        <h2>The questions every NRI asks before moving back</h2>
+        <h2>The questions every NRI asks <span style="color:#f59e0b;">before moving back</span></h2>
         <p style="margin-bottom:40px;">We built FamLedgerAI because no one else answers these properly.</p>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; max-width:900px; margin:0 auto; text-align:left;">
-            <div style="background:rgba(17,24,39,0.5); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:20px;">
-                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">Housing</div>
+            <div class="nri-q-card">
+                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🏠 Housing</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"Should I rent or buy when I land?"</div>
                 <div style="font-size:12px; color:var(--text3);">Our AI analyzes your savings, income timeline, city prices, and loan eligibility to give you a data-backed recommendation.</div>
             </div>
-            <div style="background:rgba(17,24,39,0.5); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:20px;">
-                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">Health Cover</div>
+            <div class="nri-q-card">
+                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🏥 Health Cover</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"Which health insurance should I buy?"</div>
                 <div style="font-size:12px; color:var(--text3);">Upload any policy PDF — we extract every detail, compare plans, and flag gaps. HDFC Ergo, Star Health, Niva Bupa — we parse them all.</div>
             </div>
-            <div style="background:rgba(17,24,39,0.5); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:20px;">
-                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">Life Cover</div>
+            <div class="nri-q-card">
+                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🛡️ Life Cover</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"How much term insurance do I need?"</div>
                 <div style="font-size:12px; color:var(--text3);">We calculate your Human Life Value based on income, liabilities, dependents, and India's cost of living — not a generic 10x formula.</div>
             </div>
-            <div style="background:rgba(17,24,39,0.5); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:20px;">
-                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">Banking</div>
+            <div class="nri-q-card">
+                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🏦 Banking</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"What happens to my NRE/NRO accounts?"</div>
                 <div style="font-size:12px; color:var(--text3);">Step-by-step guide on converting accounts, repatriating funds, and managing the transition without losing tax benefits.</div>
             </div>
-            <div style="background:rgba(17,24,39,0.5); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:20px;">
-                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">Taxes</div>
+            <div class="nri-q-card">
+                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">📋 Taxes</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"Will I be taxed in both countries?"</div>
                 <div style="font-size:12px; color:var(--text3);">DTAA guidance, residential status tracking, FBAR/FATCA obligations, and which income gets taxed where — all in one place.</div>
             </div>
-            <div style="background:rgba(17,24,39,0.5); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:20px;">
-                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">Relocation</div>
+            <div class="nri-q-card">
+                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🌆 Relocation</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"Which city should I move to?"</div>
                 <div style="font-size:12px; color:var(--text3);">Compare Bangalore, Hyderabad, Pune, Chennai, and more — cost of living, schools, healthcare, job market, and quality of life.</div>
             </div>
         </div>
     </section>
 
-    <section class="landing-cta-section" style="padding-top:40px;">
-        <h2>Your India move, planned and sorted</h2>
+    <section class="jackpot-cta">
+        <div class="jackpot-badge">
+            <span>🎰</span>
+            <span>YOUR WINNING MOVE STARTS HERE</span>
+            <span>🎰</span>
+        </div>
+        <h2>Your India move, <span style="color:#f59e0b;">planned and sorted</span></h2>
         <p>Free to start. No credit card. No ads. Just clarity on the biggest financial decisions of your life.</p>
         <div class="landing-hero-ctas">
-            <button class="hero-btn-primary" onclick="goToAuth('reg')">Start Planning Free →</button>
+            <button class="hero-btn-primary" onclick="goToAuth('reg')">🎯 Start Planning Free →</button>
         </div>
     </section>
 
@@ -6872,6 +7019,199 @@ function populateProfileSelector() {
     sel.value = currentProfile;
 }
 function showAuth() { $('landing').style.display='block'; $('auth').style.display='none'; $('app').style.display='none'; clearTimeout(inactivityTimer); }
+
+// ========== LOTTO ANIMATION ENGINE ==========
+(function initLottoAnimations() {
+    // 1. Floating Particles Canvas
+    const canvas = document.getElementById('lotto-particles');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        const colors = ['#f59e0b','#ef4444','#3b82f6','#a78bfa','#10d98e','#fbbf24'];
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        class Particle {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = (Math.random() - 0.5) * 0.5;
+                this.speedY = (Math.random() - 0.5) * 0.5;
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                this.opacity = Math.random() * 0.4 + 0.1;
+                this.pulse = Math.random() * Math.PI * 2;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.pulse += 0.02;
+                this.opacity = 0.1 + Math.sin(this.pulse) * 0.15;
+                if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.opacity;
+                ctx.fill();
+                // Glow
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.opacity * 0.15;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        for (let i = 0; i < 60; i++) particles.push(new Particle());
+        
+        // Draw connections between nearby particles
+        function drawConnections() {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = particles[i].color;
+                        ctx.globalAlpha = (1 - dist / 150) * 0.06;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                        ctx.globalAlpha = 1;
+                    }
+                }
+            }
+        }
+        
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            drawConnections();
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+    }
+    
+    // 2. Floating Lotto Balls in Hero
+    const heroBalls = document.getElementById('hero-floating-balls');
+    if (heroBalls) {
+        const emojis = ['🎱','🎰','💰','🎯','🏆','⭐','💎','🎲'];
+        for (let i = 0; i < 12; i++) {
+            const ball = document.createElement('div');
+            const size = Math.random() * 30 + 20;
+            const left = Math.random() * 100;
+            const delay = Math.random() * 8;
+            const duration = Math.random() * 6 + 8;
+            ball.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            ball.style.cssText = `
+                position:absolute; font-size:${size}px; left:${left}%;
+                bottom:-50px; opacity:0.12;
+                animation:confettiFall ${duration}s linear ${delay}s infinite reverse;
+                filter:blur(${Math.random() > 0.5 ? 1 : 0}px);
+            `;
+            heroBalls.appendChild(ball);
+        }
+    }
+    
+    // 3. Scroll Reveal for Feature Cards & NRI Q Cards
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry, idx) => {
+            if (entry.isIntersecting) {
+                const el = entry.target;
+                const siblings = Array.from(el.parentElement.children);
+                const i = siblings.indexOf(el);
+                setTimeout(() => {
+                    el.classList.add('revealed');
+                }, i * 100);
+                revealObserver.unobserve(el);
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+    
+    document.querySelectorAll('.landing-feature-card, .nri-q-card').forEach(card => {
+        revealObserver.observe(card);
+    });
+    
+    // 4. Lotto Ball Number Counter Animation
+    const statObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const balls = entry.target.querySelectorAll('.lotto-ball');
+                balls.forEach((ball, i) => {
+                    const finalText = ball.textContent;
+                    const numMatch = finalText.match(/\d+/);
+                    if (numMatch) {
+                        const target = parseInt(numMatch[0]);
+                        const suffix = finalText.replace(/\d+/, '');
+                        let current = 0;
+                        const step = Math.max(1, Math.floor(target / 30));
+                        const interval = setInterval(() => {
+                            current += step;
+                            if (current >= target) {
+                                current = target;
+                                clearInterval(interval);
+                            }
+                            ball.textContent = current + suffix;
+                        }, 40);
+                    }
+                });
+                statObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.5 });
+    
+    const statsSection = document.querySelector('.landing-stats');
+    if (statsSection) statObserver.observe(statsSection);
+    
+    // 5. Confetti Burst on CTA Hover
+    document.querySelectorAll('.hero-btn-primary').forEach(btn => {
+        btn.addEventListener('mouseenter', function(e) {
+            for (let i = 0; i < 8; i++) {
+                const confetti = document.createElement('div');
+                const color = ['#f59e0b','#ef4444','#3b82f6','#a78bfa','#10d98e'][Math.floor(Math.random()*5)];
+                confetti.style.cssText = `
+                    position:fixed; width:8px; height:8px; background:${color};
+                    border-radius:${Math.random()>0.5?'50%':'2px'};
+                    left:${e.clientX + (Math.random()-0.5)*60}px;
+                    top:${e.clientY + (Math.random()-0.5)*40}px;
+                    pointer-events:none; z-index:9999;
+                    animation:confettiFall ${Math.random()*1+0.5}s ease-out forwards;
+                `;
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 1500);
+            }
+        });
+    });
+    
+    // 6. Parallax on Hero Section
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+        if (!ticking) {
+            requestAnimationFrame(() => {
+                const scrollY = window.scrollY;
+                const hero = document.querySelector('.landing-hero');
+                if (hero && scrollY < window.innerHeight) {
+                    hero.style.transform = `translateY(${scrollY * 0.15}px)`;
+                    hero.style.opacity = 1 - (scrollY / (window.innerHeight * 0.8));
+                }
+                ticking = false;
+            });
+            ticking = true;
+        }
+    });
+})();
 
 // Go from landing page to auth (login or register)
 window.goToAuth = (mode) => {
