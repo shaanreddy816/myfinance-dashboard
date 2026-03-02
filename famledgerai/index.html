@@ -63,33 +63,14 @@
         ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
 
         .sidebar {
-            width:60px; background:var(--bg2); border-right:1px solid var(--border);
+            width:250px; background:var(--bg2); border-right:1px solid var(--border);
             display:flex; flex-direction:column; padding:20px 10px;
-            position:fixed; top:0; left:0; bottom:0; overflow-y:auto; overflow-x:hidden;
-            z-index:100; transition:width 0.3s ease;
-        }
-        .sidebar:hover {
-            width:200px;
+            position:fixed; top:0; left:0; bottom:0; overflow-y:auto;
+            z-index:100; transition:transform 0.3s ease;
         }
         .sidebar-logo {
             display:flex; align-items:center; gap:10px; padding:0 10px 20px;
             border-bottom:1px solid var(--border); margin-bottom:16px;
-            white-space: nowrap;
-        }
-        .sidebar .logo-text,
-        .sidebar .profile-selector,
-        .sidebar .month-picker,
-        .sidebar .nav-item span,
-        .sidebar .sidebar-footer {
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .sidebar:hover .logo-text,
-        .sidebar:hover .profile-selector,
-        .sidebar:hover .month-picker,
-        .sidebar:hover .nav-item span,
-        .sidebar:hover .sidebar-footer {
-            opacity: 1;
         }
         .logo-icon {
             width:38px; height:38px;
@@ -146,7 +127,7 @@
         }
         .logout-btn:hover { background:var(--red-dim); }
 
-        .main { margin-left:60px; flex:1; min-height:100vh; padding:24px 28px; transition: margin-left 0.3s ease; }
+        .main { margin-left:250px; flex:1; min-height:100vh; padding:24px 28px; }
 
         .top-bar {
             display:flex; justify-content:space-between; align-items:center;
@@ -181,12 +162,15 @@
             position: absolute;
             right: 0;
             background: var(--bg2);
-            min-width: 200px;
+            min-width: 180px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.4);
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             z-index: 1000;
             margin-top: 4px;
+        }
+        .dropdown-content.show {
+            display: block;
         }
         .dropdown-content a {
             color: var(--text2);
@@ -197,6 +181,7 @@
             gap: 8px;
             font-size: 13px;
             transition: all 0.18s;
+            cursor: pointer;
         }
         .dropdown-content a:hover {
             background: var(--bg3);
@@ -207,9 +192,6 @@
         }
         .dropdown-content a:last-child {
             border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-        }
-        .dropdown:hover .dropdown-content {
-            display: block;
         }
 
         .ebtn.active-edit { background:var(--green); box-shadow:0 0 14px rgba(16,217,142,0.25); }
@@ -8651,11 +8633,11 @@ function renderLoans() {
                             <td>${l.tenure || (l.tenureMonths ? l.tenureMonths+' mo' : '—')}</td>
                             <td>
                                 <div class="dropdown">
-                                    <button class="snap-btn" style="padding: 4px 10px; font-size: 11px;">⋮ More</button>
-                                    <div class="dropdown-content">
-                                        <a href="#" onclick="event.preventDefault(); showLoanDetails(${i})"><i class="fas fa-info-circle"></i> View Details</a>
-                                        <a href="#" onclick="event.preventDefault(); showLoanScenarios(${i})"><i class="fas fa-calculator"></i> Payoff Scenarios</a>
-                                        <a href="#" onclick="event.preventDefault(); editLoan(${i})"><i class="fas fa-edit"></i> Edit Loan</a>
+                                    <button class="snap-btn" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDropdown(${i})">⋮ More</button>
+                                    <div class="dropdown-content" id="dropdown-${i}">
+                                        <a onclick="showLoanDetails(${i}); closeAllDropdowns();"><i class="fas fa-info-circle"></i> View Details</a>
+                                        <a onclick="showLoanScenarios(${i}); closeAllDropdowns();"><i class="fas fa-calculator"></i> Payoff Scenarios</a>
+                                        <a onclick="editLoan(${i}); closeAllDropdowns();"><i class="fas fa-edit"></i> Edit Loan</a>
                                     </div>
                                 </div>
                             </td>
@@ -8811,11 +8793,37 @@ window.addLoan = () => {
     debounceSave(); renderLoans();
 };
 
+// ── Dropdown Toggle Functions ──
+window.toggleDropdown = (i) => {
+    const dropdown = document.getElementById(`dropdown-${i}`);
+    if (!dropdown) return;
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.dropdown-content').forEach(d => {
+        if (d.id !== `dropdown-${i}`) d.classList.remove('show');
+    });
+    
+    // Toggle this dropdown
+    dropdown.classList.toggle('show');
+};
+
+window.closeAllDropdowns = () => {
+    document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+};
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown')) {
+        closeAllDropdowns();
+    }
+});
+
 // ── Loan Dropdown Actions ──
 window.showLoanDetails = (i) => {
     const loan = userData.loans[i];
     if (!loan) return;
     
+    const income = computeMonthlyIncome();
     const details = `
         <div style="padding: 20px;">
             <h3 style="margin-bottom: 16px; color: var(--accent);">${loan.label || 'Loan Details'}</h3>
@@ -8829,7 +8837,7 @@ window.showLoanDetails = (i) => {
                 <div><strong>Tenure:</strong> ${loan.tenureMonths || 0} months</div>
                 <div><strong>Remaining:</strong> ${loan.remainingMonths || 0} months</div>
                 <div><strong>Paid Months:</strong> ${loan.paidMonths || 0}</div>
-                <div><strong>% of Income:</strong> ${computeMonthlyIncome() ? pct(loan.emi / computeMonthlyIncome()) : '—'}</div>
+                <div><strong>% of Income:</strong> ${income ? pct(loan.emi / income) : '—'}</div>
             </div>
         </div>
     `;
@@ -8841,16 +8849,17 @@ window.showLoanScenarios = (i) => {
     const loan = userData.loans[i];
     if (!loan) return;
     
-    // This will show the payoff scenarios (already implemented in loanScenarioHtml)
+    // Scroll to the scenarios section for this loan
     showToast('💡 Scroll down to see payoff scenarios for this loan', 'blue');
 };
 
 window.editLoan = (i) => {
-    // Enable edit mode and scroll to loans
+    // Enable edit mode
     editMode = true;
     renderLoans();
     showToast('✏️ Edit mode enabled', 'blue');
 };
+
 
 
 // ── Loan PDF Upload Handler ──
