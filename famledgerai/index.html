@@ -6254,7 +6254,7 @@ function populateProfileSelector() {
     }
     sel.value = currentProfile;
 }
-function showAuth() { $('landing').style.display='block'; $('auth').style.display='none'; $('app').style.display='none'; document.getElementById('modern-registration').style.display='none'; document.getElementById('classic-auth').style.display='block'; document.getElementById('verification-screen').style.display='none'; document.getElementById('profile-wizard').style.display='none'; clearTimeout(inactivityTimer); window.scrollTo(0,0); }
+window.showAuth = function showAuth() { $('landing').style.display='block'; $('auth').style.display='none'; $('app').style.display='none'; document.getElementById('modern-registration').style.display='none'; document.getElementById('classic-auth').style.display='block'; document.getElementById('verification-screen').style.display='none'; document.getElementById('profile-wizard').style.display='none'; clearTimeout(inactivityTimer); window.scrollTo(0,0); }
 
 // ========== LANDING PAGE ANIMATION ENGINE ==========
 (function initLandingAnimations() {
