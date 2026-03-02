@@ -8555,11 +8555,19 @@ function renderLoans() {
         `💡 EMI load is within safe limits (${pct(dr)}). Consider prepaying high-interest loans to reduce total interest paid.`;
 
     const tableHtml = loans.length ? `
-        <div style="overflow-x: auto; margin-bottom: 16px;">
-        <table class="data-table">
+        <div style="overflow-x: auto; margin: -16px; padding: 16px; border-radius: var(--radius);">
+            <div style="min-width: 1200px;">
+        <table class="data-table" style="width: 100%;">
             <thead><tr>
-                <th>Lender / Type</th><th>Sanctioned Amt</th><th>Outstanding</th><th>EMI / Mo</th><th>Rate %</th><th>Tenure</th><th>Remaining</th><th>% of Income</th>
-                ${editMode?'<th>Actions</th>':''}
+                <th style="min-width: 150px;">Lender / Type</th>
+                <th style="min-width: 120px;">Sanctioned Amt</th>
+                <th style="min-width: 120px;">Outstanding</th>
+                <th style="min-width: 100px;">EMI / Mo</th>
+                <th style="min-width: 80px;">Rate %</th>
+                <th style="min-width: 80px;">Tenure</th>
+                <th style="min-width: 100px;">Remaining</th>
+                <th style="min-width: 100px;">% of Income</th>
+                ${editMode?'<th style="min-width: 80px;">Actions</th>':''}
             </tr></thead>
             <tbody>
             ${loans.map((l,i)=>`
@@ -8573,7 +8581,7 @@ function renderLoans() {
                         <td><input class="edit-input" type="number" value="${l.tenureMonths||0}" onchange="updateLoan(${i},'tenureMonths',this.value)" style="width:80px;" placeholder="months"></td>
                         <td><input class="edit-input" type="number" value="${l.remainingMonths||0}" onchange="updateLoan(${i},'remainingMonths',this.value)" style="width:80px;" placeholder="months"></td>
                         <td>—</td>
-                        <td><button class="del-btn" onclick="deleteLoan(${i})" title="Delete loan">🗑</button></td>
+                        <td><button class="del-btn" onclick="deleteLoan(${i})" title="Delete loan" style="white-space: nowrap;">🗑 Delete</button></td>
                     ` : `
                         <td>
                             <div>${l.label||'—'}</div>
@@ -8592,6 +8600,10 @@ function renderLoans() {
             `).join('')}
             </tbody>
         </table>
+            </div>
+        </div>
+        <div style="font-size: 11px; color: var(--text3); margin-top: 8px; text-align: center;">
+            💡 Scroll horizontally to see all columns →
         </div>
         ${editMode ? `<button class="add-btn" onclick="addLoan()">➕ Add Loan</button>` : ''}
     ` : `
