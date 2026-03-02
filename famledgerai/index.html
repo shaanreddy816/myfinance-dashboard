@@ -8679,9 +8679,9 @@ function renderLoans() {
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <label class="snap-btn" style="cursor:pointer;">
                     <i class="fas fa-file-upload" style="color:var(--accent);"></i> Upload Statement
-                    <input type="file" accept=".pdf,.png,.jpg,.jpeg" onchange="handleLoanPdfUpload(this)" style="display:none;">
+                    <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls" onchange="handleLoanPdfUpload(this)" style="display:none;">
                 </label>
-                <p style="font-size:11px; color:var(--text3); margin-top:6px;">Accepts PDF, PNG, JPG files</p>
+                <p style="font-size:11px; color:var(--text3); margin-top:6px;">Accepts PDF, PNG, JPG, Excel files</p>
                 <button class="snap-btn" onclick="showAddLoanModal()"><i class="fas fa-plus"></i> Add Manually</button>
             </div>
             <div id="loan-pdf-status" style="margin-top:10px; font-size:12px;"></div>
@@ -8739,6 +8739,7 @@ window.handleLoanPdfUpload = async (input) => {
     try {
         let fullText = '';
         const fileType = file.type;
+        const fileName = file.name.toLowerCase();
         
         // Handle PDF files
         if (fileType === 'application/pdf') {
@@ -8749,6 +8750,35 @@ window.handleLoanPdfUpload = async (input) => {
                 const content = await page.getTextContent();
                 fullText += content.items.map(item => item.str).join(' ') + '\n';
             }
+        }
+        // Handle Excel files
+        else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || 
+                 fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                 fileType === 'application/vnd.ms-excel') {
+            if(statusEl) statusEl.innerHTML = '📊 Reading Excel file...';
+            
+            // Load SheetJS library if not already loaded
+            if (!window.XLSX) {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+                document.head.appendChild(script);
+                await new Promise((resolve) => { script.onload = resolve; });
+            }
+            
+            const arrayBuffer = await file.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            
+            // Read all sheets and convert to text
+            workbook.SheetNames.forEach(sheetName => {
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                
+                // Convert to text format preserving structure
+                jsonData.forEach(row => {
+                    fullText += row.join(' | ') + '\n';
+                });
+                fullText += '\n--- Next Sheet ---\n\n';
+            });
         }
         // Handle image files (PNG, JPG, JPEG)
         else if (fileType.startsWith('image/')) {
@@ -8782,13 +8812,13 @@ window.handleLoanPdfUpload = async (input) => {
             URL.revokeObjectURL(imageUrl);
         }
         else {
-            if(statusEl) statusEl.innerHTML = '❌ Unsupported file type. Please upload PDF, PNG, or JPG.';
+            if(statusEl) statusEl.innerHTML = '❌ Unsupported file type. Please upload PDF, PNG, JPG, or Excel.';
             input.value = '';
             return;
         }
 
         if(fullText.trim().length < 30) {
-            if(statusEl) statusEl.innerHTML = '❌ Could not extract text. The image may be too blurry or the PDF may be a scanned image without text layer.';
+            if(statusEl) statusEl.innerHTML = '❌ Could not extract text. The file may be empty, corrupted, or the image may be too blurry.';
             input.value = ''; return;
         }
 
@@ -8808,7 +8838,7 @@ window.handleLoanPdfUpload = async (input) => {
 
         userData.loans.push({
             id: 'loan-' + Date.now(),
-            label: loan.label || file.name.replace(/\.(pdf|png|jpg|jpeg)$/i, ''),
+            label: loan.label || file.name.replace(/\.(pdf|png|jpg|jpeg|xlsx|xls)$/i, ''),
             lender: loan.lender || '',
             loanType: loan.loanType || 'other',
             principal: loan.principal || 0,
