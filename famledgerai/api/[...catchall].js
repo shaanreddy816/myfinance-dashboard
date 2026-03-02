@@ -907,7 +907,7 @@ function parseInsuranceWithRegex(text) {
 
   // Insurer detection
   const insurerPatterns = [
-    /(?:HDFC\s*Ergo|ICICI\s*Lombard|Star\s*Health|Max\s*Bupa|Bajaj\s*Allianz|Tata\s*AIA|SBI\s*Life|LIC|Niva\s*Bupa|Care\s*Health|Aditya\s*Birla|Kotak\s*Life|New\s*India\s*Assurance|United\s*India|National\s*Insurance|Oriental\s*Insurance|Reliance\s*General|Digit|Acko|Go\s*Digit|ManipalCigna|Manipal\s*Cigna)/i
+    /(?:HDFC\s*Ergo|ICICI\s*Lombard|Star\s*Health|Max\s*Bupa|Bajaj\s*Allianz|Tata\s*AIA|SBI\s*Life|LIC|Niva\s*Bupa|Care\s*Health|Aditya\s*Birla|Kotak\s*Life|New\s*India\s*Assurance|United\s*India|National\s*Insurance|Oriental\s*Insurance|Reliance\s*General|Digit|Acko|Go\s*Digit|ManipalCigna|Manipal\s*Cigna|Royal\s*Sundaram|Cholamandalam|Future\s*Generali|Liberty\s*General|Magma\s*HDI|Raheja\s*QBE|Edelweiss|IFFCO\s*Tokio)/i
   ];
   let insurer = null;
   for (const p of insurerPatterns) {
@@ -916,91 +916,207 @@ function parseInsuranceWithRegex(text) {
   }
 
   // Policy number
-  const policyNoMatch = t.match(/(?:policy\s*(?:no|number|#|num))\s*[:\-]?\s*([A-Z0-9\-\/]{5,25})/i)
-    || t.match(/(?:certificate\s*(?:no|number))\s*[:\-]?\s*([A-Z0-9\-\/]{5,25})/i);
-  const policyNo = policyNoMatch ? policyNoMatch[1].trim() : null;
+  const policyNoPatterns = [
+    /(?:policy\s*(?:no|number|#|num))\s*[:\-.]?\s*([A-Z0-9\-\/]{5,30})/i,
+    /(?:certificate\s*(?:no|number))\s*[:\-.]?\s*([A-Z0-9\-\/]{5,30})/i,
+    /Policy\s*Number\s+([A-Z0-9\-\/]{5,30})/i
+  ];
+  let policyNo = null;
+  for (const p of policyNoPatterns) {
+    const m = t.match(p);
+    if (m) { policyNo = m[1].trim(); break; }
+  }
 
-  // Sum insured / cover
+  // Policyholder name
+  const holderMatch = t.match(/Policyholder\s*Name\s+([A-Za-z\s\.]+?)(?:\s{2,}|Policy\s*Number|\d)/i)
+    || t.match(/(?:name\s*of\s*(?:the\s*)?policyholder|policy\s*holder\s*name)\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/i);
+
+  // Customer ID
+  const customerIdMatch = t.match(/(?:customer\s*(?:id|no|number))\s*[:\-.]?\s*([A-Z0-9\-]+)/i);
+
+  // Issuance date
+  const issuanceDateMatch = t.match(/(?:issuance\s*date|date\s*of\s*issuance)\s*[:\-.]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+[\s,]+\d{4}|\d{4}[\/-]\d{1,2}[\/-]\d{1,2})/i);
+
+  // Period of Insurance ("15/06/2024 to 14/06/2025")
+  const periodMatch = t.match(/(?:period\s*of\s*insurance|policy\s*period)\s*[:\-.]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+[\s,]+\d{4})\s*(?:to|–|-)\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+[\s,]+\d{4})/i);
+
+  // Premium Frequency
+  const freqMatch = t.match(/(?:premium\s*frequency|payment\s*(?:frequency|mode))\s*[:\-.]?\s*(annual|yearly|monthly|quarterly|half[\s-]?yearly|semi[\s-]?annual|single)/i);
+
+  // Premium Tier
+  const tierMatch = t.match(/(?:premium\s*tier|tier)\s*[:\-.]?\s*([A-Za-z0-9\s]+?)(?:\s{2,}|Customer|$)/i);
+
+  // Policy Type from document
+  const policyTypeMatch = t.match(/(?:policy\s*type)\s*[:\-.]?\s*([A-Za-z\s]+?)(?:\s{2,}|Premium|$)/i);
+
+  // Sum insured / cover — including "Base Sum Insured"
   const coverPatterns = [
-    /(?:sum\s*insured|sum\s*assured|cover(?:age)?\s*amount|total\s*(?:sum|cover))\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /(?:Rs\.?|₹|INR)\s*([\d,]+(?:\.\d+)?)\s*(?:lakh|lac|lakhs)/i
+    /(?:base\s*sum\s*insured)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:sum\s*insured|sum\s*assured)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)\s*(?:lakh|lac|lakhs)/i,
+    /(?:sum\s*insured|sum\s*assured|cover(?:age)?\s*amount|total\s*(?:sum|cover))\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:Rs\.?|₹|INR)\s*([\d,]+(?:\.\d+)?)\s*(?:lakh|lac|lakhs)/i,
+    /(?:cover|insured\s*(?:amount|value|for))\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:SI|S\.I\.)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:insured|cover)\s*.{0,30}?(?:Rs\.?|₹|INR)?\s*([\d,]{6,})/i
   ];
   let cover = 0;
   for (const p of coverPatterns) {
     const m = t.match(p);
     if (m) {
       cover = parseFloat(m[1].replace(/,/g, ''));
-      if (t.match(new RegExp(m[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(?:lakh|lac)', 'i'))) {
-        cover *= 100000;
-      }
+      if (/lakh|lac/i.test(m[0])) cover *= 100000;
+      else if (cover > 0 && cover <= 500) cover *= 100000;
       break;
     }
   }
 
+  // Secure Benefit (HDFC Ergo specific)
+  const secureBenefitMatch = t.match(/(?:secure\s*benefit)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
+  const secureBenefit = secureBenefitMatch ? parseFloat(secureBenefitMatch[1].replace(/,/g, '')) : 0;
+
   // Premium
-  const premiumMatch = t.match(/(?:premium)\s*(?:amount)?\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i)
-    || t.match(/(?:annual|yearly|total)\s*premium\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
-  const premium = premiumMatch ? parseFloat(premiumMatch[1].replace(/,/g, '')) : 0;
+  const premiumPatterns = [
+    /(?:premium\s*details?|total\s*premium)\s*(?:\(₹\))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:total\s*)?premium\s*(?:amount|payable)?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:annual|yearly)\s*premium\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:premium)\s*(?:per\s*(?:annum|year|month))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:amount\s*payable|installment)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /Premium\s*(?:\(₹\)|₹|Rs\.?)?\s*([\d,]+(?:\.\d+)?)/i
+  ];
+  let premium = 0;
+  for (const p of premiumPatterns) {
+    const m = t.match(p);
+    if (m) { premium = parseFloat(m[1].replace(/,/g, '')); if (premium > 0) break; }
+  }
 
   // Dates
-  const dateRegex = /(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{4})/gi;
-  const dates = [...t.matchAll(dateRegex)].map(m => m[1]);
-  const startMatch = t.match(/(?:start|commencement|inception|effective|risk\s*date|policy\s*date)\s*(?:date)?\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+\s+\d{4})/i);
-  const endMatch = t.match(/(?:expiry|end|maturity|valid\s*(?:till|upto|until))\s*(?:date)?\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+\s+\d{4})/i);
+  const dateStr = '(\\d{1,2}[\\/-]\\d{1,2}[\\/-]\\d{2,4}|\\d{1,2}\\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\w*[\\s,]+\\d{4}|\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2})';
+  let startDate = periodMatch ? periodMatch[1] : null;
+  let endDate = periodMatch ? periodMatch[2] : null;
+  if (!startDate) {
+    const sm = t.match(new RegExp('(?:start|commencement|inception|effective|risk\\s*date|policy\\s*(?:start\\s*)?date|date\\s*of\\s*(?:commencement|inception)|first\\s*policy\\s*inception\\s*date)\\s*(?:date)?\\s*[:\\-.]?\\s*' + dateStr, 'i'));
+    if (sm) startDate = sm[1];
+  }
+  if (!endDate) {
+    const em = t.match(new RegExp('(?:expiry|end|maturity|valid\\s*(?:till|upto|until)|renewal\\s*date|due\\s*date|policy\\s*end)\\s*(?:date)?\\s*[:\\-.]?\\s*' + dateStr, 'i'));
+    if (em) endDate = em[1];
+  }
+  if (!startDate && issuanceDateMatch) startDate = issuanceDateMatch[1];
 
   // Policy type detection
   let policyType = 'health';
   if (/term\s*(?:life|insurance|plan|assurance)/i.test(t)) policyType = 'term';
   else if (/vehicle|motor|car|two[\s-]?wheeler|bike/i.test(t)) policyType = 'vehicle';
-  else if (/life\s*insurance|endowment|whole\s*life|ulip/i.test(t)) policyType = 'life';
+  else if (/home\s*insurance|property\s*insurance|dwelling/i.test(t)) policyType = 'home';
+  else if (/(?:life\s*insurance|endowment|whole\s*life|ulip)/i.test(t) && !/health/i.test(t)) policyType = 'life';
 
-  // Plan name
-  const planMatch = t.match(/(?:plan\s*name|product\s*name|scheme\s*name|policy\s*name)\s*[:\-]?\s*([A-Za-z0-9\s\-\+]+?)(?:\s{2,}|\n|$)/i);
-  const label = planMatch ? planMatch[1].trim() : (insurer ? `${insurer} ${policyType.charAt(0).toUpperCase() + policyType.slice(1)} Policy` : null);
+  // Plan name — including HDFC Ergo "Optima Super Secure" style
+  const planPatterns = [
+    /(?:Optima\s*(?:Super\s*)?Secure|Optima\s*Restore|Optima\s*Plus|My\s*Health\s*Suraksha)/i,
+    /(?:plan\s*name|product\s*name|scheme\s*name|policy\s*name|name\s*of\s*plan)\s*[:\-./]?\s*(?:add[\s-]?ons)?\s*[:\-.]?\s*([A-Za-z0-9\s\-\+\.]+?)(?:\s{2,}|Status|\n|$)/i,
+    /(?:product|plan)\s*[:\-]\s*([A-Za-z0-9\s\-\+\.]+?)(?:\s{2,}|\n|$)/i
+  ];
+  let label = null;
+  for (const p of planPatterns) {
+    const m = t.match(p);
+    if (m) {
+      label = m[1] ? m[1].trim() : m[0].trim();
+      if (label.length > 3) break;
+      label = null;
+    }
+  }
+  if (!label && insurer) label = insurer + ' ' + policyType.charAt(0).toUpperCase() + policyType.slice(1) + ' Policy';
 
   // Nominees
-  const nomineeMatch = t.match(/(?:nominee)\s*(?:name)?\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/i);
+  const nomineePatterns = [
+    /(?:nominee)\s*(?:name)?\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|Relationship|,|\n|$)/i,
+    /(?:nominee)\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/i
+  ];
+  let nominees = null;
+  for (const p of nomineePatterns) {
+    const m = t.match(p);
+    if (m && m[1].trim().length > 2) { nominees = m[1].trim(); break; }
+  }
+  const nomineeRelMatch = t.match(/(?:relationship\s*(?:with|of)\s*nominee)\s*[:\-.]?\s*([A-Za-z\s]+?)(?:\s{2,}|First|,|\n|$)/i);
 
   // Deductible
-  const deductibleMatch = t.match(/(?:deductible|co[\s-]?pay(?:ment)?)\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
+  const deductibleMatch = t.match(/(?:deductible|co[\s-]?pay(?:ment)?)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
   const deductible = deductibleMatch ? parseFloat(deductibleMatch[1].replace(/,/g, '')) : 0;
 
   // Policy term
-  const termMatch = t.match(/(?:policy\s*term|tenure|duration)\s*[:\-]?\s*(\d+)\s*(?:year|yr)/i);
-  const policyTerm = termMatch ? `${termMatch[1]} years` : null;
+  const termMatch = t.match(/(?:policy\s*term|tenure|duration|term)\s*[:\-.]?\s*(\d+)\s*(?:year|yr)/i);
+  const policyTerm = termMatch ? termMatch[1] + ' years' : null;
 
-  // Members / insured persons
+  // Members — HDFC Ergo: "Insured Person's Name <name> Relationship... Gender... Age... DOB..."
   const members = [];
-  const memberPatterns = [
-    /(?:insured\s*(?:person|member|name)|name\s*of\s*(?:insured|member|person))\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/gi,
-    /(?:proposer|life\s*assured)\s*(?:name)?\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/gi
-  ];
-  for (const p of memberPatterns) {
-    let m;
-    while ((m = p.exec(t)) !== null) {
-      const name = m[1].trim();
-      if (name.length > 2 && name.length < 60 && !members.find(x => x.name === name)) {
-        members.push({ name, relationship: members.length === 0 ? 'self' : '', dob: '', gender: '' });
+  const insuredBlockRegex = /(?:insured\s*person'?s?\s*name)\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s+(?:relationship|gender|age|\d))/gi;
+  let ibm;
+  while ((ibm = insuredBlockRegex.exec(t)) !== null) {
+    const name = ibm[1].trim();
+    if (name.length < 3 || name.length > 60) continue;
+    if (members.find(x => x.name === name)) continue;
+    const afterText = t.substring(ibm.index, ibm.index + 300);
+    const relM = afterText.match(/(?:relationship\s*(?:with\s*)?(?:policyholder)?)\s*[:\-.]?\s*([A-Za-z\s]+?)(?:\s{2,}|Gender|Age|\d)/i);
+    const genM = afterText.match(/(?:gender)\s*[:\-.]?\s*(male|female|other|m|f)/i);
+    const ageM = afterText.match(/(?:age)\s*[:\-.]?\s*(\d{1,3})/i);
+    const dobM = afterText.match(/(?:date\s*of\s*birth|dob)\s*[:\-.]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+[\s,]+\d{4})/i);
+    members.push({
+      name,
+      relationship: relM ? relM[1].trim() : (members.length === 0 ? 'self' : ''),
+      gender: genM ? genM[1].trim() : '',
+      age: ageM ? ageM[1] : '',
+      dob: dobM ? dobM[1] : ''
+    });
+  }
+  // Generic fallback
+  if (members.length === 0) {
+    const memberPatterns = [
+      /(?:insured\s*(?:person|member|name)|name\s*of\s*(?:insured|member|person|the\s*insured))\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/gi,
+      /(?:proposer|life\s*assured|policyholder)\s*(?:name)?\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/gi
+    ];
+    for (const p of memberPatterns) {
+      let m;
+      while ((m = p.exec(t)) !== null) {
+        const name = m[1].trim();
+        if (name.length > 2 && name.length < 60 && !members.find(x => x.name === name)) {
+          members.push({ name, relationship: members.length === 0 ? 'self' : '', dob: '', gender: '' });
+        }
       }
     }
   }
+  // Add policyholder if not in members
+  if (holderMatch && members.length === 0) {
+    const hName = holderMatch[1].trim();
+    if (hName.length > 2 && hName.length < 60) {
+      members.push({ name: hName, relationship: 'self', dob: '', gender: '' });
+    }
+  }
 
-  // Waiting periods (health insurance)
+  // First Policy Inception Date
+  const firstInceptionMatch = t.match(/(?:first\s*policy\s*inception\s*date)\s*[:\-.]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+[\s,]+\d{4})/i);
+
+  // Waiting periods
   const waiting_periods = {};
   if (/waiting\s*period/i.test(t)) {
-    const pedWait = t.match(/(?:pre[\s-]?existing|PED)\s*(?:disease)?\s*(?:waiting)?\s*[:\-]?\s*(\d+)\s*(?:year|month)/i);
+    const pedWait = t.match(/(?:pre[\s-]?existing|PED)\s*(?:disease)?\s*(?:waiting)?\s*[:\-.]?\s*(\d+)\s*(?:year|month)/i);
     if (pedWait) waiting_periods.ped_wait_years = parseInt(pedWait[1]);
     waiting_periods.initial_30_days = /30[\s-]?day\s*(?:waiting|exclusion)/i.test(t);
-    const preHosp = t.match(/pre[\s-]?hosp(?:itali[sz]ation)?\s*[:\-]?\s*(\d+)\s*day/i);
+    const preHosp = t.match(/pre[\s-]?hosp(?:itali[sz]ation)?\s*[:\-.]?\s*(\d+)\s*day/i);
     if (preHosp) waiting_periods.pre_hosp_days = parseInt(preHosp[1]);
-    const postHosp = t.match(/post[\s-]?hosp(?:itali[sz]ation)?\s*[:\-]?\s*(\d+)\s*day/i);
+    const postHosp = t.match(/post[\s-]?hosp(?:itali[sz]ation)?\s*[:\-.]?\s*(\d+)\s*day/i);
     if (postHosp) waiting_periods.post_hosp_days = parseInt(postHosp[1]);
   }
+
+  // Exclusions
+  const exclusions = {};
+  const exclMatch = t.match(/(?:exclusion|not\s*covered|excluded)\s*[:\-.]?\s*(.{10,200}?)(?:\.\s|$)/i);
+  if (exclMatch) exclusions.notes = exclMatch[1].trim();
 
   // Riders / add-ons
   const riders = [];
   const riderPatterns = [
-    /(?:rider|add[\s-]?on)\s*[:\-]?\s*([A-Za-z\s\-]+?)(?:\s{2,}|,|\n|$)/gi
+    /(?:add[\s-]?on|rider)\s*[:\-.]?\s*([A-Za-z\s\-]+?)(?:\s{2,}|,|Status|\n|$)/gi,
+    /(?:name\s*of\s*plan\s*\/?\s*add[\s-]?ons?)\s*[:\-.]?\s*(.+?)(?:Status|Active|\n|$)/gi
   ];
   for (const p of riderPatterns) {
     let m;
@@ -1008,6 +1124,30 @@ function parseInsuranceWithRegex(text) {
       const r = m[1].trim();
       if (r.length > 3 && r.length < 80) riders.push(r);
     }
+  }
+
+  // Build additional details
+  const additionalParts = [];
+  if (riders.length > 0) additionalParts.push('Add-ons: ' + riders.join(', '));
+  if (secureBenefit > 0) additionalParts.push('Secure Benefit: ' + secureBenefit.toLocaleString('en-IN'));
+  if (tierMatch) additionalParts.push('Premium Tier: ' + tierMatch[1].trim());
+  if (customerIdMatch) additionalParts.push('Customer ID: ' + customerIdMatch[1].trim());
+  if (policyTypeMatch) additionalParts.push('Policy Type: ' + policyTypeMatch[1].trim());
+  if (firstInceptionMatch) additionalParts.push('First Inception: ' + firstInceptionMatch[1]);
+  if (nomineeRelMatch) additionalParts.push('Nominee Relationship: ' + nomineeRelMatch[1].trim());
+
+  // Payment frequency
+  let paymentFrequency = 'annual';
+  if (freqMatch) {
+    const f = freqMatch[1].toLowerCase();
+    if (/monthly/.test(f)) paymentFrequency = 'monthly';
+    else if (/quarterly/.test(f)) paymentFrequency = 'quarterly';
+    else if (/half|semi/.test(f)) paymentFrequency = 'half-yearly';
+    else if (/single/.test(f)) paymentFrequency = 'single';
+  } else {
+    if (/monthly/i.test(t)) paymentFrequency = 'monthly';
+    else if (/quarterly/i.test(t)) paymentFrequency = 'quarterly';
+    else if (/half[\s-]?yearly|semi[\s-]?annual/i.test(t)) paymentFrequency = 'half-yearly';
   }
 
   return {
@@ -1018,18 +1158,20 @@ function parseInsuranceWithRegex(text) {
     cover,
     premium,
     sumInsured: cover,
-    expiry: endMatch ? endMatch[1] : null,
-    startDate: startMatch ? startMatch[1] : null,
-    nominees: nomineeMatch ? nomineeMatch[1].trim() : null,
+    expiry: endDate || null,
+    startDate: startDate || null,
+    nominees: nominees || null,
     policyTerm,
-    paymentFrequency: /monthly/i.test(t) ? 'monthly' : /quarterly/i.test(t) ? 'quarterly' : 'annual',
+    paymentFrequency,
     deductible,
     members: members.length > 0 ? members : [],
     waiting_periods: Object.keys(waiting_periods).length > 0 ? waiting_periods : {},
-    additionalDetails: riders.length > 0 ? 'Riders: ' + riders.join(', ') : null,
+    exclusions: Object.keys(exclusions).length > 0 ? exclusions : {},
+    additionalDetails: additionalParts.length > 0 ? additionalParts.join(' | ') : null,
     _parsedBy: 'regex_fallback'
   };
 }
+
 
 async function handleInsuranceParsePdf(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

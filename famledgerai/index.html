@@ -9846,17 +9846,20 @@ function renderInsurance() {
                         </div>
                         ${item.members && item.members.length > 0 ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">👥 ${item.members.length} member${item.members.length>1?'s':''}: ${item.members.map(m=>m.name||m.relationship).join(', ')}</div>` : ''}
                     </div>
-                    <div style="text-align:right; flex-shrink:0;">
-                        <div class="row-value" style="font-size:14px;">${fl(item.cover||item.sum_insured||0)}</div>
-                        <div style="font-size:10px; color:var(--text3);">₹${(item.premium||item.premium_amount||0).toLocaleString('en-IN')}/${item.premium_frequency||'yr'}</div>
-                        ${utilizationPct !== null ? `
-                            <div style="margin-top:4px;">
-                                <div style="width:60px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;display:inline-block;vertical-align:middle;">
-                                    <div style="width:${utilizationPct}%;height:100%;border-radius:2px;background:${utilizationPct>70?'var(--red)':utilizationPct>40?'var(--yellow)':'var(--green)'};"></div>
+                    <div style="text-align:right; flex-shrink:0; display:flex; align-items:center; gap:8px;">
+                        <div>
+                            <div class="row-value" style="font-size:14px;">${fl(item.cover||item.sum_insured||0)}</div>
+                            <div style="font-size:10px; color:var(--text3);">₹${(item.premium||item.premium_amount||0).toLocaleString('en-IN')}/${item.premium_frequency||'yr'}</div>
+                            ${utilizationPct !== null ? `
+                                <div style="margin-top:4px;">
+                                    <div style="width:60px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;display:inline-block;vertical-align:middle;">
+                                        <div style="width:${utilizationPct}%;height:100%;border-radius:2px;background:${utilizationPct>70?'var(--red)':utilizationPct>40?'var(--yellow)':'var(--green)'};"></div>
+                                    </div>
+                                    <span style="font-size:9px;color:var(--text3);margin-left:4px;">${utilizationPct}% used</span>
                                 </div>
-                                <span style="font-size:9px;color:var(--text3);margin-left:4px;">${utilizationPct}% used</span>
-                            </div>
-                        ` : ''}
+                            ` : ''}
+                        </div>
+                        <button class="del-btn" onclick="event.stopPropagation();if(confirm('Delete this policy?'))deleteInsurance('${cat.key}',${globalIdx})" title="Delete" style="opacity:0.5;font-size:12px;padding:4px 6px;"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 `}
             </div>
@@ -10160,9 +10163,12 @@ function renderInsuranceDetail(view) {
     `).join('') : '<p style="color:var(--text3);font-size:12px;">No members listed.</p>';
 
     sh('page-insurance', `
-        <div style="margin-bottom:18px;">
-            <button class="snap-btn" onclick="insDetailView=null;renderInsurance();" style="margin-bottom:16px;">
+        <div style="margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;">
+            <button class="snap-btn" onclick="insDetailView=null;renderInsurance();">
                 <i class="fas fa-arrow-left"></i> Back to Policies
+            </button>
+            <button class="snap-btn" style="background:rgba(255,59,48,0.1);color:var(--red);border-color:rgba(255,59,48,0.2);" onclick="if(confirm('Delete this policy?')){deleteInsurance('${cat}',${idx});insDetailView=null;}">
+                <i class="fas fa-trash-alt"></i> Delete Policy
             </button>
         </div>
 
@@ -10210,6 +10216,30 @@ function renderInsuranceDetail(view) {
 
         <div class="grid-2">
             <div class="card">
+                <div class="card-title"><span class="icon">📋</span> Policy Details</div>
+                ${item.policyNo ? `<div class="row-flex"><span class="row-label">Policy No.</span><span class="row-value">${item.policyNo}</span></div>` : ''}
+                ${item.insurer ? `<div class="row-flex"><span class="row-label">Insurer</span><span class="row-value">${item.insurer}</span></div>` : ''}
+                ${item.policyTerm ? `<div class="row-flex"><span class="row-label">Policy Term</span><span class="row-value">${item.policyTerm}</span></div>` : ''}
+                ${item.start_date || item.startDate ? `<div class="row-flex"><span class="row-label">Start Date</span><span class="row-value">${item.start_date || item.startDate}</span></div>` : ''}
+                ${item.renewal_date || item.expiry ? `<div class="row-flex"><span class="row-label">Expiry / Renewal</span><span class="row-value">${item.renewal_date || item.expiry}</span></div>` : ''}
+                ${item.nominees ? `<div class="row-flex"><span class="row-label">Nominees</span><span class="row-value">${item.nominees}</span></div>` : ''}
+                ${item.premium_frequency ? `<div class="row-flex"><span class="row-label">Payment Frequency</span><span class="row-value" style="text-transform:capitalize;">${item.premium_frequency}</span></div>` : ''}
+                ${item.additionalDetails ? `<div style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:11px;color:var(--text2);line-height:1.5;">${item.additionalDetails}</div>` : ''}
+                ${item._parsedBy ? `<div style="margin-top:8px;font-size:10px;color:var(--text3);">📄 Parsed via: ${item._parsedBy === 'regex_fallback' ? 'Document Scanner' : 'AI'}</div>` : ''}
+            </div>
+            <div class="card">
+                <div class="card-title"><span class="icon">📄</span> Documents</div>
+                ${item.documents?.policy_pdf_url ? `<a href="${item.documents.policy_pdf_url}" target="_blank" class="snap-btn" style="display:inline-flex;margin-bottom:8px;"><i class="fas fa-file-pdf"></i> View Policy PDF</a>` : '<p style="color:var(--text3);font-size:12px;">No PDF attached.</p>'}
+                <div style="margin-top:8px;">
+                    <input type="file" id="ins-reupload-${cat}-${idx}" accept=".pdf" style="display:none;" onchange="reuploadInsurancePdf(this,'${cat}',${idx})">
+                    <button class="add-btn" onclick="document.getElementById('ins-reupload-${cat}-${idx}').click()" style="width:100%;">📄 Re-upload / Replace PDF</button>
+                    <div id="ins-reupload-status-${cat}-${idx}" style="margin-top:6px;font-size:11px;color:var(--text3);"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
                 <div class="card-title"><span class="icon">👥</span> Covered Members (${members.length})</div>
                 ${membersHtml}
                 ${editMode ? `<button class="add-btn" onclick="addInsuranceMember('${cat}',${idx})" style="margin-top:8px;">➕ Add Member</button>` : ''}
@@ -10238,12 +10268,6 @@ function renderInsuranceDetail(view) {
                 ${network.city ? `<div style="font-size:12px;color:var(--text2);">City: ${network.city} ${network.pincode ? '· PIN: '+network.pincode : ''}</div>` : ''}
             </div>
         </div>
-
-        ${item.documents?.policy_pdf_url ? `
-        <div class="card">
-            <div class="card-title"><span class="icon">📄</span> Documents</div>
-            <a href="${item.documents.policy_pdf_url}" target="_blank" class="snap-btn" style="display:inline-flex;"><i class="fas fa-file-pdf"></i> View Policy PDF</a>
-        </div>` : ''}
 
         <div class="card">
             <div class="card-title"><span class="icon">📋</span> Utilization / Claims</div>
@@ -10288,6 +10312,85 @@ window.addInsuranceMember = (cat, idx) => {
     userData.insurance[cat][idx].members.push({ name, relationship: rel, dob: '', gender: '' });
     debounceSave();
     renderInsurance();
+};
+
+window.reuploadInsurancePdf = async (input, cat, idx) => {
+    const file = input.files[0];
+    if (!file) return;
+    const statusEl = document.getElementById('ins-reupload-status-' + cat + '-' + idx);
+    if (statusEl) statusEl.innerHTML = '⏳ Reading PDF...';
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            fullText += content.items.map(item => item.str).join(' ') + '\n';
+        }
+
+        if (fullText.trim().length < 30) {
+            if (statusEl) statusEl.innerHTML = '❌ Could not extract text from PDF.';
+            input.value = '';
+            return;
+        }
+
+        if (statusEl) statusEl.innerHTML = '🤖 AI is extracting policy details...';
+
+        const res = await fetch('/api/insurance/parse-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdfText: fullText })
+        });
+
+        if (!res.ok) throw new Error('API error ' + res.status);
+        const policy = await res.json();
+
+        // Update existing policy entry — merge new fields on top
+        const existing = userData.insurance[cat]?.[idx];
+        if (!existing) { if (statusEl) statusEl.innerHTML = '❌ Policy not found.'; return; }
+
+        const coverAmt = policy.cover || policy.sumInsured || policy.sum_insured || existing.cover || 0;
+        const premiumAmt = policy.premium || policy.premium_amount || existing.premium || 0;
+
+        // Merge all parsed fields into existing policy
+        Object.assign(existing, {
+            ...policy,
+            id: existing.id,
+            member: existing.member,
+            label: policy.label && policy.label !== 'Insurance Policy' ? policy.label : existing.label,
+            insurer: policy.insurer && policy.insurer !== 'Unknown' ? policy.insurer : existing.insurer,
+            policyNo: policy.policyNo || existing.policyNo,
+            cover: coverAmt,
+            sum_insured: coverAmt,
+            premium: premiumAmt,
+            premium_amount: premiumAmt,
+            premium_frequency: policy.paymentFrequency || policy.premium_frequency || existing.premium_frequency || 'annual',
+            deductible: policy.deductible || existing.deductible || 0,
+            expiry: policy.expiry || policy.renewal_date || existing.expiry || '',
+            renewal_date: policy.expiry || policy.renewal_date || existing.renewal_date || '',
+            startDate: policy.startDate || policy.start_date || existing.startDate || '',
+            start_date: policy.startDate || policy.start_date || existing.start_date || '',
+            policyTerm: policy.policyTerm || existing.policyTerm || '',
+            nominees: policy.nominees || existing.nominees || '',
+            additionalDetails: policy.additionalDetails || existing.additionalDetails || '',
+            status: existing.status || 'active',
+            members: (policy.members && policy.members.length > 0) ? policy.members : (existing.members || []),
+            waiting_periods: (policy.waiting_periods && Object.keys(policy.waiting_periods).length > 0) ? policy.waiting_periods : (existing.waiting_periods || {}),
+            exclusions: (policy.exclusions && Object.keys(policy.exclusions).length > 0) ? policy.exclusions : (existing.exclusions || {}),
+            utilization: existing.utilization || { amount_used_till_date: 0 },
+            network_hospitals: existing.network_hospitals || {}
+        });
+
+        debounceSave();
+        if (statusEl) statusEl.innerHTML = `✅ Updated: ${existing.label} — ${fl(coverAmt)} cover`;
+        renderInsurance();
+    } catch (e) {
+        console.error('PDF re-upload error:', e);
+        if (statusEl) statusEl.innerHTML = '❌ Failed: ' + e.message;
+    }
+    input.value = '';
 };
 
 window.handleInsurancePdfUpload = async (input, forceCat) => {
