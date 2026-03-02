@@ -898,10 +898,94 @@ Rules:
 
 // ─── INSURANCE PDF PARSER ──────────────────────────────────────────────────────
 
+/**
+ * Regex-based fallback parser for insurance documents.
+ * Extracts common fields when AI is unavailable.
+ */
+function parseInsuranceWithRegex(text) {
+  const t = text.replace(/\s+/g, ' ');
+
+  // Insurer detection
+  const insurerPatterns = [
+    /(?:HDFC\s*Ergo|ICICI\s*Lombard|Star\s*Health|Max\s*Bupa|Bajaj\s*Allianz|Tata\s*AIA|SBI\s*Life|LIC|Niva\s*Bupa|Care\s*Health|Aditya\s*Birla|Kotak\s*Life|New\s*India\s*Assurance|United\s*India|National\s*Insurance|Oriental\s*Insurance|Reliance\s*General|Digit|Acko|Go\s*Digit|ManipalCigna|Manipal\s*Cigna)/i
+  ];
+  let insurer = null;
+  for (const p of insurerPatterns) {
+    const m = t.match(p);
+    if (m) { insurer = m[0].trim(); break; }
+  }
+
+  // Policy number
+  const policyNoMatch = t.match(/(?:policy\s*(?:no|number|#|num))\s*[:\-]?\s*([A-Z0-9\-\/]{5,25})/i)
+    || t.match(/(?:certificate\s*(?:no|number))\s*[:\-]?\s*([A-Z0-9\-\/]{5,25})/i);
+  const policyNo = policyNoMatch ? policyNoMatch[1].trim() : null;
+
+  // Sum insured / cover
+  const coverPatterns = [
+    /(?:sum\s*insured|sum\s*assured|cover(?:age)?\s*amount|total\s*(?:sum|cover))\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:Rs\.?|₹|INR)\s*([\d,]+(?:\.\d+)?)\s*(?:lakh|lac|lakhs)/i
+  ];
+  let cover = 0;
+  for (const p of coverPatterns) {
+    const m = t.match(p);
+    if (m) {
+      cover = parseFloat(m[1].replace(/,/g, ''));
+      if (t.match(new RegExp(m[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(?:lakh|lac)', 'i'))) {
+        cover *= 100000;
+      }
+      break;
+    }
+  }
+
+  // Premium
+  const premiumMatch = t.match(/(?:premium)\s*(?:amount)?\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i)
+    || t.match(/(?:annual|yearly|total)\s*premium\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
+  const premium = premiumMatch ? parseFloat(premiumMatch[1].replace(/,/g, '')) : 0;
+
+  // Dates
+  const dateRegex = /(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{4})/gi;
+  const dates = [...t.matchAll(dateRegex)].map(m => m[1]);
+  const startMatch = t.match(/(?:start|commencement|inception|effective|risk\s*date|policy\s*date)\s*(?:date)?\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+\s+\d{4})/i);
+  const endMatch = t.match(/(?:expiry|end|maturity|valid\s*(?:till|upto|until))\s*(?:date)?\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+\s+\d{4})/i);
+
+  // Policy type detection
+  let policyType = 'health';
+  if (/term\s*(?:life|insurance|plan|assurance)/i.test(t)) policyType = 'term';
+  else if (/vehicle|motor|car|two[\s-]?wheeler|bike/i.test(t)) policyType = 'vehicle';
+  else if (/life\s*insurance|endowment|whole\s*life|ulip/i.test(t)) policyType = 'life';
+
+  // Plan name
+  const planMatch = t.match(/(?:plan\s*name|product\s*name|scheme\s*name|policy\s*name)\s*[:\-]?\s*([A-Za-z0-9\s\-\+]+?)(?:\s{2,}|\n|$)/i);
+  const label = planMatch ? planMatch[1].trim() : (insurer ? `${insurer} ${policyType.charAt(0).toUpperCase() + policyType.slice(1)} Policy` : null);
+
+  // Nominees
+  const nomineeMatch = t.match(/(?:nominee)\s*(?:name)?\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/i);
+
+  return {
+    policyType,
+    label: label || 'Insurance Policy',
+    insurer: insurer || 'Unknown',
+    policyNo,
+    cover,
+    premium,
+    sumInsured: cover,
+    expiry: endMatch ? endMatch[1] : null,
+    startDate: startMatch ? startMatch[1] : null,
+    nominees: nomineeMatch ? nomineeMatch[1].trim() : null,
+    policyTerm: null,
+    paymentFrequency: /monthly/i.test(t) ? 'monthly' : /quarterly/i.test(t) ? 'quarterly' : 'annual',
+    additionalDetails: null,
+    _parsedBy: 'regex_fallback'
+  };
+}
+
 async function handleInsuranceParsePdf(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { pdfText } = req.body;
   if (!pdfText || pdfText.length < 20) return res.status(400).json({ error: 'No PDF text provided' });
+
+  // First try regex extraction as baseline
+  const regexResult = parseInsuranceWithRegex(pdfText);
 
   const prompt = `You are an Indian insurance document parser. Extract policy details from the following insurance document text.
 
@@ -934,11 +1018,30 @@ Rules:
 - Return ONLY the JSON, no markdown, no explanation`;
 
   try {
-    const result = await callAIWithFallback(prompt, 'insurance_parse');
-    return res.status(200).json(result);
+    const aiResult = await callAIWithFallback(prompt, 'insurance_parse');
+
+    // If AI returned the mock (all zeros), use regex result instead
+    if (aiResult && (aiResult.cover > 0 || aiResult.premium > 0 || (aiResult.insurer && aiResult.insurer !== 'Unknown'))) {
+      return res.status(200).json(aiResult);
+    }
+
+    // AI returned empty/mock — merge with regex extraction
+    const merged = { ...regexResult };
+    // Override with any non-empty AI fields
+    for (const [k, v] of Object.entries(aiResult || {})) {
+      if (v && v !== 0 && v !== 'Unknown' && v !== 'Insurance Policy') {
+        merged[k] = v;
+      }
+    }
+    merged._parsedBy = regexResult.cover > 0 ? 'regex_fallback' : 'mock_fallback';
+    return res.status(200).json(merged);
   } catch (e) {
     console.error('Insurance parse error:', e);
-    return res.status(500).json({ error: 'Failed to parse document' });
+    // Return regex result as fallback instead of error
+    if (regexResult.cover > 0 || regexResult.insurer !== 'Unknown') {
+      return res.status(200).json(regexResult);
+    }
+    return res.status(500).json({ error: 'Failed to parse document', detail: e.message });
   }
 }
 

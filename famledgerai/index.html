@@ -8953,16 +8953,20 @@ async function fetchAIDashboard() {
             expenses,
             total_emi: totalEmi,
             total_debt_outstanding: computeTotalLoanOutstanding(),
-            liquid_assets: userData.emergencyFund || 0,
-            total_assets: computeTotalInvestments() + (userData.emergencyFund || 0),
+            liquid_assets: userData.liquidSavings || userData.emergencyFund || 0,
+            total_assets: computeTotalInvestments() + (userData.liquidSavings || userData.emergencyFund || 0),
             term_cover: userData.termCover || 0,
-            health_cover: userData.healthCover || 0,
+            health_cover: (userData.insurance?.health || []).reduce((s, p) => s + (p.cover || p.sum_insured || 0), 0),
             dependents: (userData.profile.familyMembers || []).length,
-            sip_monthly: (userData.investments || []).filter(i => i.type === 'sip').reduce((s, i) => s + (i.monthly || 0), 0),
+            sip_monthly: (() => {
+                const inv = userData.investments || {};
+                const mfSips = (inv.mutualFunds || []).filter(f => f.sip || f.monthly).reduce((s, f) => s + (f.monthly || f.sip || 0), 0);
+                return mfSips;
+            })(),
             credit_utilization: userData.creditUtilization || 0,
             age: userData.profile.age || 30,
             risk_tolerance: userData.profile.risk || 'moderate',
-            net_worth: computeTotalInvestments() + (userData.emergencyFund || 0) - computeTotalLoanOutstanding(),
+            net_worth: computeTotalInvestments() + (userData.liquidSavings || userData.emergencyFund || 0) - computeTotalLoanOutstanding(),
             loans,
             equity_allocation_pct: 50,
             ai_personality: userData.profile.aiPersonality || 'balanced',
