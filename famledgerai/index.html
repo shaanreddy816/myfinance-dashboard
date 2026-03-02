@@ -63,14 +63,33 @@
         ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
 
         .sidebar {
-            width:250px; background:var(--bg2); border-right:1px solid var(--border);
+            width:60px; background:var(--bg2); border-right:1px solid var(--border);
             display:flex; flex-direction:column; padding:20px 10px;
-            position:fixed; top:0; left:0; bottom:0; overflow-y:auto;
-            z-index:100; transition:transform 0.3s ease;
+            position:fixed; top:0; left:0; bottom:0; overflow-y:auto; overflow-x:hidden;
+            z-index:100; transition:width 0.3s ease;
+        }
+        .sidebar:hover {
+            width:250px;
         }
         .sidebar-logo {
             display:flex; align-items:center; gap:10px; padding:0 10px 20px;
             border-bottom:1px solid var(--border); margin-bottom:16px;
+            white-space: nowrap;
+        }
+        .sidebar .logo-text,
+        .sidebar .profile-selector,
+        .sidebar .month-picker,
+        .sidebar .nav-item span,
+        .sidebar .sidebar-footer {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .sidebar:hover .logo-text,
+        .sidebar:hover .profile-selector,
+        .sidebar:hover .month-picker,
+        .sidebar:hover .nav-item span,
+        .sidebar:hover .sidebar-footer {
+            opacity: 1;
         }
         .logo-icon {
             width:38px; height:38px;
@@ -127,7 +146,7 @@
         }
         .logout-btn:hover { background:var(--red-dim); }
 
-        .main { margin-left:250px; flex:1; min-height:100vh; padding:24px 28px; }
+        .main { margin-left:60px; flex:1; min-height:100vh; padding:24px 28px; transition: margin-left 0.3s ease; }
 
         .top-bar {
             display:flex; justify-content:space-between; align-items:center;
@@ -8556,52 +8575,50 @@ function renderLoans() {
         `💡 EMI load is within safe limits (${pct(dr)}). Consider prepaying high-interest loans to reduce total interest paid.`;
 
     const tableHtml = loans.length ? `
-        <div style="width: calc(100% + 40px); margin-left: -20px; margin-right: -20px; overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch;">
-            <div style="min-width: 1200px; padding: 0 20px;">
-                <table class="data-table" style="width: 100%; margin-bottom: 0;">
-                    <thead><tr>
-                        <th style="min-width: 150px;">Lender / Type</th>
-                        <th style="min-width: 110px;">Sanctioned</th>
-                        <th style="min-width: 110px;">Outstanding</th>
-                        <th style="min-width: 90px;">EMI / Mo</th>
-                        <th style="min-width: 70px;">Rate %</th>
-                        <th style="min-width: 80px;">Tenure</th>
-                        <th style="min-width: 90px;">Remaining</th>
-                        <th style="min-width: 90px;">% Income</th>
-                        ${editMode?'<th style="min-width: 120px;">Actions</th>':''}
-                    </tr></thead>
-                    <tbody>
-                    ${loans.map((l,i)=>`
-                        <tr>
-                            ${editMode ? `
-                                <td><input class="edit-input-text" value="${l.label||''}" onchange="updateLoan(${i},'label',this.value)" style="width:140px;"></td>
-                                <td><input class="edit-input" type="number" value="${l.principal||0}" onchange="updateLoan(${i},'principal',this.value)" style="width:100px;"></td>
-                                <td><input class="edit-input" type="number" value="${l.outstanding||0}" onchange="updateLoan(${i},'outstanding',this.value)" style="width:100px;"></td>
-                                <td><input class="edit-input" type="number" value="${l.emi||0}" onchange="updateLoan(${i},'emi',this.value)" style="width:90px;"></td>
-                                <td><input class="edit-input" type="number" value="${l.rate||0}" onchange="updateLoan(${i},'rate',this.value)" style="width:70px;"></td>
-                                <td><input class="edit-input" type="number" value="${l.tenureMonths||0}" onchange="updateLoan(${i},'tenureMonths',this.value)" style="width:70px;" placeholder="mo"></td>
-                                <td><input class="edit-input" type="number" value="${l.remainingMonths||0}" onchange="updateLoan(${i},'remainingMonths',this.value)" style="width:70px;" placeholder="mo"></td>
-                                <td>—</td>
-                                <td><button class="del-btn" onclick="deleteLoan(${i})" title="Delete loan" style="white-space: nowrap;">🗑 Delete</button></td>
-                            ` : `
-                                <td>
-                                    <div>${l.label||'—'}</div>
-                                    ${l.lender?`<div style="font-size:10px;color:var(--text3);">${l.lender}</div>`:''}
-                                    ${l.interestType?`<span class="badge badge-blue" style="margin-top:3px;">${l.interestType}</span>`:''}
-                                </td>
-                                <td class="mono">${l.principal ? fl(l.principal) : '—'}</td>
-                                <td class="mono">${fl(l.outstanding||0)}</td>
-                                <td class="mono">${fl(l.emi||0)}</td>
-                                <td class="mono">${l.rate||0}%</td>
-                                <td>${l.tenure || (l.tenureMonths ? l.tenureMonths+' mo' : '—')}</td>
-                                <td>${l.remainingMonths ? l.remainingMonths+' mo' : '—'}</td>
-                                <td>${income?`<span style="font-family:var(--mono); font-size:12px; color:${l.emi/income>0.15?'var(--red)':'var(--text2)'};">${pct(l.emi/income)}</span>`:'—'}</td>
-                            `}
-                        </tr>
-                    `).join('')}
-                    </tbody>
-                </table>
-            </div>
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -20px;">
+            <table class="data-table" style="min-width: 1200px; margin-bottom: 0;">
+                <thead><tr>
+                    <th style="min-width: 150px; padding-left: 20px;">Lender / Type</th>
+                    <th style="min-width: 110px;">Sanctioned</th>
+                    <th style="min-width: 110px;">Outstanding</th>
+                    <th style="min-width: 90px;">EMI / Mo</th>
+                    <th style="min-width: 70px;">Rate %</th>
+                    <th style="min-width: 80px;">Tenure</th>
+                    <th style="min-width: 90px;">Remaining</th>
+                    <th style="min-width: 90px;">% Income</th>
+                    ${editMode?'<th style="min-width: 120px; padding-right: 20px;">Actions</th>':'<th style="padding-right: 20px;"></th>'}
+                </tr></thead>
+                <tbody>
+                ${loans.map((l,i)=>`
+                    <tr>
+                        ${editMode ? `
+                            <td style="padding-left: 20px;"><input class="edit-input-text" value="${l.label||''}" onchange="updateLoan(${i},'label',this.value)" style="width:140px;"></td>
+                            <td><input class="edit-input" type="number" value="${l.principal||0}" onchange="updateLoan(${i},'principal',this.value)" style="width:100px;"></td>
+                            <td><input class="edit-input" type="number" value="${l.outstanding||0}" onchange="updateLoan(${i},'outstanding',this.value)" style="width:100px;"></td>
+                            <td><input class="edit-input" type="number" value="${l.emi||0}" onchange="updateLoan(${i},'emi',this.value)" style="width:90px;"></td>
+                            <td><input class="edit-input" type="number" value="${l.rate||0}" onchange="updateLoan(${i},'rate',this.value)" style="width:70px;"></td>
+                            <td><input class="edit-input" type="number" value="${l.tenureMonths||0}" onchange="updateLoan(${i},'tenureMonths',this.value)" style="width:70px;" placeholder="mo"></td>
+                            <td><input class="edit-input" type="number" value="${l.remainingMonths||0}" onchange="updateLoan(${i},'remainingMonths',this.value)" style="width:70px;" placeholder="mo"></td>
+                            <td>—</td>
+                            <td style="padding-right: 20px;"><button class="del-btn" onclick="deleteLoan(${i})" title="Delete loan" style="white-space: nowrap;">🗑 Delete</button></td>
+                        ` : `
+                            <td style="padding-left: 20px;">
+                                <div>${l.label||'—'}</div>
+                                ${l.lender?`<div style="font-size:10px;color:var(--text3);">${l.lender}</div>`:''}
+                                ${l.interestType?`<span class="badge badge-blue" style="margin-top:3px;">${l.interestType}</span>`:''}
+                            </td>
+                            <td class="mono">${l.principal ? fl(l.principal) : '—'}</td>
+                            <td class="mono">${fl(l.outstanding||0)}</td>
+                            <td class="mono">${fl(l.emi||0)}</td>
+                            <td class="mono">${l.rate||0}%</td>
+                            <td>${l.tenure || (l.tenureMonths ? l.tenureMonths+' mo' : '—')}</td>
+                            <td>${l.remainingMonths ? l.remainingMonths+' mo' : '—'}</td>
+                            <td style="padding-right: 20px;">${income?`<span style="font-family:var(--mono); font-size:12px; color:${l.emi/income>0.15?'var(--red)':'var(--text2)'};">${pct(l.emi/income)}</span>`:'—'}</td>
+                        `}
+                    </tr>
+                `).join('')}
+                </tbody>
+            </table>
         </div>
         <div style="font-size: 11px; color: var(--text3); margin-top: 12px; text-align: center; padding: 8px; background: var(--bg3); border-radius: var(--radius-sm);">
             👈 Swipe or scroll left/right to see all columns 👉
