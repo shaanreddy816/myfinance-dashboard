@@ -10326,23 +10326,49 @@ window.handleInsurancePdfUpload = async (input, forceCat) => {
         // Use the forced category from the button, fallback to AI detection
         const cat = forceCat || policy.policyType || 'health';
         if (!userData.insurance[cat]) userData.insurance[cat] = [];
-        userData.insurance[cat].push({
+
+        // Build comprehensive policy object — spread ALL API fields, then normalize field names for the detail view
+        const coverAmt = policy.cover || policy.sumInsured || policy.sum_insured || 0;
+        const premiumAmt = policy.premium || policy.premium_amount || 0;
+        const policyObj = {
+            // Spread everything the API returned so nothing is lost
+            ...policy,
+            // Core identifiers
             id: 'ins-' + Date.now(),
             label: policy.label || file.name,
             insurer: policy.insurer || '',
-            policyNo: policy.policyNo || '',
-            cover: policy.cover || policy.sumInsured || 0,
-            premium: policy.premium || 0,
-            expiry: policy.expiry || '',
-            startDate: policy.startDate || '',
+            policyNo: policy.policyNo || policy.policy_no || '',
+            // Financial fields (normalize both naming conventions)
+            cover: coverAmt,
+            sum_insured: coverAmt,
+            premium: premiumAmt,
+            premium_amount: premiumAmt,
+            premium_frequency: policy.paymentFrequency || policy.premium_frequency || 'annual',
+            deductible: policy.deductible || 0,
+            // Dates (normalize both camelCase and snake_case)
+            expiry: policy.expiry || policy.renewal_date || '',
+            renewal_date: policy.expiry || policy.renewal_date || '',
+            startDate: policy.startDate || policy.start_date || '',
+            start_date: policy.startDate || policy.start_date || '',
+            // Policy metadata
+            policyTerm: policy.policyTerm || policy.policy_term || '',
             nominees: policy.nominees || '',
-            policyTerm: policy.policyTerm || '',
-            additionalDetails: policy.additionalDetails || '',
+            additionalDetails: policy.additionalDetails || policy.additional_details || '',
+            status: 'active',
+            // Rich fields for detail view
+            members: policy.members || [],
+            waiting_periods: policy.waiting_periods || {},
+            exclusions: policy.exclusions || {},
+            utilization: policy.utilization || { amount_used_till_date: 0 },
+            network_hospitals: policy.network_hospitals || {},
+            // Member assignment
             member: currentProfile === 'all' ? 'self' : currentProfile
-        });
+        };
+
+        userData.insurance[cat].push(policyObj);
         userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
         debounceSave();
-        if (statusEl) statusEl.innerHTML = `✅ Added: ${policy.label || 'Policy'} (${policy.insurer || cat}) — ${fl(policy.cover||0)} cover`;
+        if (statusEl) statusEl.innerHTML = `✅ Added: ${policyObj.label} (${policyObj.insurer || cat}) — ${fl(coverAmt)} cover`;
         renderInsurance();
     } catch (e) {
         console.error('PDF parse error:', e);

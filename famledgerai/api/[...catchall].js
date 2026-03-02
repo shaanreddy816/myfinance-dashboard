@@ -961,6 +961,55 @@ function parseInsuranceWithRegex(text) {
   // Nominees
   const nomineeMatch = t.match(/(?:nominee)\s*(?:name)?\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/i);
 
+  // Deductible
+  const deductibleMatch = t.match(/(?:deductible|co[\s-]?pay(?:ment)?)\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
+  const deductible = deductibleMatch ? parseFloat(deductibleMatch[1].replace(/,/g, '')) : 0;
+
+  // Policy term
+  const termMatch = t.match(/(?:policy\s*term|tenure|duration)\s*[:\-]?\s*(\d+)\s*(?:year|yr)/i);
+  const policyTerm = termMatch ? `${termMatch[1]} years` : null;
+
+  // Members / insured persons
+  const members = [];
+  const memberPatterns = [
+    /(?:insured\s*(?:person|member|name)|name\s*of\s*(?:insured|member|person))\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/gi,
+    /(?:proposer|life\s*assured)\s*(?:name)?\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/gi
+  ];
+  for (const p of memberPatterns) {
+    let m;
+    while ((m = p.exec(t)) !== null) {
+      const name = m[1].trim();
+      if (name.length > 2 && name.length < 60 && !members.find(x => x.name === name)) {
+        members.push({ name, relationship: members.length === 0 ? 'self' : '', dob: '', gender: '' });
+      }
+    }
+  }
+
+  // Waiting periods (health insurance)
+  const waiting_periods = {};
+  if (/waiting\s*period/i.test(t)) {
+    const pedWait = t.match(/(?:pre[\s-]?existing|PED)\s*(?:disease)?\s*(?:waiting)?\s*[:\-]?\s*(\d+)\s*(?:year|month)/i);
+    if (pedWait) waiting_periods.ped_wait_years = parseInt(pedWait[1]);
+    waiting_periods.initial_30_days = /30[\s-]?day\s*(?:waiting|exclusion)/i.test(t);
+    const preHosp = t.match(/pre[\s-]?hosp(?:itali[sz]ation)?\s*[:\-]?\s*(\d+)\s*day/i);
+    if (preHosp) waiting_periods.pre_hosp_days = parseInt(preHosp[1]);
+    const postHosp = t.match(/post[\s-]?hosp(?:itali[sz]ation)?\s*[:\-]?\s*(\d+)\s*day/i);
+    if (postHosp) waiting_periods.post_hosp_days = parseInt(postHosp[1]);
+  }
+
+  // Riders / add-ons
+  const riders = [];
+  const riderPatterns = [
+    /(?:rider|add[\s-]?on)\s*[:\-]?\s*([A-Za-z\s\-]+?)(?:\s{2,}|,|\n|$)/gi
+  ];
+  for (const p of riderPatterns) {
+    let m;
+    while ((m = p.exec(t)) !== null) {
+      const r = m[1].trim();
+      if (r.length > 3 && r.length < 80) riders.push(r);
+    }
+  }
+
   return {
     policyType,
     label: label || 'Insurance Policy',
@@ -972,9 +1021,12 @@ function parseInsuranceWithRegex(text) {
     expiry: endMatch ? endMatch[1] : null,
     startDate: startMatch ? startMatch[1] : null,
     nominees: nomineeMatch ? nomineeMatch[1].trim() : null,
-    policyTerm: null,
+    policyTerm,
     paymentFrequency: /monthly/i.test(t) ? 'monthly' : /quarterly/i.test(t) ? 'quarterly' : 'annual',
-    additionalDetails: null,
+    deductible,
+    members: members.length > 0 ? members : [],
+    waiting_periods: Object.keys(waiting_periods).length > 0 ? waiting_periods : {},
+    additionalDetails: riders.length > 0 ? 'Riders: ' + riders.join(', ') : null,
     _parsedBy: 'regex_fallback'
   };
 }
@@ -1006,6 +1058,10 @@ Extract and return ONLY a valid JSON object with these keys:
   "sumInsured": 5000000,
   "policyTerm": "30 years",
   "paymentFrequency": "annual/monthly/quarterly",
+  "deductible": 0,
+  "members": [{"name":"Person Name","relationship":"self","dob":"1990-01-01","gender":"male"}],
+  "waiting_periods": {"ped_wait_years":4,"initial_30_days":true,"pre_hosp_days":60,"post_hosp_days":90,"notes":"summary of waiting periods"},
+  "exclusions": {"notes":"summary of exclusions if found"},
   "additionalDetails": "Any riders, add-ons, or important clauses"
 }
 
@@ -1013,8 +1069,10 @@ Rules:
 - cover and premium must be numbers (not strings), in INR
 - expiry and startDate in YYYY-MM-DD format
 - If a field is not found, use null
-- policyType must be one of: term, health, vehicle
+- policyType must be one of: term, health, vehicle, life, home
 - For health insurance, cover = sum insured
+- members array should list all insured persons found in the document
+- waiting_periods should capture PED waiting period, initial 30-day exclusion, pre/post hospitalization days
 - Return ONLY the JSON, no markdown, no explanation`;
 
   try {
