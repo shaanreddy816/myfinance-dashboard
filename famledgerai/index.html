@@ -10327,8 +10327,21 @@ window.reuploadInsurancePdf = async (input, cat, idx) => {
         for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
-            fullText += content.items.map(item => item.str).join(' ') + '\n';
+            let lastY = null;
+            let lineText = '';
+            for (const item of content.items) {
+                const y = Math.round(item.transform[5]);
+                if (lastY !== null && Math.abs(y - lastY) > 5) {
+                    fullText += lineText.trim() + '\n';
+                    lineText = '';
+                }
+                lineText += item.str + ' ';
+                lastY = y;
+            }
+            if (lineText.trim()) fullText += lineText.trim() + '\n';
+            fullText += '\n';
         }
+        console.log('📄 Re-upload PDF text (first 1500 chars):', fullText.substring(0, 1500));
 
         if (fullText.trim().length < 30) {
             if (statusEl) statusEl.innerHTML = '❌ Could not extract text from PDF.';
@@ -10346,6 +10359,7 @@ window.reuploadInsurancePdf = async (input, cat, idx) => {
 
         if (!res.ok) throw new Error('API error ' + res.status);
         const policy = await res.json();
+        console.log('📄 Insurance PDF re-upload API response:', JSON.stringify(policy, null, 2));
 
         // Update existing policy entry — merge new fields on top
         const existing = userData.insurance[cat]?.[idx];
@@ -10406,8 +10420,21 @@ window.handleInsurancePdfUpload = async (input, forceCat) => {
         for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
-            fullText += content.items.map(item => item.str).join(' ') + '\n';
+            let lastY = null;
+            let lineText = '';
+            for (const item of content.items) {
+                const y = Math.round(item.transform[5]);
+                if (lastY !== null && Math.abs(y - lastY) > 5) {
+                    fullText += lineText.trim() + '\n';
+                    lineText = '';
+                }
+                lineText += item.str + ' ';
+                lastY = y;
+            }
+            if (lineText.trim()) fullText += lineText.trim() + '\n';
+            fullText += '\n';
         }
+        console.log('📄 PDF text (first 1500 chars):', fullText.substring(0, 1500));
 
         if (fullText.trim().length < 30) {
             if (statusEl) statusEl.innerHTML = '❌ Could not extract text from PDF. It may be a scanned image.';
@@ -10425,6 +10452,7 @@ window.handleInsurancePdfUpload = async (input, forceCat) => {
 
         if (!res.ok) throw new Error('API error ' + res.status);
         const policy = await res.json();
+        console.log('📄 Insurance PDF API response:', JSON.stringify(policy, null, 2));
 
         // Use the forced category from the button, fallback to AI detection
         const cat = forceCat || policy.policyType || 'health';

@@ -974,19 +974,26 @@ function parseInsuranceWithRegex(text) {
   const secureBenefitMatch = t.match(/(?:secure\s*benefit)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
   const secureBenefit = secureBenefitMatch ? parseFloat(secureBenefitMatch[1].replace(/,/g, '')) : 0;
 
-  // Premium
+  // Premium — be careful not to match "Premium Frequency" or "Premium Tier"
   const premiumPatterns = [
-    /(?:premium\s*details?|total\s*premium)\s*(?:\(₹\))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /(?:total\s*)?premium\s*(?:amount|payable)?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:premium\s*details?)\s*(?:\(₹\))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:total\s*premium)\s*(?:\(₹\))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:net\s*premium|gross\s*premium)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
     /(?:annual|yearly)\s*premium\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /(?:premium)\s*(?:per\s*(?:annum|year|month))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /premium\s*(?:amount|payable)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
     /(?:amount\s*payable|installment)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /Premium\s*(?:\(₹\)|₹|Rs\.?)?\s*([\d,]+(?:\.\d+)?)/i
+    // HDFC Ergo: "Premium Details (₹)" as table header, number follows later
+    /Premium\s*Details?\s*\(₹\)\s*([\d,]+(?:\.\d+)?)/i,
+    // Last resort: "Premium" followed by a number that's > 100 (to avoid matching "Premium Frequency Annual")
+    /(?:^|\s)premium\s*[:\-.]?\s*(?:Rs\.?|₹|INR)\s*([\d,]+(?:\.\d+)?)/i
   ];
   let premium = 0;
   for (const p of premiumPatterns) {
     const m = t.match(p);
-    if (m) { premium = parseFloat(m[1].replace(/,/g, '')); if (premium > 0) break; }
+    if (m) {
+      const val = parseFloat(m[1].replace(/,/g, ''));
+      if (val > 100) { premium = val; break; } // Skip tiny matches that are likely false positives
+    }
   }
 
   // Dates
@@ -1150,6 +1157,26 @@ function parseInsuranceWithRegex(text) {
     else if (/half[\s-]?yearly|semi[\s-]?annual/i.test(t)) paymentFrequency = 'half-yearly';
   }
 
+  // Smart fallback: if cover or premium still 0, find large numbers near relevant keywords
+  if (cover === 0 || premium === 0) {
+    const numMatches = [...t.matchAll(/(?:Rs\.?|₹|INR)?\s*([\d,]{4,}(?:\.\d+)?)/g)];
+    const candidates = numMatches.map(m => ({
+      value: parseFloat(m[1].replace(/,/g, '')),
+      context: t.substring(Math.max(0, m.index - 40), m.index + m[0].length).toLowerCase()
+    })).filter(c => c.value > 0 && !isNaN(c.value));
+
+    if (cover === 0) {
+      const coverCandidate = candidates.find(c => /sum|insured|cover|si\b|base/i.test(c.context))
+        || candidates.filter(c => c.value >= 100000).sort((a, b) => b.value - a.value)[0];
+      if (coverCandidate) cover = coverCandidate.value;
+    }
+    if (premium === 0) {
+      const premiumCandidate = candidates.find(c => /premium|payable|amount\s*due/i.test(c.context) && c.value > 100 && c.value < cover)
+        || candidates.filter(c => c.value > 500 && c.value < 500000 && c.value !== cover).sort((a, b) => a.value - b.value)[0];
+      if (premiumCandidate) premium = premiumCandidate.value;
+    }
+  }
+
   return {
     policyType,
     label: label || 'Insurance Policy',
@@ -1180,6 +1207,21 @@ async function handleInsuranceParsePdf(req, res) {
 
   // First try regex extraction as baseline
   const regexResult = parseInsuranceWithRegex(pdfText);
+  console.log('Insurance regex result:', JSON.stringify({
+    label: regexResult.label,
+    insurer: regexResult.insurer,
+    policyNo: regexResult.policyNo,
+    cover: regexResult.cover,
+    premium: regexResult.premium,
+    startDate: regexResult.startDate,
+    expiry: regexResult.expiry,
+    nominees: regexResult.nominees,
+    members: regexResult.members?.length,
+    paymentFrequency: regexResult.paymentFrequency,
+    deductible: regexResult.deductible,
+    _parsedBy: regexResult._parsedBy
+  }));
+  console.log('PDF text first 500 chars:', pdfText.substring(0, 500));
 
   const prompt = `You are an Indian insurance document parser. Extract policy details from the following insurance document text.
 
