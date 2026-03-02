@@ -6,6 +6,25 @@
 class RateLimiter {
     constructor() {
         this.requests = new Map(); // Track requests per key
+        // Periodic cleanup every 5 minutes to prevent memory leaks
+        this._cleanupInterval = setInterval(() => this._cleanup(), 5 * 60 * 1000);
+        if (this._cleanupInterval.unref) this._cleanupInterval.unref(); // Don't keep process alive
+    }
+
+    /**
+     * Remove stale entries older than the max window (1 hour)
+     */
+    _cleanup() {
+        const now = Date.now();
+        const maxWindow = 3600000; // 1 hour
+        for (const [key, timestamps] of this.requests) {
+            const recent = timestamps.filter(ts => now - ts < maxWindow);
+            if (recent.length === 0) {
+                this.requests.delete(key);
+            } else {
+                this.requests.set(key, recent);
+            }
+        }
     }
 
     /**

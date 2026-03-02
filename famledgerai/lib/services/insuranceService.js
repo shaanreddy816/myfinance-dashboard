@@ -4,6 +4,8 @@
  * Used by both frontend (via global functions) and API routes
  */
 
+import { createHash } from 'crypto';
+
 // SHA-256 hash for policy numbers (browser crypto)
 export async function sha256(text) {
   const enc = new TextEncoder().encode(text);
@@ -15,8 +17,7 @@ export async function sha256(text) {
 
 // Server-side SHA-256 (Node.js crypto)
 export function sha256Server(text) {
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(text).digest('hex');
+  return createHash('sha256').update(text).digest('hex');
 }
 
 /**

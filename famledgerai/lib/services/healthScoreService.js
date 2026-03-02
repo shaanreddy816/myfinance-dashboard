@@ -23,22 +23,22 @@ function computeHealthScore(profile) {
 
   // Derived metrics
   const savings_rate = income > 0 ? (income - expenses) / income : 0;
-  const emi_ratio = income > 0 ? total_emi / income : 1;
-  const months_cover = expenses > 0 ? liquid_assets / expenses : 0;
-  const debt_to_assets = total_assets > 0 ? total_debt_outstanding / total_assets : 0;
+  const emi_ratio = income > 0 ? total_emi / income : (total_emi > 0 ? 1 : 0);
+  const months_cover = expenses > 0 ? liquid_assets / expenses : (liquid_assets > 0 ? 12 : 0);
+  const debt_to_assets = total_assets > 0 ? total_debt_outstanding / total_assets : (total_debt_outstanding > 0 ? 1 : 0);
 
   // Sub-scores
   const CashflowScore = clamp((savings_rate / 0.20) * 100, 0, 100);
   const EMIScore = clamp(((0.40 - emi_ratio) / 0.40) * 100, 0, 100);
   const EmergencyScore = clamp((months_cover / 6) * 100, 0, 100);
   const DebtScore = clamp((1 - debt_to_assets) * 100, 0, 100);
-  const InvestmentScore = clamp((sip_monthly / (0.15 * income)) * 100, 0, 100);
+  const InvestmentScore = income > 0 ? clamp((sip_monthly / (0.15 * income)) * 100, 0, 100) : 0;
   const CreditScore = clamp(((0.30 - credit_utilization) / 0.30) * 100, 0, 100);
 
   // Insurance adequacy
   const requiredTerm = income * 12 * 15; // 15x annual income
   const requiredHealth = 1000000 + (dependents * 200000); // 10L base + 2L per dependent
-  const termAdequacy = requiredTerm > 0 ? clamp(term_cover / requiredTerm, 0, 1) : 0;
+  const termAdequacy = requiredTerm > 0 ? clamp(term_cover / requiredTerm, 0, 1) : (term_cover > 0 ? 1 : 0);
   const healthAdequacy = requiredHealth > 0 ? clamp(health_cover / requiredHealth, 0, 1) : 0;
   const InsuranceScore = clamp((termAdequacy * 60 + healthAdequacy * 40), 0, 100);
 

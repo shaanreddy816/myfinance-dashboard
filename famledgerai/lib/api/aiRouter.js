@@ -337,6 +337,16 @@ function getMockAdvice(module) {
       cover: 0,
       premium: 0,
       additionalDetails: 'Could not parse — AI service temporarily unavailable. Please try again or enter details manually.'
+    },
+    inflation_analyze: {
+      model: 'Fallback (AI unavailable)',
+      dataSource: 'Historical averages',
+      avgInflation: '6.2',
+      projections: [],
+      recommendations: [
+        { priority: 'HIGH', category: 'Investment', action: 'Allocate 60-70% to equity for inflation protection', reason: 'Fixed income alone won\'t preserve wealth', target: 'Target 12-15% annual returns' }
+      ],
+      insights: ['AI service temporarily unavailable — showing general guidance']
     }
   };
 

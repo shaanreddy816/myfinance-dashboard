@@ -109,6 +109,22 @@ export default async function handler(req, res) {
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
 
+/**
+ * Sanitize user input before embedding in AI prompts.
+ * Strips potential prompt injection patterns and limits length.
+ */
+function sanitizeForPrompt(val, maxLen = 500) {
+  if (val == null) return '';
+  const str = String(val);
+  // Remove common prompt injection patterns
+  return str
+    .replace(/\b(ignore|disregard|forget)\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?|rules?)/gi, '[filtered]')
+    .replace(/\b(system|assistant|user)\s*:/gi, '[filtered]')
+    .replace(/<\/?[^>]+>/g, '') // strip HTML tags
+    .substring(0, maxLen)
+    .trim();
+}
+
 async function resolveUserId(userIdOrEmail) {
   if (!userIdOrEmail) return null;
 
@@ -158,20 +174,20 @@ async function handleAdvice(req, res) {
   const metrics = req.body;
 
   const prompt = `You are a certified financial advisor AI. Provide personalized financial advice for an Indian user based on the following metrics:
-- Age: ${metrics.age}
-- Occupation: ${metrics.occupation}
-- Income range: ₹${metrics.incomeRange} lakhs/year
-- Goals: ${(metrics.goals || []).join(', ') || 'Not specified'}
-- Risk tolerance: ${metrics.risk}
-- Monthly income: ₹${metrics.monthlyIncome}
-- Monthly expenses: ₹${metrics.monthlyExpenses}
-- Monthly savings: ₹${metrics.monthlySavings}
-- Emergency fund ratio: ${(metrics.emergencyRatio || 0).toFixed(2)}
-- Debt ratio: ${((metrics.debtRatio || 0) * 100).toFixed(1)}%
-- Insurance cover ratio: ${(metrics.insuranceRatio || 0).toFixed(2)}
-- Savings rate: ${((metrics.savingsRate || 0) * 100).toFixed(1)}%
-- Government schemes enrolled: ${metrics.schemesCount}
-- Financial health score: ${metrics.healthScore}/100
+- Age: ${sanitizeForPrompt(metrics.age, 10)}
+- Occupation: ${sanitizeForPrompt(metrics.occupation, 100)}
+- Income range: ₹${sanitizeForPrompt(metrics.incomeRange, 20)} lakhs/year
+- Goals: ${sanitizeForPrompt((metrics.goals || []).join(', ') || 'Not specified', 300)}
+- Risk tolerance: ${sanitizeForPrompt(metrics.risk, 20)}
+- Monthly income: ₹${sanitizeForPrompt(metrics.monthlyIncome, 20)}
+- Monthly expenses: ₹${sanitizeForPrompt(metrics.monthlyExpenses, 20)}
+- Monthly savings: ₹${sanitizeForPrompt(metrics.monthlySavings, 20)}
+- Emergency fund ratio: ${(Number(metrics.emergencyRatio) || 0).toFixed(2)}
+- Debt ratio: ${((Number(metrics.debtRatio) || 0) * 100).toFixed(1)}%
+- Insurance cover ratio: ${(Number(metrics.insuranceRatio) || 0).toFixed(2)}
+- Savings rate: ${((Number(metrics.savingsRate) || 0) * 100).toFixed(1)}%
+- Government schemes enrolled: ${sanitizeForPrompt(metrics.schemesCount, 10)}
+- Financial health score: ${sanitizeForPrompt(metrics.healthScore, 10)}/100
 
 Return a JSON object with keys: summary, top_actions (array of {action, reason, priority}), plan_7_days (array of strings), plan_30_days (array of strings), disclaimer, confidence (0-1), missingData (array of strings).`;
 
@@ -1684,7 +1700,7 @@ Format as JSON:
   "insights": ["string array of 5 key insights"]
 }`;
 
-    const aiResponse = await callAIWithFallback(prompt, 4000);
+    const aiResponse = await callAIWithFallback(prompt, 'inflation_analyze');
     
     // Parse AI response
     let data;

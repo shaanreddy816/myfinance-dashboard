@@ -1,4 +1,5 @@
 # 🚀 Quick Setup Script - Use This Now!
+# 🚀 Quick Setup Script - Use This Now!
 
 ## Your Situation
 
