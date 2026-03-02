@@ -8748,7 +8748,38 @@ window.handleLoanPdfUpload = async (input) => {
         // Handle PDF files
         if (fileType === 'application/pdf') {
             const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            
+            // Try to load PDF without password first
+            let pdf;
+            try {
+                pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            } catch (error) {
+                // If password required, prompt user
+                if (error.name === 'PasswordException') {
+                    const password = prompt('🔒 This PDF is password-protected. Please enter the password:\n\n(Usually your date of birth: DDMMYYYY or PAN number)');
+                    if (!password) {
+                        if(statusEl) statusEl.innerHTML = '❌ Password required to read this PDF.';
+                        input.value = '';
+                        return;
+                    }
+                    
+                    // Try again with password
+                    try {
+                        pdf = await pdfjsLib.getDocument({ 
+                            data: arrayBuffer,
+                            password: password
+                        }).promise;
+                    } catch (pwError) {
+                        if(statusEl) statusEl.innerHTML = '❌ Incorrect password. Please try again.';
+                        input.value = '';
+                        return;
+                    }
+                } else {
+                    throw error;
+                }
+            }
+            
+            // Extract text from PDF
             for(let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
                 const page = await pdf.getPage(i);
                 const content = await page.getTextContent();
