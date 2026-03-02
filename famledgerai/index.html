@@ -1577,6 +1577,22 @@
                         </div>
                         
                         <div class="form-group">
+                            <label class="form-label">Spouse WhatsApp Number (Optional)</label>
+                            <div style="display:flex; gap:8px;">
+                                <select class="onboarding-input" id="onb-spouse-country-code" style="flex:0 0 120px;">
+                                    <option value="+1">🇺🇸 +1</option>
+                                    <option value="+91" selected>🇮🇳 +91</option>
+                                    <option value="+44">🇬🇧 +44</option>
+                                    <option value="+61">🇦🇺 +61</option>
+                                    <option value="+971">🇦🇪 +971</option>
+                                    <option value="+65">🇸🇬 +65</option>
+                                    <option value="+86">🇨🇳 +86</option>
+                                </select>
+                                <input type="tel" class="onboarding-input" id="onb-spouse-whatsapp" placeholder="Phone number" style="flex:1;">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
                             <label class="form-label">Spouse Occupation</label>
                             <select class="onboarding-input" id="onb-spouse-occupation" onchange="toggleOccupationOther(this, 'onb-spouse-occupation-other')">
                                 <option value="">Select Occupation</option>
@@ -6965,7 +6981,7 @@ window.doReg = async () => {
                     incomeRange, 
                     goals, 
                     risk,
-                    whatsapp_number: whatsappNumber ? `+91${whatsappNumber}` : null
+                    whatsapp_number: whatsappNumber || null
                 } 
             } 
         });
@@ -12591,6 +12607,8 @@ function collectOnboardingData() {
         // Spouse info
         spouse_name: document.getElementById('onb-spouse-name')?.value || null,
         spouse_age: parseInt(document.getElementById('onb-spouse-age')?.value) || null,
+        spouse_whatsapp_country: document.getElementById('onb-spouse-country-code')?.value || '+91',
+        spouse_whatsapp_number: document.getElementById('onb-spouse-whatsapp')?.value?.trim() || null,
         spouse_occupation: document.getElementById('onb-spouse-occupation')?.value === 'other'
             ? document.getElementById('onb-spouse-occupation-other')?.value
             : document.getElementById('onb-spouse-occupation')?.value || null,
@@ -12670,7 +12688,15 @@ async function completeOnboarding() {
         // Build family members array
         const familyMembers = [{ id: 'self', name: onboardingData.name || 'Me', role: 'self' }];
         if (onboardingData.spouse_name) {
-            familyMembers.push({ id: 'spouse', name: onboardingData.spouse_name, role: 'spouse' });
+            const spouseWhatsApp = onboardingData.spouse_whatsapp_number 
+                ? `${onboardingData.spouse_whatsapp_country}${onboardingData.spouse_whatsapp_number}`
+                : '';
+            familyMembers.push({ 
+                id: 'spouse', 
+                name: onboardingData.spouse_name, 
+                role: 'spouse',
+                whatsapp_number: spouseWhatsApp
+            });
         }
         if (onboardingData.kids && onboardingData.kids.length > 0) {
             onboardingData.kids.forEach((kid, i) => {
