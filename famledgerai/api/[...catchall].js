@@ -11,6 +11,8 @@ import { generateAlerts } from '../lib/services/alertService.js';
 import { classifyWealthDna, getMotivation } from '../lib/services/wealthDnaService.js';
 import { optimizeDebt } from '../lib/services/debtOptimizationService.js';
 import { evaluateBadges, evaluateStreaks } from '../lib/services/gamificationService.js';
+import { createLinkToken, exchangePublicToken, getAccounts as plaidGetAccounts, getBalances as plaidGetBalances, getTransactions as plaidGetTransactions, getItem as plaidGetItem, removeItem as plaidRemoveItem, getInstitution as plaidGetInstitution, parseWebhook as plaidParseWebhook } from '../lib/services/plaidService.js';
+import { getSetuToken as aaGetSetuToken, getConsentStatus, createDataSession, fetchFIData, refreshAccounts as aaRefreshAccounts } from '../lib/services/aaService.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -66,12 +68,24 @@ export default async function handler(req, res) {
   if (path === 'financial-dashboard')                return handleFinancialDashboard(req, res);
   if (path === 'gamification')                       return handleGamification(req, res);
 
-  // Optional test endpoint – remove in production if desired
   if (path === 'aa/create-consent')                  return handleAaCreateConsent(req, res);
   if (path === 'aa/consent-callback')                return handleAaConsentCallback(req, res);
   if (path === 'aa/fetch-accounts')                  return handleAaFetchAccounts(req, res);
   if (path === 'aa/refresh')                         return handleAaRefresh(req, res);
+  if (path === 'aa/consent-status')                  return handleAaConsentStatus(req, res);
+  if (path === 'aa/create-session')                  return handleAaCreateSession(req, res);
+  if (path === 'aa/fetch-data')                      return handleAaFetchData(req, res);
   if (path === 'accounts')                           return handleAccounts(req, res);
+
+  // Plaid (US Banks)
+  if (path === 'plaid/create-link-token')            return handlePlaidCreateLinkToken(req, res);
+  if (path === 'plaid/exchange-token')               return handlePlaidExchangeToken(req, res);
+  if (path === 'plaid/accounts')                     return handlePlaidAccounts(req, res);
+  if (path === 'plaid/balances')                     return handlePlaidBalances(req, res);
+  if (path === 'plaid/transactions')                 return handlePlaidTransactions(req, res);
+  if (path === 'plaid/institution')                  return handlePlaidInstitution(req, res);
+  if (path === 'plaid/disconnect')                   return handlePlaidDisconnect(req, res);
+  if (path === 'plaid/webhook')                      return handlePlaidWebhook(req, res);
 
   if (path === 'test-env') {
     return res.status(200).json({
@@ -83,6 +97,9 @@ export default async function handler(req, res) {
       SETU_CLIENT_SECRET: process.env.SETU_CLIENT_SECRET ? 'defined' : 'undefined',
       SETU_PRODUCT_ID: process.env.SETU_PRODUCT_ID || 'undefined',
       SETU_BASE_URL: process.env.SETU_BASE_URL || 'default',
+      PLAID_CLIENT_ID: process.env.PLAID_CLIENT_ID ? 'defined' : 'undefined',
+      PLAID_SECRET: process.env.PLAID_SECRET ? 'defined' : 'undefined',
+      PLAID_ENV: process.env.PLAID_ENV || 'sandbox',
       NODE_ENV: process.env.NODE_ENV,
     });
   }
@@ -1219,16 +1236,376 @@ async function handleAaFetchAccounts(req, res) {
 }
 
 async function handleAaRefresh(req, res) {
-  return res.status(200).json({ message: 'Refresh scheduled', refreshed: 0 });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    // Get active consent for user
+    const { data: consents } = await supabase.from('aa_consents').select('*')
+      .eq('user_id', userId).eq('status', 'ACTIVE')
+      .order('created_at', { ascending: false }).limit(1);
+    if (!consents || consents.length === 0)
+      return res.status(200).json({ accounts: [], needsConsent: true, message: 'No active consent found' });
+
+    const consentId = consents[0].consent_id;
+    const result = await aaRefreshAccounts(consentId);
+
+    // Store refreshed accounts in Supabase
+    if (result.status === 'COMPLETED' && result.accounts.length > 0) {
+      for (const acc of result.accounts) {
+        await supabase.from('linked_accounts').upsert({
+          user_id: userId,
+          source: 'setu_aa',
+          account_ref: acc.linked_acc_ref || acc.maskedAccNumber,
+          account_data: acc,
+          balance: acc.current_balance,
+          currency: acc.currency || 'INR',
+          last_refreshed: new Date().toISOString()
+        }, { onConflict: 'user_id,source,account_ref' }).catch(() => {});
+      }
+    }
+
+    return res.status(200).json({ status: result.status, accounts: result.accounts, refreshed: result.accounts.length });
+  } catch (e) {
+    console.error('AA refresh error:', e.message);
+    return res.status(500).json({ error: e.message, accounts: [] });
+  }
+}
+
+// ─── AA: CHECK CONSENT STATUS ───────────────────────────────────────────────────
+async function handleAaConsentStatus(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { consentId } = req.body;
+  if (!consentId) return res.status(400).json({ error: 'consentId required' });
+  try {
+    const status = await getConsentStatus(consentId);
+    // Update in Supabase
+    await supabase.from('aa_consents').update({
+      status: status.status, consent_detail: status, updated_at: new Date().toISOString()
+    }).eq('consent_id', consentId).catch(() => {});
+    return res.status(200).json({ consentId, status: status.status, detail: status });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+// ─── AA: CREATE DATA SESSION ────────────────────────────────────────────────────
+async function handleAaCreateSession(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { consentId, dateFrom, dateTo } = req.body;
+  if (!consentId) return res.status(400).json({ error: 'consentId required' });
+  try {
+    const session = await createDataSession(consentId, dateFrom, dateTo);
+    return res.status(200).json(session);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+// ─── AA: FETCH FI DATA ─────────────────────────────────────────────────────────
+async function handleAaFetchData(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { sessionId, userId } = req.body;
+  if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+  try {
+    const result = await fetchFIData(sessionId);
+
+    // Store in Supabase if completed and userId provided
+    if (result.status === 'COMPLETED' && userId && result.accounts.length > 0) {
+      for (const acc of result.accounts) {
+        await supabase.from('linked_accounts').upsert({
+          user_id: userId,
+          source: 'setu_aa',
+          account_ref: acc.linked_acc_ref || acc.maskedAccNumber,
+          account_data: acc,
+          balance: acc.current_balance,
+          currency: acc.currency || 'INR',
+          last_refreshed: new Date().toISOString()
+        }, { onConflict: 'user_id,source,account_ref' }).catch(() => {});
+      }
+    }
+
+    return res.status(200).json(result);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
 }
 
 async function handleAccounts(req, res) {
   const userId = req.headers['x-user-id'] || req.query.userId;
   if (!userId) return res.status(400).json({ error: 'userId required' });
   try {
-    const { data: accounts } = await supabase.from('accounts').select('*').eq('user_id', userId);
+    const { data: accounts } = await supabase.from('linked_accounts').select('*').eq('user_id', userId);
     return res.status(200).json(accounts || []);
   } catch(e) { return res.status(200).json([]); }
+}
+
+
+// ========== PLAID (US BANKS) ==========
+
+/**
+ * Create Plaid Link Token
+ * POST /api/plaid/create-link-token
+ * Body: { userId }
+ */
+async function handlePlaidCreateLinkToken(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { userId, products, countryCodes } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    const result = await createLinkToken(userId, products, countryCodes);
+    return res.status(200).json({ success: true, ...result });
+  } catch (e) {
+    console.error('Plaid create-link-token error:', e.message);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+/**
+ * Exchange Plaid public token for access token
+ * POST /api/plaid/exchange-token
+ * Body: { userId, publicToken, institutionId, institutionName }
+ */
+async function handlePlaidExchangeToken(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { userId, publicToken, institutionId, institutionName } = req.body;
+  if (!userId || !publicToken) return res.status(400).json({ error: 'userId and publicToken required' });
+  try {
+    const result = await exchangePublicToken(publicToken);
+
+    // Store encrypted access token in Supabase
+    await supabase.from('plaid_items').upsert({
+      user_id: userId,
+      item_id: result.item_id,
+      access_token: result.access_token,  // In production: encrypt this
+      institution_id: institutionId || null,
+      institution_name: institutionName || null,
+      status: 'ACTIVE',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'item_id' });
+
+    // Fetch initial accounts
+    const accounts = await plaidGetAccounts(result.access_token);
+
+    // Store accounts
+    for (const acc of accounts) {
+      await supabase.from('linked_accounts').upsert({
+        user_id: userId,
+        source: 'plaid',
+        account_ref: acc.account_id,
+        account_data: acc,
+        balance: acc.balance?.current || 0,
+        currency: acc.currency || 'USD',
+        institution_name: institutionName || null,
+        last_refreshed: new Date().toISOString()
+      }, { onConflict: 'user_id,source,account_ref' }).catch(() => {});
+    }
+
+    return res.status(200).json({
+      success: true,
+      item_id: result.item_id,
+      accounts_linked: accounts.length,
+      accounts
+    });
+  } catch (e) {
+    console.error('Plaid exchange-token error:', e.message);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+/**
+ * Get Plaid accounts for a user
+ * POST /api/plaid/accounts
+ * Body: { userId }
+ */
+async function handlePlaidAccounts(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    const { data: items } = await supabase.from('plaid_items').select('*')
+      .eq('user_id', userId).eq('status', 'ACTIVE');
+    if (!items || items.length === 0)
+      return res.status(200).json({ accounts: [], needsLink: true });
+
+    const allAccounts = [];
+    for (const item of items) {
+      try {
+        const accounts = await plaidGetAccounts(item.access_token);
+        allAccounts.push(...accounts.map(a => ({ ...a, institution_name: item.institution_name, item_id: item.item_id })));
+      } catch (e) {
+        console.error(`Plaid accounts error for item ${item.item_id}:`, e.message);
+        // Mark item as errored if auth fails
+        if (e.message.includes('ITEM_LOGIN_REQUIRED')) {
+          await supabase.from('plaid_items').update({ status: 'LOGIN_REQUIRED', updated_at: new Date().toISOString() }).eq('item_id', item.item_id);
+        }
+      }
+    }
+
+    return res.status(200).json({ success: true, accounts: allAccounts, items: items.length });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+/**
+ * Get real-time balances
+ * POST /api/plaid/balances
+ * Body: { userId }
+ */
+async function handlePlaidBalances(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    const { data: items } = await supabase.from('plaid_items').select('*')
+      .eq('user_id', userId).eq('status', 'ACTIVE');
+    if (!items || items.length === 0)
+      return res.status(200).json({ balances: [], needsLink: true });
+
+    const allBalances = [];
+    for (const item of items) {
+      try {
+        const balances = await plaidGetBalances(item.access_token);
+        allBalances.push(...balances.map(b => ({ ...b, institution_name: item.institution_name })));
+      } catch (e) {
+        console.error(`Plaid balance error for item ${item.item_id}:`, e.message);
+      }
+    }
+
+    // Update stored balances
+    for (const bal of allBalances) {
+      await supabase.from('linked_accounts').upsert({
+        user_id: userId, source: 'plaid', account_ref: bal.account_id,
+        balance: bal.current || 0, currency: bal.currency || 'USD',
+        last_refreshed: new Date().toISOString()
+      }, { onConflict: 'user_id,source,account_ref' }).catch(() => {});
+    }
+
+    return res.status(200).json({ success: true, balances: allBalances });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+/**
+ * Get transactions
+ * POST /api/plaid/transactions
+ * Body: { userId, startDate?, endDate?, count?, offset? }
+ */
+async function handlePlaidTransactions(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { userId, startDate, endDate, count, offset } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    const { data: items } = await supabase.from('plaid_items').select('*')
+      .eq('user_id', userId).eq('status', 'ACTIVE');
+    if (!items || items.length === 0)
+      return res.status(200).json({ transactions: [], needsLink: true });
+
+    const allTxns = [];
+    let totalCount = 0;
+    for (const item of items) {
+      try {
+        const result = await plaidGetTransactions(item.access_token, startDate, endDate, count, offset);
+        allTxns.push(...result.transactions.map(t => ({ ...t, institution_name: item.institution_name })));
+        totalCount += result.total;
+      } catch (e) {
+        console.error(`Plaid txn error for item ${item.item_id}:`, e.message);
+      }
+    }
+
+    return res.status(200).json({ success: true, total: totalCount, transactions: allTxns });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+/**
+ * Get institution info
+ * POST /api/plaid/institution
+ * Body: { institutionId }
+ */
+async function handlePlaidInstitution(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { institutionId } = req.body;
+  if (!institutionId) return res.status(400).json({ error: 'institutionId required' });
+  try {
+    const info = await plaidGetInstitution(institutionId);
+    return res.status(200).json({ success: true, institution: info });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+/**
+ * Disconnect a bank (remove Plaid item)
+ * POST /api/plaid/disconnect
+ * Body: { userId, itemId }
+ */
+async function handlePlaidDisconnect(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { userId, itemId } = req.body;
+  if (!userId || !itemId) return res.status(400).json({ error: 'userId and itemId required' });
+  try {
+    // Get access token
+    const { data: item } = await supabase.from('plaid_items').select('access_token')
+      .eq('user_id', userId).eq('item_id', itemId).single();
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
+    // Remove from Plaid
+    await plaidRemoveItem(item.access_token);
+
+    // Mark as removed in Supabase
+    await supabase.from('plaid_items').update({ status: 'REMOVED', updated_at: new Date().toISOString() })
+      .eq('item_id', itemId);
+
+    // Remove linked accounts for this item
+    await supabase.from('linked_accounts').delete()
+      .eq('user_id', userId).eq('source', 'plaid');
+
+    return res.status(200).json({ success: true, message: 'Bank disconnected' });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+/**
+ * Plaid webhook handler
+ * POST /api/plaid/webhook
+ */
+async function handlePlaidWebhook(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const event = plaidParseWebhook(req.body);
+    console.log('Plaid webhook:', event.type, event.code, event.item_id);
+
+    // Log webhook
+    await supabase.from('plaid_webhooks').insert({
+      item_id: event.item_id,
+      webhook_type: event.type,
+      webhook_code: event.code,
+      payload: req.body,
+      created_at: new Date().toISOString()
+    }).catch(() => {});
+
+    // Handle specific events
+    if (event.type === 'ITEM' && event.code === 'ERROR') {
+      await supabase.from('plaid_items').update({ status: 'ERROR', error: event.error, updated_at: new Date().toISOString() })
+        .eq('item_id', event.item_id);
+    }
+
+    if (event.type === 'TRANSACTIONS' && (event.code === 'DEFAULT_UPDATE' || event.code === 'INITIAL_UPDATE')) {
+      // New transactions available — could trigger a sync here
+      console.log(`${event.new_transactions} new transactions for item ${event.item_id}`);
+    }
+
+    return res.status(200).json({ received: true });
+  } catch (e) {
+    console.error('Plaid webhook error:', e.message);
+    return res.status(200).json({ received: true }); // Always 200 for webhooks
+  }
 }
 
 
