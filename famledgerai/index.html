@@ -8556,33 +8556,32 @@ function renderLoans() {
         `💡 EMI load is within safe limits (${pct(dr)}). Consider prepaying high-interest loans to reduce total interest paid.`;
 
     const tableHtml = loans.length ? `
-        <div style="overflow-x: auto; margin: -16px; padding: 16px; border-radius: var(--radius);">
-            <div style="min-width: 1200px;">
-        <table class="data-table" style="width: 100%;">
+        <div style="overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; width: 100%;">
+        <table class="data-table" style="min-width: 1200px; margin-bottom: 0;">
             <thead><tr>
                 <th style="min-width: 150px;">Lender / Type</th>
-                <th style="min-width: 120px;">Sanctioned Amt</th>
-                <th style="min-width: 120px;">Outstanding</th>
-                <th style="min-width: 100px;">EMI / Mo</th>
-                <th style="min-width: 80px;">Rate %</th>
+                <th style="min-width: 110px;">Sanctioned</th>
+                <th style="min-width: 110px;">Outstanding</th>
+                <th style="min-width: 90px;">EMI / Mo</th>
+                <th style="min-width: 70px;">Rate %</th>
                 <th style="min-width: 80px;">Tenure</th>
-                <th style="min-width: 100px;">Remaining</th>
-                <th style="min-width: 100px;">% of Income</th>
-                ${editMode?'<th style="min-width: 80px;">Actions</th>':''}
+                <th style="min-width: 90px;">Remaining</th>
+                <th style="min-width: 90px;">% Income</th>
+                ${editMode?'<th style="min-width: 100px;">Actions</th>':''}
             </tr></thead>
             <tbody>
             ${loans.map((l,i)=>`
                 <tr>
                     ${editMode ? `
                         <td><input class="edit-input-text" value="${l.label||''}" onchange="updateLoan(${i},'label',this.value)" style="width:140px;"></td>
-                        <td><input class="edit-input" type="number" value="${l.principal||0}" onchange="updateLoan(${i},'principal',this.value)"></td>
-                        <td><input class="edit-input" type="number" value="${l.outstanding||0}" onchange="updateLoan(${i},'outstanding',this.value)"></td>
-                        <td><input class="edit-input" type="number" value="${l.emi||0}" onchange="updateLoan(${i},'emi',this.value)"></td>
-                        <td><input class="edit-input" type="number" value="${l.rate||0}" onchange="updateLoan(${i},'rate',this.value)" style="width:80px;"></td>
-                        <td><input class="edit-input" type="number" value="${l.tenureMonths||0}" onchange="updateLoan(${i},'tenureMonths',this.value)" style="width:80px;" placeholder="months"></td>
-                        <td><input class="edit-input" type="number" value="${l.remainingMonths||0}" onchange="updateLoan(${i},'remainingMonths',this.value)" style="width:80px;" placeholder="months"></td>
+                        <td><input class="edit-input" type="number" value="${l.principal||0}" onchange="updateLoan(${i},'principal',this.value)" style="width:100px;"></td>
+                        <td><input class="edit-input" type="number" value="${l.outstanding||0}" onchange="updateLoan(${i},'outstanding',this.value)" style="width:100px;"></td>
+                        <td><input class="edit-input" type="number" value="${l.emi||0}" onchange="updateLoan(${i},'emi',this.value)" style="width:90px;"></td>
+                        <td><input class="edit-input" type="number" value="${l.rate||0}" onchange="updateLoan(${i},'rate',this.value)" style="width:70px;"></td>
+                        <td><input class="edit-input" type="number" value="${l.tenureMonths||0}" onchange="updateLoan(${i},'tenureMonths',this.value)" style="width:70px;" placeholder="mo"></td>
+                        <td><input class="edit-input" type="number" value="${l.remainingMonths||0}" onchange="updateLoan(${i},'remainingMonths',this.value)" style="width:70px;" placeholder="mo"></td>
                         <td>—</td>
-                        <td><button class="del-btn" onclick="deleteLoan(${i})" title="Delete loan" style="white-space: nowrap;">🗑 Delete</button></td>
+                        <td><button class="del-btn" onclick="deleteLoan(${i})" title="Delete loan">🗑 Del</button></td>
                     ` : `
                         <td>
                             <div>${l.label||'—'}</div>
@@ -8601,12 +8600,11 @@ function renderLoans() {
             `).join('')}
             </tbody>
         </table>
-            </div>
         </div>
-        <div style="font-size: 11px; color: var(--text3); margin-top: 8px; text-align: center;">
-            💡 Scroll horizontally to see all columns →
+        <div style="font-size: 11px; color: var(--text3); margin-top: 12px; text-align: center; padding: 8px; background: var(--bg3); border-radius: var(--radius-sm);">
+            ← Scroll table left/right to see all columns →
         </div>
-        ${editMode ? `<button class="add-btn" onclick="addLoan()">➕ Add Loan</button>` : ''}
+        ${editMode ? `<button class="add-btn" onclick="addLoan()" style="margin-top: 12px;">➕ Add Loan</button>` : ''}
     ` : `
         ${editMode
             ? `<p style="color:var(--text3); font-size:13px; padding-bottom:12px;">No loans added.</p><button class="add-btn" onclick="addLoan()">➕ Add Loan</button>`
