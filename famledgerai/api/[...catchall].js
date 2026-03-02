@@ -969,30 +969,75 @@ function parseInsuranceWithRegex(text) {
       break;
     }
   }
+  // Fallback: search line by line for "Base Sum Insured" header then grab number from data row
+  if (cover === 0) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    for (let i = 0; i < lines.length; i++) {
+      if (/Base\s*Sum\s*Insured/i.test(lines[i])) {
+        // Check current line for a number
+        const numInLine = lines[i].match(/([\d,]{4,}(?:\.\d+)?)/);
+        if (numInLine) {
+          const v = parseFloat(numInLine[1].replace(/,/g, ''));
+          if (v > 1000) { cover = v; break; }
+        }
+        // Check next few lines
+        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          const numMatch = lines[j].match(/([\d,]{4,}(?:\.\d+)?)/);
+          if (numMatch) {
+            const v = parseFloat(numMatch[1].replace(/,/g, ''));
+            if (v > 1000) { cover = v; break; }
+          }
+        }
+        if (cover > 0) break;
+      }
+    }
+  }
 
   // Secure Benefit (HDFC Ergo specific)
   const secureBenefitMatch = t.match(/(?:secure\s*benefit)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i);
   const secureBenefit = secureBenefitMatch ? parseFloat(secureBenefitMatch[1].replace(/,/g, '')) : 0;
 
-  // Premium — be careful not to match "Premium Frequency" or "Premium Tier"
+  // Premium — HDFC Ergo: "Base Premium (A)" is the key field
+  // Also handle "Premium Details (₹)" section
   const premiumPatterns = [
-    /(?:premium\s*details?)\s*(?:\(₹\))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /Base\s*Premium\s*\(?A?\)?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
+    /(?:premium\s*details?)\s*\(₹\)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
     /(?:total\s*premium)\s*(?:\(₹\))?\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
     /(?:net\s*premium|gross\s*premium)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
     /(?:annual|yearly)\s*premium\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
     /premium\s*(?:amount|payable)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    /(?:amount\s*payable|installment)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i,
-    // HDFC Ergo: "Premium Details (₹)" as table header, number follows later
-    /Premium\s*Details?\s*\(₹\)\s*([\d,]+(?:\.\d+)?)/i,
-    // Last resort: "Premium" followed by a number that's > 100 (to avoid matching "Premium Frequency Annual")
-    /(?:^|\s)premium\s*[:\-.]?\s*(?:Rs\.?|₹|INR)\s*([\d,]+(?:\.\d+)?)/i
+    /(?:amount\s*payable|installment)\s*[:\-.]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+(?:\.\d+)?)/i
   ];
   let premium = 0;
   for (const p of premiumPatterns) {
     const m = t.match(p);
     if (m) {
       const val = parseFloat(m[1].replace(/,/g, ''));
-      if (val > 100) { premium = val; break; } // Skip tiny matches that are likely false positives
+      if (val > 100) { premium = val; break; }
+    }
+  }
+  // Fallback: search line by line for "Base Premium" or "Premium Details" header row
+  // then grab the number from the NEXT line (data row)
+  if (premium === 0) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    for (let i = 0; i < lines.length; i++) {
+      if (/Base\s*Premium|Premium\s*Details?\s*\(₹\)/i.test(lines[i])) {
+        // Check current line for a number first
+        const numInLine = lines[i].match(/([\d,]{4,}(?:\.\d+)?)/);
+        if (numInLine) {
+          const v = parseFloat(numInLine[1].replace(/,/g, ''));
+          if (v > 100) { premium = v; break; }
+        }
+        // Check next few lines for the data row
+        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          const numMatch = lines[j].match(/([\d,]{4,}(?:\.\d+)?)/);
+          if (numMatch) {
+            const v = parseFloat(numMatch[1].replace(/,/g, ''));
+            if (v > 100) { premium = v; break; }
+          }
+        }
+        if (premium > 0) break;
+      }
     }
   }
 
@@ -1054,28 +1099,87 @@ function parseInsuranceWithRegex(text) {
   const termMatch = t.match(/(?:policy\s*term|tenure|duration|term)\s*[:\-.]?\s*(\d+)\s*(?:year|yr)/i);
   const policyTerm = termMatch ? termMatch[1] + ' years' : null;
 
-  // Members — HDFC Ergo: "Insured Person's Name <name> Relationship... Gender... Age... DOB..."
+  // Members — Parse insured persons table line by line
+  // HDFC Ergo format: header row has "Insured Person's Name | Relationship... | Gender | Age | DOB | Nominee..."
+  // Data rows follow with actual values
   const members = [];
-  const insuredBlockRegex = /(?:insured\s*person'?s?\s*name)\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s+(?:relationship|gender|age|\d))/gi;
-  let ibm;
-  while ((ibm = insuredBlockRegex.exec(t)) !== null) {
-    const name = ibm[1].trim();
-    if (name.length < 3 || name.length > 60) continue;
-    if (members.find(x => x.name === name)) continue;
-    const afterText = t.substring(ibm.index, ibm.index + 300);
-    const relM = afterText.match(/(?:relationship\s*(?:with\s*)?(?:policyholder)?)\s*[:\-.]?\s*([A-Za-z\s]+?)(?:\s{2,}|Gender|Age|\d)/i);
-    const genM = afterText.match(/(?:gender)\s*[:\-.]?\s*(male|female|other|m|f)/i);
-    const ageM = afterText.match(/(?:age)\s*[:\-.]?\s*(\d{1,3})/i);
-    const dobM = afterText.match(/(?:date\s*of\s*birth|dob)\s*[:\-.]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+[\s,]+\d{4})/i);
-    members.push({
-      name,
-      relationship: relM ? relM[1].trim() : (members.length === 0 ? 'self' : ''),
-      gender: genM ? genM[1].trim() : '',
-      age: ageM ? ageM[1] : '',
-      dob: dobM ? dobM[1] : ''
-    });
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  // Strategy 1: Find the header row, then parse subsequent data rows
+  let insuredTableStart = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/insured\s*person/i.test(lines[i]) && /relationship/i.test(lines[i])) {
+      insuredTableStart = i;
+      break;
+    }
   }
-  // Generic fallback
+
+  if (insuredTableStart >= 0) {
+    // Parse data rows after the header
+    for (let i = insuredTableStart + 1; i < Math.min(insuredTableStart + 10, lines.length); i++) {
+      const line = lines[i];
+      // Skip if it looks like another header or section title
+      if (/insured\s*person'?s?\s*name|name\s*of\s*plan|premium\s*details|base\s*premium/i.test(line)) break;
+      // A data row should contain a name (letters) — skip pure number rows
+      if (!/[A-Za-z]{3,}/.test(line)) continue;
+      // Skip if it's a known keyword row
+      if (/^(status|active|inactive|base\s*plan)/i.test(line)) break;
+
+      // Try to extract: Name, Relationship, Gender, Age, DOB, Nominee, Sum Insured
+      // The line might look like: "John Doe Self Male 30 01/01/1994 Jane Doe Spouse 500000 500000"
+      // Or it might be split across multiple items
+      const nameMatch = line.match(/^([A-Za-z\s\.]+?)(?:\s{2,}|\s+(?:self|spouse|son|daughter|father|mother|husband|wife|child|parent|brother|sister))/i);
+      const relMatch = line.match(/\b(self|spouse|son|daughter|father|mother|husband|wife|child|parent|brother|sister)\b/i);
+      const genderMatch = line.match(/\b(male|female|m|f)\b/i);
+      const ageMatch = line.match(/\b(\d{1,2})\b(?=\s)/);
+      const dobMatch = line.match(/(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/);
+      const nomineeMatch = line.match(/(?:nominee\s*(?:name)?)\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|$)/i);
+
+      // Extract name — first sequence of letters before relationship keyword
+      let name = nameMatch ? nameMatch[1].trim() : null;
+      if (!name) {
+        // Try: just grab the first word sequence that looks like a name
+        const words = line.match(/^([A-Za-z][A-Za-z\s\.]{2,40}?)(?=\s+(?:self|spouse|son|daughter|father|mother|male|female|\d))/i);
+        if (words) name = words[1].trim();
+      }
+
+      if (name && name.length > 2 && name.length < 60 && !members.find(x => x.name === name)) {
+        const relationship = relMatch ? relMatch[1].toLowerCase() : (members.length === 0 ? 'self' : '');
+        members.push({
+          name,
+          relationship,
+          gender: genderMatch ? genderMatch[1] : '',
+          age: ageMatch ? ageMatch[1] : '',
+          dob: dobMatch ? dobMatch[1] : ''
+        });
+      }
+    }
+  }
+
+  // Strategy 2: Regex on flattened text (fallback)
+  if (members.length === 0) {
+    const insuredBlockRegex = /(?:insured\s*person'?s?\s*name)\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s+(?:relationship|gender|age|\d))/gi;
+    let ibm;
+    while ((ibm = insuredBlockRegex.exec(t)) !== null) {
+      const name = ibm[1].trim();
+      if (name.length < 3 || name.length > 60) continue;
+      if (members.find(x => x.name === name)) continue;
+      const afterText = t.substring(ibm.index, ibm.index + 300);
+      const relM = afterText.match(/(?:relationship\s*(?:with\s*)?(?:policyholder)?)\s*[:\-.]?\s*([A-Za-z\s]+?)(?:\s{2,}|Gender|Age|\d)/i);
+      const genM = afterText.match(/(?:gender)\s*[:\-.]?\s*(male|female|other|m|f)/i);
+      const ageM = afterText.match(/(?:age)\s*[:\-.]?\s*(\d{1,3})/i);
+      const dobM = afterText.match(/(?:date\s*of\s*birth|dob)\s*[:\-.]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{1,2}\s+\w+[\s,]+\d{4})/i);
+      members.push({
+        name,
+        relationship: relM ? relM[1].trim().toLowerCase() : (members.length === 0 ? 'self' : ''),
+        gender: genM ? genM[1] : '',
+        age: ageM ? ageM[1] : '',
+        dob: dobM ? dobM[1] : ''
+      });
+    }
+  }
+
+  // Strategy 3: Generic patterns
   if (members.length === 0) {
     const memberPatterns = [
       /(?:insured\s*(?:person|member|name)|name\s*of\s*(?:insured|member|person|the\s*insured))\s*[:\-.]?\s*([A-Za-z\s\.]+?)(?:\s{2,}|,|\n|$)/gi,
@@ -1091,6 +1195,7 @@ function parseInsuranceWithRegex(text) {
       }
     }
   }
+
   // Add policyholder if not in members
   if (holderMatch && members.length === 0) {
     const hName = holderMatch[1].trim();
