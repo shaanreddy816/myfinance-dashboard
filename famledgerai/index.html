@@ -7080,6 +7080,25 @@ async function checkSession() {
         if (session) {
             currentUserEmail = session.user.email;
             await loadUserData(currentUserEmail);
+            
+            // If profile is empty, check for pending registration data in localStorage
+            if (!userData.profile?.name) {
+                try {
+                    const pendingReg = localStorage.getItem('pending_registration_data');
+                    if (pendingReg) {
+                        const parsed = JSON.parse(pendingReg);
+                        if (parsed.email === currentUserEmail && parsed.userData) {
+                            console.log('✅ Restoring registration data from localStorage (checkSession)');
+                            userData = parsed.userData;
+                            await saveUserData(currentUserEmail);
+                            localStorage.removeItem('pending_registration_data');
+                        }
+                    }
+                } catch(e) { console.error('Error restoring pending registration data:', e); }
+            } else {
+                localStorage.removeItem('pending_registration_data');
+            }
+            
             // If user has profile data, mark onboarding as done
             if (userData.profile?.name) {
                 localStorage.setItem('onboarding_completed', 'true');
@@ -7498,6 +7517,26 @@ window.doLogin = async () => {
         currentUserEmail = data.user.email;
         await loadUserData(currentUserEmail);
         
+        // If profile is empty, check for pending registration data in localStorage
+        if (!userData.profile?.name) {
+            try {
+                const pendingReg = localStorage.getItem('pending_registration_data');
+                if (pendingReg) {
+                    const parsed = JSON.parse(pendingReg);
+                    if (parsed.email === currentUserEmail && parsed.userData) {
+                        console.log('✅ Restoring registration data from localStorage for:', currentUserEmail);
+                        userData = parsed.userData;
+                        await saveUserData(currentUserEmail);
+                        localStorage.removeItem('pending_registration_data');
+                        console.log('✅ Registration data synced to Supabase');
+                    }
+                }
+            } catch(e) { console.error('Error restoring pending registration data:', e); }
+        } else {
+            // Data loaded fine, clean up any stale pending data
+            localStorage.removeItem('pending_registration_data');
+        }
+        
         // If user has profile data, mark onboarding as done (prevents re-triggering)
         if (userData.profile?.name) {
             localStorage.setItem('onboarding_completed', 'true');
@@ -7837,19 +7876,46 @@ window.doReg = async () => {
 
         userData = { profile:{ name, age, occupation, incomeRange, goals, risk, spouseName, kids, familyMembers, whatsapp_number: whatsappNumber || '' }, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{}, byMonth:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
         currentUserEmail = email;
+        
+        // Try to save to Supabase (may fail if email not confirmed yet / no session)
         await saveUserData(email);
+        
+        // Always save registration data to localStorage as backup
+        // This ensures data survives even if Supabase save fails (no session / email not confirmed)
+        try {
+            localStorage.setItem('pending_registration_data', JSON.stringify({
+                email: email,
+                timestamp: new Date().toISOString(),
+                userData: userData
+            }));
+            console.log('✅ Registration data saved to localStorage backup');
+        } catch(e) { console.error('localStorage backup failed:', e); }
         
         // Mark onboarding as completed since we collected key data during registration
         localStorage.setItem('onboarding_completed', 'true');
         
-        // Show congratulations message
-        showCongratulationsModal(name);
-        
-        setTimeout(() => {
-            isRegistering = false; // Allow onAuthStateChange again
-            showApp();
-            resetInactivity();
-        }, 3000);
+        // Check if we have a session — if not, show verification message instead of dashboard
+        const { data: postRegSession } = await sb.auth.getSession();
+        if (!postRegSession?.session) {
+            // No session = email verification required
+            showCongratulationsModal(name);
+            setTimeout(() => {
+                isRegistering = false;
+                alert('📧 Please check your email and click the verification link to activate your account. Then come back and sign in.');
+                showAuth();
+                // Pre-fill the login email for convenience
+                const loginEmail = $('l-em');
+                if(loginEmail) loginEmail.value = email;
+            }, 3000);
+        } else {
+            // Session exists (auto-confirm enabled) — go straight to dashboard
+            showCongratulationsModal(name);
+            setTimeout(() => {
+                isRegistering = false;
+                showApp();
+                resetInactivity();
+            }, 3000);
+        }
     } catch(e) {
         isRegistering = false; // Allow onAuthStateChange again
         console.error('Registration error:', e);
