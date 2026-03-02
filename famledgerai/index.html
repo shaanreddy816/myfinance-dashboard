@@ -6927,7 +6927,16 @@ async function loadUserData(email) {
     const { data, error } = await sb.from('user_data').select('*').eq('email', email).maybeSingle();
     if(error) { console.error('Load error:', error); return; }
     if(data) {
-        console.log('Loaded user data from Supabase:', { profile: data.profile?.name, hasIncome: !!data.income, hasExpenses: !!data.expenses });
+        console.log('✅ Loaded user data from Supabase:', JSON.stringify({ 
+            profileName: data.profile?.name, 
+            profileAge: data.profile?.age,
+            hasIncome: !!data.income, 
+            incomeHusband: data.income?.husband,
+            hasExpenses: !!data.expenses,
+            expenseCount: data.expenses?.monthly?.length,
+            loanCount: data.loans?.length,
+            hasInsurance: !!data.insurance
+        }));
         userData = {
             profile:     data.profile     || {},
             income:      data.income      || { husband:0, wife:0, rental:0, rentalActive:false },
@@ -6940,8 +6949,45 @@ async function loadUserData(email) {
             liquidSavings: data.profile?.liquidSavings || 0,
             termCover:   data.profile?.termCover || data.insurance?.termCover || 0
         };
+        
+        // If profile name is missing, recover from auth metadata (registration stores it there)
+        if (!userData.profile.name) {
+            try {
+                const { data: { user } } = await sb.auth.getUser();
+                if (user?.user_metadata?.name) {
+                    console.log('Recovering empty profile from auth metadata:', user.user_metadata);
+                    userData.profile.name = user.user_metadata.name;
+                    userData.profile.age = user.user_metadata.age || userData.profile.age || 0;
+                    userData.profile.occupation = user.user_metadata.occupation || userData.profile.occupation || '';
+                    userData.profile.incomeRange = user.user_metadata.incomeRange || userData.profile.incomeRange || '';
+                    userData.profile.goals = user.user_metadata.goals || userData.profile.goals || [];
+                    userData.profile.risk = user.user_metadata.risk || userData.profile.risk || 'moderate';
+                    if (!userData.profile.familyMembers || userData.profile.familyMembers.length === 0) {
+                        userData.profile.familyMembers = [{ id: 'self', name: user.user_metadata.name, role: 'self' }];
+                    }
+                    await saveUserData(email);
+                    console.log('✅ Profile recovered and saved');
+                }
+            } catch(e) { console.error('Auth metadata recovery failed:', e); }
+        }
     } else {
-        console.log('No user data found in Supabase for:', email, '- creating empty record');
+        console.warn('⚠️ No user_data row found in Supabase for:', email);
+        // Try to recover profile from auth metadata
+        try {
+            const { data: { user } } = await sb.auth.getUser();
+            if (user?.user_metadata?.name) {
+                console.log('Recovering profile from auth metadata:', user.user_metadata.name);
+                userData.profile = {
+                    name: user.user_metadata.name,
+                    age: user.user_metadata.age || 0,
+                    occupation: user.user_metadata.occupation || '',
+                    incomeRange: user.user_metadata.incomeRange || '',
+                    goals: user.user_metadata.goals || [],
+                    risk: user.user_metadata.risk || 'moderate',
+                    familyMembers: [{ id: 'self', name: user.user_metadata.name, role: 'self' }]
+                };
+            }
+        } catch(e) { console.error('Auth metadata recovery failed:', e); }
         await saveUserData(email);
     }
 
