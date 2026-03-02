@@ -1982,29 +1982,12 @@
 
         <!-- Section 6: Liabilities -->
         <div class="card" style="margin-bottom:18px;">
-            <div class="card-title"><span class="icon">💳</span> Liabilities (₹ Outstanding)</div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-                <div>
-                    <label style="display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Home Loan</label>
-                    <input type="number" id="wiz-loan-home" class="ainp" min="0" style="margin-bottom:0;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Car Loan</label>
-                    <input type="number" id="wiz-loan-car" class="ainp" min="0" style="margin-bottom:0;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Personal Loan</label>
-                    <input type="number" id="wiz-loan-personal" class="ainp" min="0" style="margin-bottom:0;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Education Loan</label>
-                    <input type="number" id="wiz-loan-education" class="ainp" min="0" style="margin-bottom:0;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Credit Card Debt</label>
-                    <input type="number" id="wiz-loan-cc" class="ainp" min="0" style="margin-bottom:0;">
-                </div>
+            <div class="card-title"><span class="icon">💳</span> Liabilities</div>
+            <p style="font-size:12px; color:var(--text3); margin-bottom:14px;">Add each loan with name, outstanding amount, monthly EMI, and interest rate.</p>
+            <div id="wiz-loans-wrap">
+                <!-- Dynamic loan entries will be added here -->
             </div>
+            <button type="button" class="add-btn" onclick="addWizardLoan()" style="margin-top:8px;">➕ Add Loan</button>
         </div>
 
         <!-- Section 7: Goals & Risk -->
@@ -6627,6 +6610,53 @@ window.addWizardKid = () => {
     wrap.appendChild(div);
 };
 
+// Add loan entry in wizard
+window.addWizardLoan = () => {
+    const wrap = document.getElementById('wiz-loans-wrap');
+    const count = wrap.querySelectorAll('.wiz-loan-entry').length;
+    if (count >= 10) return;
+    const div = document.createElement('div');
+    div.className = 'wiz-loan-entry';
+    div.style.cssText = 'background:var(--bg3); border:1px solid var(--border2); border-radius:12px; padding:14px; margin-bottom:10px;';
+    div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:12px; font-weight:600; color:var(--text2);">Loan ${count + 1}</span>
+            <button type="button" onclick="this.closest('.wiz-loan-entry').remove()" style="background:var(--red-dim); border:1px solid var(--red); border-radius:var(--radius-sm); padding:4px 10px; color:var(--red); font-size:14px; cursor:pointer;">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div style="grid-column:1/-1;">
+                <label style="display:block; font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Loan Name</label>
+                <input class="ainp wiz-loan-name" style="margin-bottom:0;" placeholder="e.g. SBI Home Loan, HDFC Car Loan">
+            </div>
+            <div>
+                <label style="display:block; font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Type</label>
+                <select class="ainp wiz-loan-type" style="margin-bottom:0;">
+                    <option value="home">🏠 Home Loan</option>
+                    <option value="car">🚗 Car Loan</option>
+                    <option value="personal">💰 Personal Loan</option>
+                    <option value="education">🎓 Education Loan</option>
+                    <option value="credit-card">💳 Credit Card</option>
+                    <option value="other">📋 Other</option>
+                </select>
+            </div>
+            <div>
+                <label style="display:block; font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Outstanding (₹)</label>
+                <input type="number" class="ainp wiz-loan-outstanding" min="0" style="margin-bottom:0;" placeholder="0">
+            </div>
+            <div>
+                <label style="display:block; font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Monthly EMI (₹)</label>
+                <input type="number" class="ainp wiz-loan-emi" min="0" style="margin-bottom:0;" placeholder="0">
+            </div>
+            <div>
+                <label style="display:block; font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Interest Rate (%)</label>
+                <input type="number" class="ainp wiz-loan-rate" min="0" step="0.1" style="margin-bottom:0;" placeholder="0">
+            </div>
+        </div>`;
+    wrap.appendChild(div);
+};
+
 // Complete profile wizard — collect all data and save
 window.completeProfileWizard = async () => {
     const age = parseInt(document.getElementById('wiz-age')?.value) || 0;
@@ -6664,12 +6694,19 @@ window.completeProfileWizard = async () => {
     const goldValue = parseFloat(document.getElementById('wiz-gold')?.value) || 0;
     const cashValue = parseFloat(document.getElementById('wiz-cash')?.value) || 0;
     
-    // Liabilities
-    const loanHome = parseFloat(document.getElementById('wiz-loan-home')?.value) || 0;
-    const loanCar = parseFloat(document.getElementById('wiz-loan-car')?.value) || 0;
-    const loanPersonal = parseFloat(document.getElementById('wiz-loan-personal')?.value) || 0;
-    const loanEducation = parseFloat(document.getElementById('wiz-loan-education')?.value) || 0;
-    const loanCC = parseFloat(document.getElementById('wiz-loan-cc')?.value) || 0;
+    // Liabilities (dynamic loan entries)
+    const loanEntries = document.querySelectorAll('.wiz-loan-entry');
+    const wizLoans = [];
+    loanEntries.forEach(entry => {
+        const name = entry.querySelector('.wiz-loan-name')?.value?.trim() || '';
+        const type = entry.querySelector('.wiz-loan-type')?.value || 'other';
+        const outstanding = parseFloat(entry.querySelector('.wiz-loan-outstanding')?.value) || 0;
+        const emi = parseFloat(entry.querySelector('.wiz-loan-emi')?.value) || 0;
+        const rate = parseFloat(entry.querySelector('.wiz-loan-rate')?.value) || 0;
+        if (name && outstanding > 0) {
+            wizLoans.push({ name, type, outstanding, emi, rate });
+        }
+    });
     
     // Goals & Risk
     const goals = [...document.querySelectorAll('#wiz-goals .goal-option.selected')].map(el => el.dataset.goal);
@@ -6703,40 +6740,43 @@ window.completeProfileWizard = async () => {
         if (marital === 'married' && spouseName) familyMembers.push({ id: 'spouse', name: spouseName, role: 'spouse' });
         kids.forEach((k, i) => familyMembers.push({ id: 'kid-' + (i + 1), name: k, role: 'kid' }));
         
-        // Build expenses
+        // Build expenses (dashboard uses 'label' and 'v')
         const expenseEntries = [];
-        if (expHousing > 0) expenseEntries.push({ n: 'Housing/Rent', v: expHousing, c: 'housing' });
-        if (expFood > 0) expenseEntries.push({ n: 'Food & Groceries', v: expFood, c: 'food' });
-        if (expTransport > 0) expenseEntries.push({ n: 'Transport', v: expTransport, c: 'transport' });
-        if (expEducation > 0) expenseEntries.push({ n: 'Education', v: expEducation, c: 'education' });
-        if (expHealthcare > 0) expenseEntries.push({ n: 'Healthcare', v: expHealthcare, c: 'healthcare' });
-        if (expLifestyle > 0) expenseEntries.push({ n: 'Lifestyle & Entertainment', v: expLifestyle, c: 'lifestyle' });
-        if (expInvestments > 0) expenseEntries.push({ n: 'Investments/SIPs', v: expInvestments, c: 'investments' });
-        if (expMisc > 0) expenseEntries.push({ n: 'Miscellaneous', v: expMisc, c: 'misc' });
+        if (expHousing > 0) expenseEntries.push({ id: 'exp-'+Date.now(), label: 'Housing/Rent', v: expHousing, c: 'housing' });
+        if (expFood > 0) expenseEntries.push({ id: 'exp-'+(Date.now()+1), label: 'Food & Groceries', v: expFood, c: 'food' });
+        if (expTransport > 0) expenseEntries.push({ id: 'exp-'+(Date.now()+2), label: 'Transport', v: expTransport, c: 'transport' });
+        if (expEducation > 0) expenseEntries.push({ id: 'exp-'+(Date.now()+3), label: 'Education', v: expEducation, c: 'education' });
+        if (expHealthcare > 0) expenseEntries.push({ id: 'exp-'+(Date.now()+4), label: 'Healthcare', v: expHealthcare, c: 'healthcare' });
+        if (expLifestyle > 0) expenseEntries.push({ id: 'exp-'+(Date.now()+5), label: 'Lifestyle & Entertainment', v: expLifestyle, c: 'lifestyle' });
+        if (expInvestments > 0) expenseEntries.push({ id: 'exp-'+(Date.now()+6), label: 'Investments/SIPs', v: expInvestments, c: 'investments' });
+        if (expMisc > 0) expenseEntries.push({ id: 'exp-'+(Date.now()+7), label: 'Miscellaneous', v: expMisc, c: 'misc' });
         
         const now = new Date();
         const currentMonthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
         
-        // Build loans
-        const loans = [];
-        if (loanHome > 0) loans.push({ name: 'Home Loan', outstanding: loanHome, emi: 0, rate: 0, type: 'home' });
-        if (loanCar > 0) loans.push({ name: 'Car Loan', outstanding: loanCar, emi: 0, rate: 0, type: 'car' });
-        if (loanPersonal > 0) loans.push({ name: 'Personal Loan', outstanding: loanPersonal, emi: 0, rate: 0, type: 'personal' });
-        if (loanEducation > 0) loans.push({ name: 'Education Loan', outstanding: loanEducation, emi: 0, rate: 0, type: 'education' });
-        if (loanCC > 0) loans.push({ name: 'Credit Card Debt', outstanding: loanCC, emi: 0, rate: 0, type: 'credit-card' });
+        // Build loans from dynamic entries (dashboard uses 'label')
+        const loans = wizLoans.map((l, i) => ({
+            id: 'loan-' + (Date.now() + i),
+            label: l.name,
+            outstanding: l.outstanding,
+            emi: l.emi,
+            rate: l.rate,
+            type: l.type
+        }));
         
-        // Build investments
+        // Build investments (dashboard uses 'name' and 'value')
         const investments = {
-            mutualFunds: mfValue > 0 ? [{ name: 'Mutual Funds', currentValue: mfValue, investedValue: mfValue }] : [],
-            stocks: stocksValue > 0 ? [{ name: 'Stocks Portfolio', currentValue: stocksValue, investedValue: stocksValue }] : [],
-            fd: fdValue > 0 ? [{ name: 'Fixed Deposit', principal: fdValue, rate: 7, tenure: 12 }] : [],
-            ppf: ppfValue > 0 ? [{ name: 'PPF/EPF', balance: ppfValue }] : []
+            mutualFunds: mfValue > 0 ? [{ name: 'Mutual Funds', value: mfValue }] : [],
+            stocks: stocksValue > 0 ? [{ name: 'Stocks Portfolio', value: stocksValue }] : [],
+            fd: fdValue > 0 ? [{ name: 'Fixed Deposit', value: fdValue, rate: 7, tenure: 12 }] : [],
+            ppf: ppfValue > 0 ? [{ name: 'PPF/EPF', value: ppfValue }] : []
         };
         
         // Build complete userData
         userData = {
             profile: {
                 name: fullName, firstName, lastName, phone,
+                whatsapp_number: phone,
                 age, gender, occupation, city,
                 maritalStatus: marital, spouseName,
                 kids, familyMembers,
@@ -8257,8 +8297,8 @@ window.testWhatsAppReminder = async () => {
         return;
     }
     
-    // Check if user has WhatsApp number
-    const whatsappNumber = userData.profile?.whatsapp_number;
+    // Check if user has WhatsApp number (fall back to registration phone)
+    const whatsappNumber = userData.profile?.whatsapp_number || userData.profile?.phone;
     
     if (!whatsappNumber) {
         if (confirm('No WhatsApp number found in your profile. Would you like to add one now?')) {
@@ -11044,15 +11084,19 @@ function renderSettings() {
         familyHtml += `</div>
             <button type="button" class="add-btn" onclick="addSettingsKidField()" style="margin-top:0;">➕ Add Kid</button>`;
 
-        // Parse existing WhatsApp number
-        const existingWhatsApp = p.whatsapp_number || '';
+        // Parse existing WhatsApp number (fall back to registration phone)
+        const existingWhatsApp = p.whatsapp_number || p.phone || '';
         let countryCode = '+91';
         let phoneNumber = '';
         if (existingWhatsApp) {
-            const match = existingWhatsApp.match(/^(\+\d+)(\d+)$/);
+            // Match country codes: +1 to +999 (1-3 digits), rest is phone number
+            const match = existingWhatsApp.match(/^(\+\d{1,3})(\d{4,})$/);
             if (match) {
                 countryCode = match[1];
                 phoneNumber = match[2];
+            } else {
+                // If no match, treat entire string as phone number
+                phoneNumber = existingWhatsApp.replace(/^\+/, '');
             }
         }
 
