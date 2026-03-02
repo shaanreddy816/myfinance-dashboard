@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { callAIWithFallback } from '../lib/api/aiRouter.js';
 import { deterministicProjection } from '../lib/api/deterministic.js';
 import { sendWhatsAppMessage, sendTestMessage, formatConsolidatedReminder, formatIndividualReminder } from '../lib/api/whatsapp.js';
+import rateLimiter from '../lib/api/rateLimit.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -20,9 +21,10 @@ export default async function handler(req, res) {
     req.query[key] = value;
   }
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || 'https://famledgerai.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-User-Id');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -109,6 +111,19 @@ async function safeQuery(query) {
 
 async function handleAdvice(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  
+  // Rate limiting: 5 requests per hour per user
+  const userId = req.headers['x-user-id'] || req.body?.userId || 'anonymous';
+  const rateLimitKey = `ai:advice:${userId}`;
+  
+  if (!rateLimiter.isAllowed(rateLimitKey, 5, 3600000)) {
+    const retryAfter = rateLimiter.getRetryAfter(rateLimitKey, 3600000);
+    return res.status(429).json({ 
+      error: 'Too many AI advice requests. Please try again later.',
+      retryAfter: retryAfter
+    });
+  }
+  
   const metrics = req.body;
 
   const prompt = `You are a certified financial advisor AI. Provide personalized financial advice for an Indian user based on the following metrics:
