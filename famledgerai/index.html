@@ -8556,8 +8556,8 @@ function renderLoans() {
         `💡 EMI load is within safe limits (${pct(dr)}). Consider prepaying high-interest loans to reduce total interest paid.`;
 
     const tableHtml = loans.length ? `
-        <div class="table-scroll-wrapper" style="position: relative; width: 100%; overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; margin: 0 -20px; padding: 0 20px;">
-            <table class="data-table" style="min-width: 1200px; margin-bottom: 0; width: auto;">
+        <div style="width: 100%; overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; padding: 0 20px;">
+            <table class="data-table" style="min-width: 1200px; margin-bottom: 0;">
                 <thead><tr>
                     <th style="min-width: 150px;">Lender / Type</th>
                     <th style="min-width: 110px;">Sanctioned</th>
@@ -8601,14 +8601,16 @@ function renderLoans() {
                 </tbody>
             </table>
         </div>
-        <div style="font-size: 11px; color: var(--text3); margin-top: 12px; text-align: center; padding: 8px; background: var(--bg3); border-radius: var(--radius-sm);">
+        <div style="font-size: 11px; color: var(--text3); margin-top: 12px; text-align: center; padding: 0 20px 8px; background: var(--bg3); border-radius: var(--radius-sm); margin-left: 20px; margin-right: 20px;">
             👈 Swipe or scroll left/right to see all columns 👉
         </div>
-        ${editMode ? `<button class="add-btn" onclick="addLoan()" style="margin-top: 12px;">➕ Add Loan</button>` : ''}
+        ${editMode ? `<div style="padding: 0 20px;"><button class="add-btn" onclick="addLoan()" style="margin-top: 12px;">➕ Add Loan</button></div>` : ''}
     ` : `
+        <div style="padding: 0 20px;">
         ${editMode
             ? `<p style="color:var(--text3); font-size:13px; padding-bottom:12px;">No loans added.</p><button class="add-btn" onclick="addLoan()">➕ Add Loan</button>`
             : emptyStateInline('No loans recorded','✅ Great — or add your loans using the Edit button.')}
+        </div>
     `;
 
     // Per-loan detail cards (interest/principal paid breakdown)
@@ -8704,8 +8706,9 @@ function renderLoans() {
             <div id="loan-pdf-status" style="margin-top:10px; font-size:12px;"></div>
         </div>
 
-        <div class="card">
-            <div class="card-title"><span class="icon">💳</span> Active Loans</div>
+        <!-- Active Loans Table - Scrollable -->
+        <div class="card" style="padding: 20px 0;">
+            <div class="card-title" style="padding: 0 20px 16px;"><span class="icon">💳</span> Active Loans</div>
             ${tableHtml}
         </div>
         ${detailCards}
