@@ -8555,10 +8555,11 @@ function renderLoans() {
         `💡 EMI load is within safe limits (${pct(dr)}). Consider prepaying high-interest loans to reduce total interest paid.`;
 
     const tableHtml = loans.length ? `
+        <div style="overflow-x: auto; margin-bottom: 16px;">
         <table class="data-table">
             <thead><tr>
                 <th>Lender / Type</th><th>Sanctioned Amt</th><th>Outstanding</th><th>EMI / Mo</th><th>Rate %</th><th>Tenure</th><th>Remaining</th><th>% of Income</th>
-                ${editMode?'<th></th>':''}
+                ${editMode?'<th>Actions</th>':''}
             </tr></thead>
             <tbody>
             ${loans.map((l,i)=>`
@@ -8572,7 +8573,7 @@ function renderLoans() {
                         <td><input class="edit-input" type="number" value="${l.tenureMonths||0}" onchange="updateLoan(${i},'tenureMonths',this.value)" style="width:80px;" placeholder="months"></td>
                         <td><input class="edit-input" type="number" value="${l.remainingMonths||0}" onchange="updateLoan(${i},'remainingMonths',this.value)" style="width:80px;" placeholder="months"></td>
                         <td>—</td>
-                        <td><button class="del-btn" onclick="deleteLoan(${i})">🗑</button></td>
+                        <td><button class="del-btn" onclick="deleteLoan(${i})" title="Delete loan">🗑</button></td>
                     ` : `
                         <td>
                             <div>${l.label||'—'}</div>
@@ -8591,6 +8592,7 @@ function renderLoans() {
             `).join('')}
             </tbody>
         </table>
+        </div>
         ${editMode ? `<button class="add-btn" onclick="addLoan()">➕ Add Loan</button>` : ''}
     ` : `
         ${editMode
