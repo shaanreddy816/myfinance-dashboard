@@ -9483,48 +9483,84 @@ window.getLoanAdvice = async () => {
     btn.innerHTML = '<i class="fas fa-brain"></i> Get AI Payoff Strategy';
 };
 
-// ========== INSURANCE PAGE ==========
+// ========== INSURANCE PAGE (Enhanced Health Insurance Module) ==========
+// SHA-256 hash for policy numbers (browser crypto)
+async function hashPolicyNumber(text) {
+    const enc = new TextEncoder().encode(text);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Insurance detail view state
+let insDetailView = null; // null = list view, policyId = detail view
+let insClaimsCache = {};
+
 function renderInsurance() {
+    if (insDetailView) { renderInsuranceDetail(insDetailView); return; }
     if (!userData.insurance) userData.insurance = {};
     const ins = userData.insurance;
     const members = userData.profile.familyMembers || [{ id:'self', name: userData.profile.name||'Me', role:'self' }];
     const isAll = currentProfile === 'all';
     
     const categories = [
-        { key:'term',    label:'Term Insurance',    icon:'🛡️' },
-        { key:'life',    label:'Life Insurance',    icon:'�' },
-        { key:'health',  label:'Health Insurance',  icon:'�' },
-        { key:'vehicle', label:'Vehicle Insurance', icon:'🚗' },
-        { key:'home',    label:'Home Insurance',    icon:'🏠' }
+        { key:'term',    label:'Term Insurance',    icon:'🛡️', color:'var(--green)' },
+        { key:'life',    label:'Life Insurance',    icon:'💚', color:'var(--accent)' },
+        { key:'health',  label:'Health Insurance',  icon:'🏥', color:'var(--purple)' },
+        { key:'vehicle', label:'Vehicle Insurance', icon:'🚗', color:'var(--yellow)' },
+        { key:'home',    label:'Home Insurance',    icon:'🏠', color:'var(--accent2)' }
     ];
 
     const cardsHtml = categories.map(cat=>{
         const allItems = ins[cat.key] || [];
-        // Filter by current profile
         const items = isAll ? allItems : allItems.filter(item => (item.member || 'self') === currentProfile);
         const catCover = items.reduce((s,f)=>s+(f.cover||0),0);
         
         const rowsHtml = items.map((item,i)=>{
             const globalIdx = allItems.indexOf(item);
             const memberName = getMemberName(item.member || 'self');
+            const daysToRenewal = item.renewal_date ? Math.ceil((new Date(item.renewal_date) - new Date()) / 86400000) : null;
+            const renewalBadge = daysToRenewal !== null && daysToRenewal <= 30 && daysToRenewal > 0
+                ? `<span style="background:var(--red-dim);color:var(--red);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;">⚠️ RENEW IN ${daysToRenewal}d</span>`
+                : daysToRenewal !== null && daysToRenewal <= 0
+                ? `<span style="background:var(--red-dim);color:var(--red);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;">EXPIRED</span>`
+                : '';
+            const utilizationPct = item.sum_insured && item.utilization?.amount_used_till_date
+                ? Math.min(100, (item.utilization.amount_used_till_date / item.sum_insured * 100)).toFixed(0)
+                : null;
+
             return `
-            <div class="row-flex">
+            <div class="row-flex" style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
                 ${editMode ? `
                     <input class="edit-input-text" value="${item.label||''}" onchange="updateInsurance('${cat.key}',${globalIdx},'label',this.value)" style="max-width:180px;">
                     <div style="display:flex;gap:6px;align-items:center;">
-                        <input class="edit-input" type="number" value="${item.cover||0}" placeholder="Cover ₹" onchange="updateInsurance('${cat.key}',${globalIdx},'cover',this.value)" style="width:120px;">
-                        <input class="edit-input" type="number" value="${item.premium||0}" placeholder="Premium/yr" onchange="updateInsurance('${cat.key}',${globalIdx},'premium',this.value)" style="width:110px;">
-                        <button class="del-btn" onclick="deleteInsurance('${cat.key}',${globalIdx})">🗑</button>
+                        <input class="edit-input" type="number" value="${item.cover||0}" placeholder="Cover" onchange="updateInsurance('${cat.key}',${globalIdx},'cover',this.value)" style="width:110px;">
+                        <input class="edit-input" type="number" value="${item.premium||0}" placeholder="Premium/yr" onchange="updateInsurance('${cat.key}',${globalIdx},'premium',this.value)" style="width:100px;">
+                        <button class="del-btn" onclick="deleteInsurance('${cat.key}',${globalIdx})" title="Delete"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 ` : `
-                    <div>
-                        <span class="row-label">${item.label||'—'}</span>
+                    <div style="flex:1; cursor:pointer;" onclick="viewInsuranceDetail('${cat.key}',${globalIdx})">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span class="row-label" style="font-size:13px;">${item.label||'—'}</span>
+                            ${renewalBadge}
+                        </div>
                         ${isAll ? `<div style="font-size:10px;color:var(--accent2);">${memberName}</div>` : ''}
-                        ${item.insurer ? `<div style="font-size:10px;color:var(--text3);">${item.insurer}${item.policyNo?' · #'+item.policyNo:''}${item.expiry?' · Exp: '+item.expiry:''}</div>` : ''}
+                        <div style="font-size:10px;color:var(--text3);">
+                            ${item.insurer||''} ${item.policyNo ? '· #'+item.policyNo.slice(-4)+'***' : ''}
+                            ${item.renewal_date ? '· Renew: '+item.renewal_date : (item.expiry ? '· Exp: '+item.expiry : '')}
+                        </div>
+                        ${item.members && item.members.length > 0 ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">👥 ${item.members.length} member${item.members.length>1?'s':''}: ${item.members.map(m=>m.name||m.relationship).join(', ')}</div>` : ''}
                     </div>
-                    <div style="text-align:right;">
-                        <div class="row-value">${fl(item.cover||0)} cover</div>
-                        <div style="font-size:11px; color:var(--text3);">₹${(item.premium||0).toLocaleString('en-IN')}/yr</div>
+                    <div style="text-align:right; flex-shrink:0;">
+                        <div class="row-value" style="font-size:14px;">${fl(item.cover||item.sum_insured||0)}</div>
+                        <div style="font-size:10px; color:var(--text3);">₹${(item.premium||item.premium_amount||0).toLocaleString('en-IN')}/${item.premium_frequency||'yr'}</div>
+                        ${utilizationPct !== null ? `
+                            <div style="margin-top:4px;">
+                                <div style="width:60px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;display:inline-block;vertical-align:middle;">
+                                    <div style="width:${utilizationPct}%;height:100%;border-radius:2px;background:${utilizationPct>70?'var(--red)':utilizationPct>40?'var(--yellow)':'var(--green)'};"></div>
+                                </div>
+                                <span style="font-size:9px;color:var(--text3);margin-left:4px;">${utilizationPct}% used</span>
+                            </div>
+                        ` : ''}
                     </div>
                 `}
             </div>
@@ -9533,10 +9569,10 @@ function renderInsurance() {
             <div class="card">
                 <div class="card-title">
                     <span class="icon">${cat.icon}</span> ${cat.label}
-                    <span style="margin-left:auto; font-family:var(--mono);">${fl(catCover)}</span>
+                    <span style="margin-left:auto; font-family:var(--mono); font-size:13px;">${fl(catCover)}</span>
                 </div>
                 ${rowsHtml || `<p style="color:var(--text3); font-size:12px; padding:8px 0;">No policies added.</p>`}
-                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
                     <button class="add-btn" onclick="showAddInsuranceModal('${cat.key}')" style="flex:1;">➕ Add Manually</button>
                     <input type="file" id="ins-pdf-${cat.key}" accept=".pdf" style="display:none;" onchange="handleInsurancePdfUpload(this,'${cat.key}')">
                     <button class="add-btn" onclick="document.getElementById('ins-pdf-${cat.key}').click()" style="flex:1;">📄 Upload PDF</button>
@@ -9546,25 +9582,43 @@ function renderInsurance() {
         `;
     }).join('');
 
-    // Calculate totals based on current profile
+    // Calculate totals
     const allTermLife = [...(ins.term||[]),...(ins.life||[])];
     const filteredTermLife = isAll ? allTermLife : allTermLife.filter(p => (p.member || 'self') === currentProfile);
     const totalTermCover  = filteredTermLife.reduce((s,f)=>s+(f.cover||0),0);
     
     const allHealth = ins.health || [];
     const filteredHealth = isAll ? allHealth : allHealth.filter(p => (p.member || 'self') === currentProfile);
-    const totalHealthCover = filteredHealth.reduce((s,f)=>s+(f.cover||0),0);
+    const totalHealthCover = filteredHealth.reduce((s,f)=>s+(f.cover||f.sum_insured||0),0);
     
     const allPolicies = categories.flatMap(c => {
         const catItems = ins[c.key]||[];
         return isAll ? catItems : catItems.filter(p => (p.member || 'self') === currentProfile);
     });
-    const totalPremium = allPolicies.reduce((s,f)=>s+(f.premium||0),0);
+    const totalPremium = allPolicies.reduce((s,f)=>s+(f.premium||f.premium_amount||0),0);
     
     const annInc          = computeMonthlyIncome()*12;
     const recommended     = annInc*12;
     const gap             = Math.max(0, recommended - totalTermCover);
-    userData.termCover    = [...(ins.term||[]),...(ins.life||[])].reduce((s,f)=>s+(f.cover||0),0); // Global term cover
+    userData.termCover    = [...(ins.term||[]),...(ins.life||[])].reduce((s,f)=>s+(f.cover||0),0);
+
+    // Health insurance adequacy
+    const dependents = (userData.profile.familyMembers || []).length;
+    const recommendedHealth = 1000000 + (dependents * 200000);
+    const healthGap = Math.max(0, recommendedHealth - totalHealthCover);
+    userData.healthCover = totalHealthCover;
+
+    // Renewal alerts
+    const renewalAlerts = allPolicies.filter(p => {
+        const d = p.renewal_date || p.expiry;
+        if (!d) return false;
+        const days = Math.ceil((new Date(d) - new Date()) / 86400000);
+        return days > 0 && days <= 30;
+    });
+
+    // Total utilization
+    const totalUtilized = allHealth.reduce((s, p) => s + (p.utilization?.amount_used_till_date || 0), 0);
+    const totalAvailable = totalHealthCover - totalUtilized;
 
     const irPct = computeInsuranceRatio();
     const memberLabel = isAll ? 'Family' : getMemberName(currentProfile);
@@ -9574,17 +9628,34 @@ function renderInsurance() {
         ? `✅ ${memberLabel}'s term/life coverage is adequate (${fl(totalTermCover)} vs recommended ${fl(recommended)}).`
         : `⚠️ ${memberLabel} has coverage gap of ${fl(gap)}. Increase cover to ${fl(recommended)} (12× annual income).`;
 
+    const healthInsight = totalHealthCover === 0
+        ? `⚠️ No health insurance recorded. Recommended: ₹${(recommendedHealth/100000).toFixed(0)}L (₹10L base + ₹2L per dependent).`
+        : totalHealthCover >= recommendedHealth
+        ? `✅ Health coverage adequate (${fl(totalHealthCover)} vs recommended ${fl(recommendedHealth)}).`
+        : `⚠️ Health coverage gap of ${fl(healthGap)}. Recommended: ₹${(recommendedHealth/100000).toFixed(0)}L for your family.`;
+
     sh('page-insurance', `
+        ${renewalAlerts.length > 0 ? `
+        <div class="card" style="background:linear-gradient(135deg, var(--red-dim), rgba(244,73,92,0.05)); border-color:var(--red); margin-bottom:18px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:24px;">⚠️</span>
+                <div>
+                    <div style="font-size:14px;font-weight:700;color:var(--red);">${renewalAlerts.length} Policy Renewal${renewalAlerts.length>1?'s':''} Due Soon</div>
+                    <div style="font-size:12px;color:var(--text2);margin-top:2px;">${renewalAlerts.map(p => `${p.label||p.insurer} — ${p.renewal_date||p.expiry}`).join(' · ')}</div>
+                </div>
+            </div>
+        </div>` : ''}
+
         <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card ${irPct<0.5?'red':irPct<1?'yellow':'green'}">
                 <div class="kpi-label">${memberLabel} Term / Life Cover</div>
                 <div class="kpi-value">${fl(totalTermCover)}</div>
                 <div class="kpi-sub">${filteredTermLife.length} policies</div>
             </div>
-            <div class="kpi-card">
+            <div class="kpi-card purple">
                 <div class="kpi-label">${memberLabel} Health Cover</div>
                 <div class="kpi-value">${fl(totalHealthCover)}</div>
-                <div class="kpi-sub">${filteredHealth.length} policies</div>
+                <div class="kpi-sub">${filteredHealth.length} policies${totalUtilized > 0 ? ' · '+fl(totalUtilized)+' used' : ''}</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">${memberLabel} Total Policies</div>
@@ -9595,31 +9666,79 @@ function renderInsurance() {
                     return filtered.length > 0;
                 }).length} categories</div>
             </div>
-            <div class="kpi-card purple">
+            <div class="kpi-card yellow">
                 <div class="kpi-label">${memberLabel} Total Premium</div>
                 <div class="kpi-value">${fl(totalPremium)}</div>
-                <div class="kpi-sub">per year</div>
+                <div class="kpi-sub">per year · ${pct(annInc > 0 ? totalPremium/annInc : 0)} of income</div>
             </div>
         </div>
-        <div class="insight-box" style="margin-bottom:18px;">${insInsight}</div>
+
+        <div class="grid-2" style="margin-bottom:18px;">
+            <div class="insight-box">${insInsight}</div>
+            <div class="insight-box">${healthInsight}</div>
+        </div>
+
+        ${totalHealthCover > 0 ? `
+        <div class="card" style="margin-bottom:18px;">
+            <div class="card-title"><span class="icon">📊</span> Health Insurance Utilization</div>
+            <div class="grid-3">
+                <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Sum Insured</div>
+                    <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--text);margin-top:4px;">${fl(totalHealthCover)}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Used</div>
+                    <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--red);margin-top:4px;">${fl(totalUtilized)}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Available</div>
+                    <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--green);margin-top:4px;">${fl(totalAvailable)}</div>
+                </div>
+            </div>
+            <div class="progress-bar" style="height:8px;margin-top:14px;">
+                <div class="progress-fill" style="width:${totalHealthCover > 0 ? (totalUtilized/totalHealthCover*100).toFixed(1) : 0}%;background:${totalUtilized/totalHealthCover > 0.7 ? 'var(--red)' : totalUtilized/totalHealthCover > 0.4 ? 'var(--yellow)' : 'var(--green)'};"></div>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;text-align:right;">${totalHealthCover > 0 ? (totalUtilized/totalHealthCover*100).toFixed(1) : 0}% utilized</div>
+        </div>` : ''}
+
         <div class="grid-2">${cardsHtml}</div>
 
-        <!-- Add Insurance Modal -->
-        <div id="ins-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;display:none;align-items:center;justify-content:center;">
-            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:90%;max-width:420px;">
-                <h3 style="margin:0 0 16px;color:var(--text);">Add Insurance Policy</h3>
-                <input id="ins-m-label" class="ainp" placeholder="Policy name (e.g. Tata AIA Term Plan)" style="margin-bottom:8px;">
-                <input id="ins-m-insurer" class="ainp" placeholder="Insurer (e.g. Tata AIA, HDFC Ergo)" style="margin-bottom:8px;">
-                <input id="ins-m-policyno" class="ainp" placeholder="Policy number (optional)" style="margin-bottom:8px;">
-                <div style="display:flex;gap:8px;margin-bottom:8px;">
-                    <input id="ins-m-cover" class="ainp" type="number" placeholder="Cover amount ₹" style="flex:1;">
-                    <input id="ins-m-premium" class="ainp" type="number" placeholder="Premium/yr ₹" style="flex:1;">
+        <!-- Enhanced Add Insurance Modal -->
+        <div id="ins-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;">
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;width:92%;max-width:520px;max-height:90vh;overflow-y:auto;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h3 style="margin:0;color:var(--text);font-size:16px;">Add Insurance Policy</h3>
+                    <button onclick="closeInsModal()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;">✕</button>
                 </div>
-                <input id="ins-m-expiry" class="ainp" type="date" placeholder="Expiry date" style="margin-bottom:16px;">
-                <input id="ins-m-cat" type="hidden">
-                <div style="display:flex;gap:8px;justify-content:flex-end;">
-                    <button class="secondary-btn" onclick="closeInsModal()">Cancel</button>
-                    <button class="primary-btn" onclick="saveInsModal()">Save Policy</button>
+                <div style="display:grid;gap:10px;">
+                    <input id="ins-m-label" class="ainp" placeholder="Policy name (e.g. HDFC Ergo Optima Secure)">
+                    <input id="ins-m-insurer" class="ainp" placeholder="Insurer (e.g. HDFC ERGO, Star Health)">
+                    <input id="ins-m-policyno" class="ainp" placeholder="Policy number (stored hashed — never saved in plain text)">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Sum Insured (₹)</label><input id="ins-m-cover" class="ainp" type="number" placeholder="e.g. 1000000"></div>
+                        <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Premium (₹/yr)</label><input id="ins-m-premium" class="ainp" type="number" placeholder="e.g. 25000"></div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Deductible (₹)</label><input id="ins-m-deductible" class="ainp" type="number" placeholder="0"></div>
+                        <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Premium Frequency</label>
+                            <select id="ins-m-freq" class="ainp" style="width:100%;"><option value="annual">Annual</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                        <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Start Date</label><input id="ins-m-start" class="ainp" type="date"></div>
+                        <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">End Date</label><input id="ins-m-end" class="ainp" type="date"></div>
+                        <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Renewal Date</label><input id="ins-m-renewal" class="ainp" type="date"></div>
+                    </div>
+                    <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Amount Used Till Date (₹)</label><input id="ins-m-utilized" class="ainp" type="number" placeholder="0"></div>
+                    <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Members Covered (comma-separated names)</label><input id="ins-m-members" class="ainp" placeholder="e.g. Self, Spouse, Child1"></div>
+                    <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Waiting Periods / Notes</label><textarea id="ins-m-waiting" class="ainp" rows="2" placeholder="e.g. PED: 3 years, Maternity: 4 years"></textarea></div>
+                    <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Exclusions / Notes</label><textarea id="ins-m-exclusions" class="ainp" rows="2" placeholder="e.g. Pre-existing conditions, cosmetic surgery"></textarea></div>
+                    <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Network Hospital Locator Link</label><input id="ins-m-locator" class="ainp" placeholder="https://..."></div>
+                    <input id="ins-m-cat" type="hidden">
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+                        <button class="secondary-btn" onclick="closeInsModal()">Cancel</button>
+                        <button class="primary-btn" onclick="saveInsModal()">Save Policy</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -9627,13 +9746,15 @@ function renderInsurance() {
 }
 
 window.updateInsurance = (cat, i, field, val) => {
-    userData.insurance[cat][i][field] = ['cover','premium'].includes(field) ? num(val) : val;
-    userData.termCover = (userData.insurance.term||[]).reduce((s,f)=>s+(f.cover||0),0);
+    userData.insurance[cat][i][field] = ['cover','premium','sum_insured','premium_amount','deductible'].includes(field) ? num(val) : val;
+    userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
+    userData.healthCover = (userData.insurance.health||[]).reduce((s,f)=>s+(f.cover||f.sum_insured||0),0);
     debounceSave(); renderInsurance();
 };
 window.deleteInsurance = (cat, i) => {
     userData.insurance[cat].splice(i,1);
-    userData.termCover = (userData.insurance.term||[]).reduce((s,f)=>s+(f.cover||0),0);
+    userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
+    userData.healthCover = (userData.insurance.health||[]).reduce((s,f)=>s+(f.cover||f.sum_insured||0),0);
     debounceSave(); renderInsurance();
 };
 window.addInsurance = cat => {
@@ -9650,29 +9771,226 @@ window.closeInsModal = () => {
     const m = document.getElementById('ins-modal');
     if(m) m.style.display='none';
 };
-window.saveInsModal = () => {
-    const cat      = document.getElementById('ins-m-cat').value;
-    const label    = document.getElementById('ins-m-label').value.trim();
-    const insurer  = document.getElementById('ins-m-insurer').value.trim();
-    const policyNo = document.getElementById('ins-m-policyno').value.trim();
-    const cover    = num(document.getElementById('ins-m-cover').value);
-    const premium  = num(document.getElementById('ins-m-premium').value);
-    const expiry   = document.getElementById('ins-m-expiry').value;
-    if(!label) { alert('Please enter a policy name.'); return; }
+window.saveInsModal = async () => {
+    const cat        = document.getElementById('ins-m-cat').value;
+    const label      = document.getElementById('ins-m-label').value.trim();
+    const insurer    = document.getElementById('ins-m-insurer').value.trim();
+    const policyNo   = document.getElementById('ins-m-policyno').value.trim();
+    const cover      = num(document.getElementById('ins-m-cover').value);
+    const premium    = num(document.getElementById('ins-m-premium').value);
+    const deductible = num(document.getElementById('ins-m-deductible')?.value || 0);
+    const freq       = document.getElementById('ins-m-freq')?.value || 'annual';
+    const startDate  = document.getElementById('ins-m-start')?.value || '';
+    const endDate    = document.getElementById('ins-m-end')?.value || '';
+    const renewal    = document.getElementById('ins-m-renewal')?.value || '';
+    const utilized   = num(document.getElementById('ins-m-utilized')?.value || 0);
+    const membersStr = document.getElementById('ins-m-members')?.value || '';
+    const waiting    = document.getElementById('ins-m-waiting')?.value || '';
+    const exclusions = document.getElementById('ins-m-exclusions')?.value || '';
+    const locator    = document.getElementById('ins-m-locator')?.value || '';
+
+    if(!label) { showToast('Please enter a policy name.', 'red'); return; }
     if(!userData.insurance[cat]) userData.insurance[cat]=[];
+
+    // Hash policy number if provided
+    let policyHash = '';
+    if (policyNo) {
+        try { policyHash = await hashPolicyNumber(policyNo); } catch(e) { console.warn('Hash failed:', e); }
+    }
+
+    // Parse members
+    const members = membersStr ? membersStr.split(',').map(n => ({ name: n.trim(), relationship: '' })) : [];
+
     userData.insurance[cat].push({ 
-        id:'ins-'+Date.now(), 
-        label, 
-        insurer, 
-        policyNo, 
-        cover, 
-        premium, 
-        expiry,
-        member: currentProfile === 'all' ? 'self' : currentProfile
+        id: 'ins-'+Date.now(), 
+        label, insurer,
+        policyNo: policyNo ? '****' + policyNo.slice(-4) : '', // Only store last 4 digits
+        policy_number_hash: policyHash,
+        cover, sum_insured: cover,
+        premium, premium_amount: premium,
+        premium_frequency: freq,
+        deductible,
+        start_date: startDate,
+        end_date: endDate,
+        renewal_date: renewal,
+        expiry: endDate || renewal,
+        utilization: { amount_used_till_date: utilized, source: 'user_input' },
+        members,
+        waiting_periods: { notes: waiting },
+        exclusions: { notes: exclusions },
+        network_hospitals: { locator_link: locator },
+        member: currentProfile === 'all' ? 'self' : currentProfile,
+        source: 'user_input'
     });
     userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
+    userData.healthCover = (userData.insurance.health||[]).reduce((s,f)=>s+(f.cover||f.sum_insured||0),0);
     debounceSave();
     closeInsModal();
+    renderInsurance();
+    showToast(`✅ ${label} added successfully`, 'green');
+};
+
+// Insurance Detail View
+window.viewInsuranceDetail = (cat, idx) => {
+    const item = userData.insurance[cat]?.[idx];
+    if (!item) return;
+    insDetailView = { cat, idx };
+    renderInsurance();
+};
+
+function renderInsuranceDetail(view) {
+    const { cat, idx } = view;
+    const item = userData.insurance[cat]?.[idx];
+    if (!item) { insDetailView = null; renderInsurance(); return; }
+
+    const members = item.members || [];
+    const waiting = item.waiting_periods || {};
+    const exclusions = item.exclusions || {};
+    const utilization = item.utilization || {};
+    const network = item.network_hospitals || {};
+    const sumInsured = item.cover || item.sum_insured || 0;
+    const used = utilization.amount_used_till_date || 0;
+    const available = Math.max(0, sumInsured - used);
+    const usedPct = sumInsured > 0 ? (used / sumInsured * 100).toFixed(1) : 0;
+
+    const membersHtml = members.length > 0 ? members.map((m, i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div style="width:32px;height:32px;border-radius:50%;background:rgba(59,126,255,0.1);display:flex;align-items:center;justify-content:center;font-size:14px;">👤</div>
+            <div>
+                <div style="font-size:13px;color:var(--text);">${m.name || 'Member '+(i+1)}</div>
+                <div style="font-size:10px;color:var(--text3);">${m.relationship || '—'} ${m.dob ? '· DOB: '+m.dob : ''} ${m.gender || ''}</div>
+            </div>
+        </div>
+    `).join('') : '<p style="color:var(--text3);font-size:12px;">No members listed.</p>';
+
+    sh('page-insurance', `
+        <div style="margin-bottom:18px;">
+            <button class="snap-btn" onclick="insDetailView=null;renderInsurance();" style="margin-bottom:16px;">
+                <i class="fas fa-arrow-left"></i> Back to Policies
+            </button>
+        </div>
+
+        <div class="card" style="position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--purple));"></div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+                <div>
+                    <div style="font-size:18px;font-weight:700;color:var(--text);">${item.label || item.insurer || 'Policy'}</div>
+                    <div style="font-size:12px;color:var(--text3);margin-top:4px;">${item.insurer || ''} · ${item.policyNo ? '#'+item.policyNo : 'No policy #'}</div>
+                    <div style="display:flex;gap:6px;margin-top:8px;">
+                        ${badge(item.status || 'active', item.status === 'active' ? 'green' : 'red')}
+                        ${badge(cat, 'blue')}
+                        ${item.premium_frequency ? badge(item.premium_frequency, 'purple') : ''}
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Sum Insured</div>
+                    <div style="font-size:24px;font-weight:800;font-family:var(--mono);color:var(--accent);">${fl(sumInsured)}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-4" style="margin-bottom:18px;">
+            <div class="kpi-card green">
+                <div class="kpi-label">Premium</div>
+                <div class="kpi-value" style="font-size:18px;">${fl(item.premium || item.premium_amount || 0)}</div>
+                <div class="kpi-sub">per ${item.premium_frequency || 'year'}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Deductible</div>
+                <div class="kpi-value" style="font-size:18px;">${fl(item.deductible || 0)}</div>
+                <div class="kpi-sub">per claim</div>
+            </div>
+            <div class="kpi-card ${usedPct > 70 ? 'red' : usedPct > 40 ? 'yellow' : 'green'}">
+                <div class="kpi-label">Used / Available</div>
+                <div class="kpi-value" style="font-size:18px;">${fl(used)} / ${fl(available)}</div>
+                <div class="kpi-sub">${usedPct}% utilized</div>
+            </div>
+            <div class="kpi-card purple">
+                <div class="kpi-label">Renewal</div>
+                <div class="kpi-value" style="font-size:14px;">${item.renewal_date || item.expiry || '—'}</div>
+                <div class="kpi-sub">${item.start_date ? 'Since '+item.start_date : ''}</div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title"><span class="icon">👥</span> Covered Members (${members.length})</div>
+                ${membersHtml}
+                ${editMode ? `<button class="add-btn" onclick="addInsuranceMember('${cat}',${idx})" style="margin-top:8px;">➕ Add Member</button>` : ''}
+            </div>
+            <div class="card">
+                <div class="card-title"><span class="icon">⏳</span> Waiting Periods</div>
+                ${waiting.notes ? `<p style="font-size:12px;color:var(--text2);line-height:1.6;">${waiting.notes}</p>` : ''}
+                ${waiting.ped_wait_years ? `<div class="row-flex"><span class="row-label">PED Wait</span><span class="row-value">${waiting.ped_wait_years} years</span></div>` : ''}
+                ${waiting.initial_30_days !== undefined ? `<div class="row-flex"><span class="row-label">Initial 30 Days</span><span class="row-value">${waiting.initial_30_days ? 'Yes' : 'No'}</span></div>` : ''}
+                ${waiting.maternity_months ? `<div class="row-flex"><span class="row-label">Maternity</span><span class="row-value">${waiting.maternity_months} months</span></div>` : ''}
+                ${waiting.pre_hosp_days ? `<div class="row-flex"><span class="row-label">Pre-hospitalization</span><span class="row-value">${waiting.pre_hosp_days} days</span></div>` : ''}
+                ${waiting.post_hosp_days ? `<div class="row-flex"><span class="row-label">Post-hospitalization</span><span class="row-value">${waiting.post_hosp_days} days</span></div>` : ''}
+                ${!waiting.notes && !waiting.ped_wait_years ? '<p style="color:var(--text3);font-size:12px;">No waiting period info.</p>' : ''}
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title"><span class="icon">🚫</span> Exclusions</div>
+                ${exclusions.notes ? `<p style="font-size:12px;color:var(--text2);line-height:1.6;">${exclusions.notes}</p>` : '<p style="color:var(--text3);font-size:12px;">No exclusions noted.</p>'}
+                ${(exclusions.links || []).length > 0 ? exclusions.links.map(l => `<a href="${l}" target="_blank" style="font-size:11px;color:var(--accent2);display:block;margin-top:4px;">📎 ${l}</a>`).join('') : ''}
+            </div>
+            <div class="card">
+                <div class="card-title"><span class="icon">🏥</span> Network Hospitals</div>
+                ${network.locator_link ? `<a href="${network.locator_link}" target="_blank" class="snap-btn" style="display:inline-flex;margin-bottom:8px;"><i class="fas fa-external-link-alt"></i> Open Hospital Locator</a>` : '<p style="color:var(--text3);font-size:12px;">No locator link added.</p>'}
+                ${network.city ? `<div style="font-size:12px;color:var(--text2);">City: ${network.city} ${network.pincode ? '· PIN: '+network.pincode : ''}</div>` : ''}
+            </div>
+        </div>
+
+        ${item.documents?.policy_pdf_url ? `
+        <div class="card">
+            <div class="card-title"><span class="icon">📄</span> Documents</div>
+            <a href="${item.documents.policy_pdf_url}" target="_blank" class="snap-btn" style="display:inline-flex;"><i class="fas fa-file-pdf"></i> View Policy PDF</a>
+        </div>` : ''}
+
+        <div class="card">
+            <div class="card-title"><span class="icon">📋</span> Utilization / Claims</div>
+            <div class="grid-2" style="margin-bottom:12px;">
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Amount Used Till Date</div>
+                    <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--red);">${fl(used)}</div>
+                </div>
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Amount Available</div>
+                    <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--green);">${fl(available)}</div>
+                </div>
+            </div>
+            ${editMode ? `
+            <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;margin-top:12px;">
+                <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Update Utilization</div>
+                <div style="display:flex;gap:8px;">
+                    <input id="ins-util-amount" class="ainp" type="number" placeholder="Amount used ₹" style="flex:1;">
+                    <button class="primary-btn" onclick="updateInsUtilization('${cat}',${idx})">Update</button>
+                </div>
+            </div>` : ''}
+        </div>
+    `);
+}
+
+window.updateInsUtilization = (cat, idx) => {
+    const amount = num(document.getElementById('ins-util-amount')?.value || 0);
+    if (!userData.insurance[cat]?.[idx]) return;
+    if (!userData.insurance[cat][idx].utilization) userData.insurance[cat][idx].utilization = {};
+    userData.insurance[cat][idx].utilization.amount_used_till_date = amount;
+    debounceSave();
+    renderInsurance();
+    showToast('✅ Utilization updated', 'green');
+};
+
+window.addInsuranceMember = (cat, idx) => {
+    const name = prompt('Member name:');
+    if (!name) return;
+    const rel = prompt('Relationship (self/spouse/child/parent):') || '';
+    if (!userData.insurance[cat]?.[idx]) return;
+    if (!userData.insurance[cat][idx].members) userData.insurance[cat][idx].members = [];
+    userData.insurance[cat][idx].members.push({ name, relationship: rel, dob: '', gender: '' });
+    debounceSave();
     renderInsurance();
 };
 
