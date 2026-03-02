@@ -5,6 +5,12 @@ import { callAIWithFallback } from '../lib/api/aiRouter.js';
 import { deterministicProjection } from '../lib/api/deterministic.js';
 import { sendWhatsAppMessage, sendTestMessage, formatConsolidatedReminder, formatIndividualReminder } from '../lib/api/whatsapp.js';
 import rateLimiter from '../lib/api/rateLimit.js';
+import { computeHealthScore } from '../lib/services/healthScoreService.js';
+import { computeRiskScore } from '../lib/services/riskScoreService.js';
+import { generateAlerts } from '../lib/services/alertService.js';
+import { classifyWealthDna, getMotivation } from '../lib/services/wealthDnaService.js';
+import { optimizeDebt } from '../lib/services/debtOptimizationService.js';
+import { evaluateBadges, evaluateStreaks } from '../lib/services/gamificationService.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -51,6 +57,14 @@ export default async function handler(req, res) {
   if (path === 'mutualfund')                         return handleMutualFund(req, res);
   if (path === 'gold')                               return handleGold(req, res);
   if (path === 'news')                               return handleNews(req, res);
+
+  // AI Financial Operating System APIs
+  if (path === 'health-score')                       return handleHealthScore(req, res);
+  if (path === 'risk-score')                         return handleRiskScore(req, res);
+  if (path === 'alerts')                             return handleAlerts(req, res);
+  if (path === 'debt-optimize')                      return handleDebtOptimize(req, res);
+  if (path === 'financial-dashboard')                return handleFinancialDashboard(req, res);
+  if (path === 'gamification')                       return handleGamification(req, res);
 
   // Optional test endpoint – remove in production if desired
   if (path === 'aa/create-consent')                  return handleAaCreateConsent(req, res);
@@ -1610,6 +1624,174 @@ async function handleWhatsAppReminders(req, res) {
       error: error.message
     });
   }
+}
+
+
+// ========== AI FINANCIAL OPERATING SYSTEM APIs ==========
+
+/**
+ * Financial Health Score
+ * POST /api/health-score
+ */
+async function handleHealthScore(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const profile = req.body;
+    const result = computeHealthScore(profile);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * Risk Score
+ * POST /api/risk-score
+ */
+async function handleRiskScore(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const profile = req.body;
+    const result = computeRiskScore(profile);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * Smart Alerts
+ * POST /api/alerts
+ */
+async function handleAlerts(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const profile = req.body;
+    const result = generateAlerts(profile);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * Debt Optimization
+ * POST /api/debt-optimize
+ */
+async function handleDebtOptimize(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const { loans, extra_monthly_budget } = req.body;
+    const result = optimizeDebt(loans, extra_monthly_budget || 0);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * Gamification
+ * POST /api/gamification
+ */
+async function handleGamification(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const { profile, health_score, risk_score, streaks } = req.body;
+    const badges = evaluateBadges(profile, health_score || 0, risk_score || 0);
+    const streakData = evaluateStreaks(streaks);
+    return res.status(200).json({ success: true, ...badges, streaks: streakData });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * Unified Financial Dashboard — combines all scores in one call
+ * POST /api/financial-dashboard
+ */
+async function handleFinancialDashboard(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const profile = req.body;
+    const streaks = profile.streaks || {};
+
+    // Compute all scores
+    const healthResult = computeHealthScore(profile);
+    const riskResult = computeRiskScore(profile);
+    const alertResult = generateAlerts(profile);
+    const wealthDna = classifyWealthDna(profile);
+    const motivation = getMotivation(healthResult.financial_health_score, streaks);
+    const badges = evaluateBadges(profile, healthResult.financial_health_score, riskResult.risk_score);
+    const streakData = evaluateStreaks(streaks);
+
+    // Debt optimization if loans exist
+    let debtStrategy = null;
+    if (profile.loans && profile.loans.length > 0) {
+      debtStrategy = optimizeDebt(profile.loans, profile.extra_monthly_budget || 0);
+    }
+
+    // Top 5 actions
+    const actions = generateTopActions(healthResult, riskResult, alertResult, wealthDna);
+
+    return res.status(200).json({
+      success: true,
+      financial_health_score: healthResult.financial_health_score,
+      health_grade: healthResult.grade,
+      health_color: healthResult.color,
+      sub_scores: healthResult.sub_scores,
+      risk_score: riskResult.risk_score,
+      risk_category: riskResult.risk_category,
+      risk_color: riskResult.color,
+      risk_dimensions: riskResult.risk_dimensions,
+      stress_test: riskResult.stress_test,
+      wealth_dna_profile: wealthDna.wealth_dna_profile,
+      wealth_dna_description: wealthDna.description,
+      wealth_dna_strategy: wealthDna.strategy,
+      life_stage: wealthDna.life_stage,
+      life_stage_focus: wealthDna.stage_focus,
+      alerts: alertResult.alerts,
+      alerts_critical: alertResult.critical,
+      debt_strategy: debtStrategy,
+      badges_unlocked: badges.badges_unlocked,
+      badges_progress: `${badges.earned}/${badges.total_badges}`,
+      streaks: streakData,
+      top_5_actions: actions,
+      motivational_message: motivation.motivational_message,
+      quote: motivation.quote,
+      progress_highlight: motivation.progress_highlight,
+      derived_metrics: healthResult.derived_metrics,
+      live_data_status: 'missing',
+      personality_mode: profile.ai_personality || 'balanced'
+    });
+  } catch (err) {
+    console.error('Financial dashboard error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+function generateTopActions(health, risk, alerts, wealthDna) {
+  const actions = [];
+  const subs = health.sub_scores;
+
+  // Find weakest sub-scores
+  const sorted = Object.entries(subs).sort((a, b) => a[1].score - b[1].score);
+
+  for (const [key, sub] of sorted.slice(0, 3)) {
+    if (sub.score < 50) {
+      if (key === 'cashflow') actions.push({ priority: 'high', action: 'Increase savings rate — cut discretionary spending or boost income', category: 'Cashflow' });
+      if (key === 'emi_load') actions.push({ priority: 'high', action: 'Reduce EMI burden — prepay highest-rate loan or restructure', category: 'Debt' });
+      if (key === 'emergency') actions.push({ priority: 'high', action: 'Build emergency fund to 6 months of expenses', category: 'Safety' });
+      if (key === 'debt') actions.push({ priority: 'medium', action: 'Reduce debt-to-asset ratio — focus on clearing outstanding loans', category: 'Debt' });
+      if (key === 'insurance') actions.push({ priority: 'high', action: 'Review and increase insurance coverage — term and health', category: 'Protection' });
+      if (key === 'credit') actions.push({ priority: 'medium', action: 'Reduce credit card utilization below 30%', category: 'Credit' });
+      if (key === 'investment') actions.push({ priority: 'medium', action: 'Start or increase SIP to 15% of income', category: 'Investment' });
+    }
+  }
+
+  // Add life-stage specific action
+  actions.push({ priority: 'info', action: wealthDna.stage_focus, category: wealthDna.life_stage });
+
+  return actions.slice(0, 5);
 }
 
 

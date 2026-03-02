@@ -7553,6 +7553,15 @@ function renderOverview() {
                 <div><div style="font-size:11px; color:var(--text3); margin-bottom:4px;">Debt-to-Income</div><div class="${computeDebtRatio()>0.4?'gradient-red':computeDebtRatio()>0.25?'gradient-yellow':'gradient-green'}" style="font-family:var(--mono); font-size:18px; font-weight:800;" data-value="${computeDebtRatio()*100}">${pct(computeDebtRatio())}</div></div>
             </div>
         </div>` : ''}
+
+        <!-- AI Financial Dashboard Section -->
+        <div id="ai-dashboard-section">
+            <div class="card" style="text-align:center; padding:30px;">
+                <div style="font-size:24px; margin-bottom:8px;">🧠</div>
+                <div style="font-size:13px; color:var(--text3);">Loading AI Financial Intelligence...</div>
+                <div style="width:40px; height:40px; border:3px solid rgba(255,255,255,0.06); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; margin:12px auto 0;"></div>
+            </div>
+        </div>
     `);
 
     requestAnimationFrame(() => {
@@ -7622,6 +7631,9 @@ function renderOverview() {
             };
             requestAnimationFrame(animate);
         });
+
+        // Fetch AI Financial Dashboard data
+        fetchAIDashboard();
     });
 }
 
@@ -8629,6 +8641,195 @@ window.sendWhatsAppReminders = async (daysAhead = 7, type = 'consolidated') => {
         showToast('❌ Failed to send reminders', 'red');
     }
 };
+
+// ========== AI FINANCIAL DASHBOARD ==========
+let aiDashboardData = null;
+let aiDashboardLoading = false;
+
+async function fetchAIDashboard() {
+    if (aiDashboardLoading) return;
+    aiDashboardLoading = true;
+
+    try {
+        const income = computeMonthlyIncome();
+        const expenses = computeMonthlyExpenses();
+        const totalEmi = computeTotalEmi();
+        const loans = (userData.loans || []).filter(l => (l.outstanding || 0) > 0);
+
+        const profile = {
+            income,
+            expenses,
+            total_emi: totalEmi,
+            total_debt_outstanding: computeTotalLoanOutstanding(),
+            liquid_assets: userData.emergencyFund || 0,
+            total_assets: computeTotalInvestments() + (userData.emergencyFund || 0),
+            term_cover: userData.termCover || 0,
+            health_cover: userData.healthCover || 0,
+            dependents: (userData.profile.familyMembers || []).length,
+            sip_monthly: (userData.investments || []).filter(i => i.type === 'sip').reduce((s, i) => s + (i.monthly || 0), 0),
+            credit_utilization: userData.creditUtilization || 0,
+            age: userData.profile.age || 30,
+            risk_tolerance: userData.profile.risk || 'moderate',
+            net_worth: computeTotalInvestments() + (userData.emergencyFund || 0) - computeTotalLoanOutstanding(),
+            loans,
+            equity_allocation_pct: 50,
+            ai_personality: userData.profile.aiPersonality || 'balanced',
+            streaks: userData.streaks || {}
+        };
+
+        const resp = await fetch('/api/financial-dashboard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(profile)
+        });
+
+        if (resp.ok) {
+            aiDashboardData = await resp.json();
+            renderAIDashboardWidgets();
+        }
+    } catch (err) {
+        console.error('AI Dashboard error:', err);
+    } finally {
+        aiDashboardLoading = false;
+    }
+}
+
+function renderAIDashboardWidgets() {
+    const container = document.getElementById('ai-dashboard-section');
+    if (!container || !aiDashboardData) return;
+    const d = aiDashboardData;
+
+    // Sub-score bars
+    const subScoreHtml = d.sub_scores ? Object.entries(d.sub_scores).map(([key, s]) => `
+        <div style="margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                <span style="color:var(--text2);">${s.label}</span>
+                <span style="color:var(--text3); font-family:var(--mono);">${s.score}/100</span>
+            </div>
+            <div class="progress-bar" style="height:6px;">
+                <div style="width:${s.score}%; height:100%; border-radius:3px; transition:width 0.8s ease;
+                    background:${s.score >= 70 ? 'var(--green)' : s.score >= 40 ? 'var(--yellow)' : 'var(--red)'};"></div>
+            </div>
+        </div>
+    `).join('') : '';
+
+    // Risk dimensions
+    const riskHtml = d.risk_dimensions ? Object.entries(d.risk_dimensions).map(([key, r]) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
+            <span style="font-size:12px; color:var(--text2);">${r.label}</span>
+            <span style="font-size:12px; font-family:var(--mono); color:${r.score <= 25 ? 'var(--green)' : r.score <= 50 ? 'var(--yellow)' : 'var(--red)'};">${r.score}</span>
+        </div>
+    `).join('') : '';
+
+    // Alerts
+    const alertsHtml = (d.alerts || []).slice(0, 5).map(a => `
+        <div style="display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
+            <span style="font-size:16px; flex-shrink:0;">${a.icon}</span>
+            <div>
+                <div style="font-size:12px; color:${a.severity === 'critical' ? 'var(--red)' : a.severity === 'warning' ? 'var(--yellow)' : 'var(--green)'}; font-weight:600; text-transform:uppercase; font-size:9px; letter-spacing:0.5px; margin-bottom:2px;">${a.severity}</div>
+                <div style="font-size:12px; color:var(--text2); line-height:1.5;">${a.message}</div>
+            </div>
+        </div>
+    `).join('');
+
+    // Badges
+    const badgesHtml = (d.badges_unlocked || []).map(b => `
+        <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:20px; padding:6px 12px; font-size:11px; color:var(--text2);">
+            <span>${b.icon}</span> ${b.name}
+        </div>
+    `).join(' ');
+
+    // Top actions
+    const actionsHtml = (d.top_5_actions || []).map(a => `
+        <div style="display:flex; gap:8px; align-items:flex-start; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
+            <span style="font-size:8px; padding:3px 6px; border-radius:4px; font-weight:700; text-transform:uppercase;
+                background:${a.priority === 'high' ? 'var(--red-dim)' : a.priority === 'medium' ? 'var(--yellow-dim)' : 'var(--accent-glow)'};
+                color:${a.priority === 'high' ? 'var(--red)' : a.priority === 'medium' ? 'var(--yellow)' : 'var(--accent2)'};">${a.priority}</span>
+            <div style="font-size:12px; color:var(--text2); line-height:1.5;">${a.action}</div>
+        </div>
+    `).join('');
+
+    container.innerHTML = `
+        <!-- AI Scores Row -->
+        <div class="grid-2" style="margin-bottom:18px;">
+            <div class="card" style="position:relative; overflow:hidden;">
+                <div style="position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg, ${d.health_color || 'var(--accent)'}, transparent);"></div>
+                <div class="card-title"><span class="icon">🧠</span> AI Health Score</div>
+                <div style="display:flex; align-items:center; gap:20px; margin-bottom:16px;">
+                    <div style="position:relative; width:80px; height:80px; flex-shrink:0;">
+                        <svg viewBox="0 0 80 80" style="transform:rotate(-90deg);">
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="${d.health_color || 'var(--accent)'}" stroke-width="6"
+                                stroke-dasharray="${2 * Math.PI * 34}" stroke-dashoffset="${2 * Math.PI * 34 * (1 - (d.financial_health_score || 0) / 100)}"
+                                stroke-linecap="round" style="transition:stroke-dashoffset 1s ease;"/>
+                        </svg>
+                        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+                            <div style="font-size:22px; font-weight:800; font-family:var(--mono); color:${d.health_color || 'var(--text)'};">${d.financial_health_score || 0}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size:16px; font-weight:700; color:${d.health_color || 'var(--text)'}; margin-bottom:4px;">${d.health_grade || '—'}</div>
+                        <div style="font-size:11px; color:var(--text3);">Wealth DNA: ${d.wealth_dna_profile || '—'}</div>
+                        <div style="font-size:11px; color:var(--text3); margin-top:2px;">${d.life_stage || ''}</div>
+                    </div>
+                </div>
+                ${subScoreHtml}
+            </div>
+            <div class="card" style="position:relative; overflow:hidden;">
+                <div style="position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg, ${d.risk_color || 'var(--yellow)'}, transparent);"></div>
+                <div class="card-title"><span class="icon">⚡</span> Risk Score</div>
+                <div style="display:flex; align-items:center; gap:20px; margin-bottom:16px;">
+                    <div style="position:relative; width:80px; height:80px; flex-shrink:0;">
+                        <svg viewBox="0 0 80 80" style="transform:rotate(-90deg);">
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="${d.risk_color || 'var(--yellow)'}" stroke-width="6"
+                                stroke-dasharray="${2 * Math.PI * 34}" stroke-dashoffset="${2 * Math.PI * 34 * (1 - (d.risk_score || 0) / 100)}"
+                                stroke-linecap="round" style="transition:stroke-dashoffset 1s ease;"/>
+                        </svg>
+                        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;">
+                            <div style="font-size:22px; font-weight:800; font-family:var(--mono); color:${d.risk_color || 'var(--text)'};">${d.risk_score || 0}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size:16px; font-weight:700; color:${d.risk_color || 'var(--text)'}; margin-bottom:4px;">${d.risk_category || '—'}</div>
+                        <div style="font-size:11px; color:var(--text3);">Stress: ${d.stress_test?.job_loss_survival_months || 0} months survival</div>
+                        <div style="font-size:11px; color:var(--text3); margin-top:2px;">Rate hike impact: +₹${(d.stress_test?.rate_hike_2pct_impact || 0).toLocaleString()}/mo</div>
+                    </div>
+                </div>
+                ${riskHtml}
+            </div>
+        </div>
+
+        <!-- Motivation + Badges -->
+        <div class="card" style="background:linear-gradient(135deg, rgba(59,126,255,0.06), rgba(99,102,241,0.06)); border-color:rgba(59,126,255,0.15);">
+            <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+                <div style="flex:1; min-width:200px;">
+                    <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:6px;">💬 ${d.motivational_message || ''}</div>
+                    <div style="font-size:12px; color:var(--accent2); font-style:italic; margin-bottom:8px;">"${d.quote || ''}"</div>
+                    <div style="font-size:11px; color:var(--text3);">${d.progress_highlight || ''}</div>
+                </div>
+                <div style="flex:1; min-width:200px;">
+                    <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">Badges (${d.badges_progress || '0/0'})</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px;">${badgesHtml || '<span style="font-size:12px; color:var(--text3);">Keep going to unlock badges!</span>'}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Smart Alerts -->
+        ${(d.alerts || []).length > 0 ? `
+        <div class="card">
+            <div class="card-title"><span class="icon">🔔</span> Smart Alerts <span style="font-size:10px; color:var(--red); margin-left:auto;">${d.alerts_critical || 0} critical</span></div>
+            ${alertsHtml}
+        </div>` : ''}
+
+        <!-- Top Actions -->
+        ${(d.top_5_actions || []).length > 0 ? `
+        <div class="card">
+            <div class="card-title"><span class="icon">🎯</span> AI Recommended Actions</div>
+            ${actionsHtml}
+        </div>` : ''}
+    `;
+}
 
 // ========== LOANS PAGE ==========
 function renderLoans() {
