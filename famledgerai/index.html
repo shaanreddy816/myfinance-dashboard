@@ -7760,8 +7760,19 @@ async function syncPendingOnboardingData() {
             }
         });
         
-        // Update local userData object
-        userData = convertedData;
+        // Update global userData object so the app renders correctly
+        userData = {
+            profile: convertedData.profile,
+            income: convertedData.income,
+            expenses: convertedData.expenses,
+            investments: convertedData.investments,
+            loans: convertedData.loans,
+            insurance: convertedData.insurance,
+            schemes: convertedData.schemes,
+            bankAccounts: convertedData.bankAccounts,
+            liquidSavings: convertedData.profile?.liquidSavings || 0,
+            termCover: convertedData.profile?.termCover || 0
+        };
         
         // Clear pending data
         localStorage.removeItem('pending_onboarding_data');
@@ -7769,11 +7780,6 @@ async function syncPendingOnboardingData() {
         
         console.log('✅ Onboarding data synced successfully!');
         showToast('✅ Your profile data has been synced!', 'green');
-        
-        // Reload the page to show the data
-        setTimeout(() => {
-            location.reload();
-        }, 1500);
         
     } catch (e) {
         console.error('Error syncing pending data:', e);
@@ -8158,7 +8164,7 @@ function getMemberName(memberId) {
 }
 
 function renderOverview() {
-    if(!userData.profile.age) { sh('page-overview', emptyState('Welcome! Set up your profile first.','⚙️ Complete Profile','goSettings')); return; }
+    if(!userData.profile.name && !userData.profile.age) { sh('page-overview', emptyState('Welcome! Set up your profile first.','⚙️ Complete Profile','goSettings')); return; }
 
     const isAll = currentProfile === 'all';
     const memberName = getMemberName(currentProfile);
@@ -14293,25 +14299,40 @@ window.toggleHousingType = () => {
 
 // Helper function to collect all onboarding data
 function collectOnboardingData() {
+    // Collect kids from onboarding state (pre-populated from registration)
+    const kidsFromState = (onboardingState?.data?.basicInfo?.children || []).map(c => c.name || c).filter(Boolean);
+    // Also try to get kids from registration userData
+    const kidsFromUserData = userData?.profile?.kids || [];
+    const kids = kidsFromState.length > 0 ? kidsFromState : kidsFromUserData;
+    
+    // Get WhatsApp number from registration if available
+    const whatsappNumber = userData?.profile?.whatsapp_number || '';
+    
     return {
         // Phase 1: Basic Info
-        name: document.getElementById('onb-name')?.value || '',
-        age: parseInt(document.getElementById('onb-age')?.value) || 0,
+        name: document.getElementById('onb-name')?.value || userData?.profile?.name || '',
+        age: parseInt(document.getElementById('onb-age')?.value) || userData?.profile?.age || 0,
         gender: document.getElementById('onb-gender')?.value || '',
         marital_status: document.getElementById('onb-marital')?.value || '',
         occupation: document.getElementById('onb-occupation')?.value === 'other' 
             ? document.getElementById('onb-occupation-other')?.value 
-            : document.getElementById('onb-occupation')?.value || '',
+            : document.getElementById('onb-occupation')?.value || userData?.profile?.occupation || '',
         city: document.getElementById('onb-city')?.value || '',
         
         // Spouse info
-        spouse_name: document.getElementById('onb-spouse-name')?.value || null,
+        spouse_name: document.getElementById('onb-spouse-name')?.value || userData?.profile?.spouseName || null,
         spouse_age: parseInt(document.getElementById('onb-spouse-age')?.value) || null,
         spouse_whatsapp_country: document.getElementById('onb-spouse-country-code')?.value || '+91',
         spouse_whatsapp_number: document.getElementById('onb-spouse-whatsapp')?.value?.trim() || null,
         spouse_occupation: document.getElementById('onb-spouse-occupation')?.value === 'other'
             ? document.getElementById('onb-spouse-occupation-other')?.value
             : document.getElementById('onb-spouse-occupation')?.value || null,
+        
+        // Kids
+        kids: kids,
+        
+        // WhatsApp
+        whatsapp_number: whatsappNumber,
         
         // Phase 2: Income
         monthly_income: parseFloat(document.getElementById('income-salary')?.value) || 0,
@@ -14321,6 +14342,7 @@ function collectOnboardingData() {
         other_income: parseFloat(document.getElementById('income-other')?.value) || 0,
         
         // Phase 4: Assets & Liabilities
+        liquid_savings: parseFloat(document.getElementById('asset-cash')?.value) || 0,
         assets: {
             cash: parseFloat(document.getElementById('asset-cash')?.value) || 0,
             fd: parseFloat(document.getElementById('asset-fd')?.value) || 0,
@@ -14445,8 +14467,16 @@ async function completeOnboarding() {
             }
         });
         
-        // Build complete user_data structure
-        const userData = {
+        // Build byMonth structure so expenses show up correctly in the app
+        const now = new Date();
+        const onbMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+        const byMonth = {};
+        if (monthlyExpenses.length > 0) {
+            byMonth[onbMonth] = { byMember: { self: [...monthlyExpenses] } };
+        }
+        
+        // Build complete user_data structure (use onboardingUserData to avoid shadowing global userData)
+        const onboardingUserData = {
             email: userEmail,
             profile: {
                 name: onboardingData.name || '',
@@ -14458,33 +14488,33 @@ async function completeOnboarding() {
                 spouseName: onboardingData.spouse_name || '',
                 kids: onboardingData.kids || [],
                 whatsapp_number: onboardingData.whatsapp_number || '',
-                liquidSavings: onboardingData.liquid_savings || 0,
+                liquidSavings: onboardingData.liquid_savings || onboardingData.assets?.cash || 0,
                 termCover: 0,
                 familyMembers: familyMembers,
-                goals: [],
-                risk: 'moderate',
-                incomeRange: '',
+                goals: userData.profile?.goals || [],
+                risk: userData.profile?.risk || 'moderate',
+                incomeRange: userData.profile?.incomeRange || '',
                 memberProfiles: {}
             },
             income: {
                 husband: onboardingData.monthly_income || 0,
                 wife: onboardingData.spouse_income || 0,
-                rental: 0,
-                business: 0,
-                other: 0,
-                rentalActive: false
+                rental: onboardingData.rental_income || 0,
+                business: onboardingData.business_income || 0,
+                other: onboardingData.other_income || 0,
+                rentalActive: (onboardingData.rental_income || 0) > 0
             },
             expenses: {
                 monthly: monthlyExpenses,
                 periodic: [],
-                byMember: {},
-                byMonth: {}
+                byMember: monthlyExpenses.length > 0 ? { self: [...monthlyExpenses] } : {},
+                byMonth: byMonth
             },
             investments: {
                 mutualFunds: [],
                 stocks: [],
-                fd: [],
-                ppf: []
+                fd: onboardingData.assets?.fd ? [{ amount: onboardingData.assets.fd, name: 'Fixed Deposit' }] : [],
+                ppf: onboardingData.assets?.retirement ? [{ amount: onboardingData.assets.retirement, name: 'Retirement Fund' }] : []
             },
             loans: [],
             insurance: {
@@ -14496,15 +14526,48 @@ async function completeOnboarding() {
             bank_accounts: []
         };
         
+        // Add liabilities as loans
+        if (onboardingData.liabilities) {
+            if (onboardingData.liabilities.home_loan) {
+                onboardingUserData.loans.push({ id: 'home-' + Date.now(), loanType: 'home', label: 'Home Loan', principal: onboardingData.liabilities.home_loan, outstanding: onboardingData.liabilities.home_loan, emi: 0, rate: 8.5 });
+            }
+            if (onboardingData.liabilities.car_loan) {
+                onboardingUserData.loans.push({ id: 'car-' + Date.now(), loanType: 'vehicle', label: 'Car Loan', principal: onboardingData.liabilities.car_loan, outstanding: onboardingData.liabilities.car_loan, emi: 0, rate: 9.5 });
+            }
+            if (onboardingData.liabilities.personal_loan) {
+                onboardingUserData.loans.push({ id: 'personal-' + Date.now(), loanType: 'personal', label: 'Personal Loan', principal: onboardingData.liabilities.personal_loan, outstanding: onboardingData.liabilities.personal_loan, emi: 0, rate: 12 });
+            }
+            if (onboardingData.liabilities.education_loan) {
+                onboardingUserData.loans.push({ id: 'edu-' + Date.now(), loanType: 'education', label: 'Education Loan', principal: onboardingData.liabilities.education_loan, outstanding: onboardingData.liabilities.education_loan, emi: 0, rate: 10 });
+            }
+            if (onboardingData.liabilities.credit_card) {
+                onboardingUserData.loans.push({ id: 'cc-' + Date.now(), loanType: 'credit_card', label: 'Credit Card Debt', principal: onboardingData.liabilities.credit_card, outstanding: onboardingData.liabilities.credit_card, emi: 0, rate: 36 });
+            }
+        }
+        
         // Save to user_data table (main data store)
         const { error: userDataError } = await supabase
             .from('user_data')
-            .upsert(userData, { onConflict: 'email' });
+            .upsert(onboardingUserData, { onConflict: 'email' });
         
         if (userDataError) {
             console.error('user_data save error:', userDataError);
             throw userDataError;
         }
+        
+        // UPDATE GLOBAL userData so the app renders correctly
+        userData = {
+            profile: onboardingUserData.profile,
+            income: onboardingUserData.income,
+            expenses: onboardingUserData.expenses,
+            investments: onboardingUserData.investments,
+            loans: onboardingUserData.loans,
+            insurance: onboardingUserData.insurance,
+            schemes: onboardingUserData.schemes,
+            bankAccounts: onboardingUserData.bank_accounts,
+            liquidSavings: onboardingUserData.profile.liquidSavings || 0,
+            termCover: onboardingUserData.profile.termCover || 0
+        };
         
         // Also save to recurring_expenses table for reminders
         const recurringExpenses = monthlyExpenses.map(exp => ({
