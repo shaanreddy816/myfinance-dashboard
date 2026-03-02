@@ -8818,6 +8818,7 @@ window.handleLoanPdfUpload = async (input) => {
             tenureMonths: loan.tenureMonths || 0,
             tenure: loan.tenureMonths ? loan.tenureMonths + ' mo' : '',
             paidMonths: loan.paidMonths || 0,
+            remainingMonths: loan.remainingMonths || 0,
             totalInterestPaid: loan.totalInterestPaid || 0,
             totalPrincipalPaid: loan.totalPrincipalPaid || 0,
             disbursementDate: loan.disbursementDate || '',
@@ -8850,7 +8851,7 @@ window.showAddLoanModal = () => {
             <h3>➕ Add Loan Manually</h3>
             <input id="lm-label" class="modal-inp" placeholder="Loan name (e.g. HDFC Home Loan)">
             <div class="grid-2">
-                <input id="lm-principal" class="modal-inp" type="number" placeholder="Original loan amount (₹)">
+                <input id="lm-principal" class="modal-inp" type="number" placeholder="Sanctioned amount (₹)">
                 <input id="lm-outstanding" class="modal-inp" type="number" placeholder="Current outstanding (₹)">
             </div>
             <div class="grid-2">
@@ -8859,7 +8860,11 @@ window.showAddLoanModal = () => {
             </div>
             <div class="grid-2">
                 <input id="lm-tenure" class="modal-inp" type="number" placeholder="Total tenure (months)">
+                <input id="lm-remaining" class="modal-inp" type="number" placeholder="Remaining tenure (months)">
+            </div>
+            <div class="grid-2">
                 <input id="lm-paid" class="modal-inp" type="number" placeholder="EMIs paid so far">
+                <input id="lm-sanction-date" class="modal-inp" type="date" placeholder="Sanction date">
             </div>
             <div class="grid-2">
                 <input id="lm-intpaid" class="modal-inp" type="number" placeholder="Total interest paid (₹)">
@@ -8894,6 +8899,7 @@ window.saveLoanModal = () => {
     const label = document.getElementById('lm-label').value.trim();
     if(!label) { alert('Please enter a loan name.'); return; }
     const tenureMonths = num(document.getElementById('lm-tenure').value);
+    const remainingMonths = num(document.getElementById('lm-remaining').value);
     userData.loans.push({
         id: 'loan-' + Date.now(),
         label,
@@ -8905,8 +8911,10 @@ window.saveLoanModal = () => {
         tenureMonths,
         tenure: tenureMonths ? tenureMonths + ' mo' : '',
         paidMonths: num(document.getElementById('lm-paid').value),
+        remainingMonths: remainingMonths,
         totalInterestPaid: num(document.getElementById('lm-intpaid').value),
         totalPrincipalPaid: num(document.getElementById('lm-prinpaid').value),
+        disbursementDate: document.getElementById('lm-sanction-date').value || '',
         interestType: document.getElementById('lm-inttype').value || '',
         prepaymentCharges: document.getElementById('lm-prepay').value.trim() || ''
     });

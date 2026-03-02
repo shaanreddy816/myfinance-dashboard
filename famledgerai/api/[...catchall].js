@@ -651,10 +651,37 @@ async function handleLoanParseStatement(req, res) {
 Document text:
 ${pdfText.substring(0, 10000)}
 
+IMPORTANT: Recognize these bank-specific field names:
+
+ICICI Bank fields:
+- "Sanction Date" or "Sanction Dt" → disbursementDate
+- "Sanction Amt" → principal (sanctioned amount)
+- "Disbursed Amt" → principal (if different from sanction)
+- "Rate of Interest" or "Rate of Interest (Per annum)" → rate
+- "Instl. Paid" → paidMonths
+- "Instl. Pending" or "Future Instl.Nos." → remainingMonths (calculate tenureMonths = paidMonths + remainingMonths)
+- "Current EMI" → emi
+- "Product" → label (loan type/product name)
+- "Tenure" → tenureMonths
+- "Int. Rate Type" → interestType (floating/fixed)
+- "Penal Charge for Late Payment" → prepaymentCharges
+
+SBI Bank fields:
+- "Sanctioned Amount" or "sanctionedAmount" → principal
+- "Loan AC Num" or "loanACNum" → accountNumber
+- "Outstanding Amount" or "outstandingAmount" → outstanding
+- "Remaining Tenure" or "RemainingTenure" → remainingMonths
+- "Rate of Interest" or "rateofIntrest" → rate
+- "Loan Sanctioned Date" or "loansanctioneddate" or "Account open Date" → disbursementDate
+- "EMI Date" or "eMIdate" → nextEmiDate
+- "EMI Amount" or "eMIamount" → emi
+- "Loan Term" → tenureMonths
+- "Moratorium Period" or "moratariumPeriod" → note in additionalDetails
+
 Extract and return ONLY a valid JSON object with these keys (no markdown, no code blocks, just pure JSON):
 {
-  "label": "Loan type and lender (e.g. HDFC Home Loan, SBI Personal Loan)",
-  "lender": "Bank/NBFC name",
+  "label": "Loan type and lender (e.g. ICICI Home Loan, SBI Personal Loan, or use 'Product' field)",
+  "lender": "Bank name (ICICI Bank, SBI, HDFC, etc.)",
   "loanType": "home" or "personal" or "car" or "education" or "gold" or "business" or "other",
   "principal": 5000000,
   "outstanding": 4200000,
@@ -662,6 +689,7 @@ Extract and return ONLY a valid JSON object with these keys (no markdown, no cod
   "rate": 8.5,
   "tenureMonths": 240,
   "paidMonths": 36,
+  "remainingMonths": 204,
   "totalInterestPaid": 850000,
   "totalPrincipalPaid": 800000,
   "disbursementDate": "2023-01-15",
@@ -673,13 +701,14 @@ Extract and return ONLY a valid JSON object with these keys (no markdown, no cod
   "collateral": "Property at [address]" or null,
   "coApplicant": "Name if found" or null,
   "accountNumber": "Loan account number",
-  "additionalDetails": "Any other important details"
+  "additionalDetails": "Any other important details like moratorium period"
 }
 
 Rules:
 - All monetary values must be numbers in INR (not strings)
 - Dates in YYYY-MM-DD format
 - rate is annual percentage (e.g. 8.5 not 0.085)
+- If tenureMonths not found but paidMonths and remainingMonths are found, calculate: tenureMonths = paidMonths + remainingMonths
 - If a field is not found, use null or 0 for numbers
 - Return ONLY the JSON, no markdown, no explanation, no code blocks
 - CRITICAL: Start your response with { and end with }`;
@@ -713,6 +742,7 @@ Rules:
       rate: Number(result.rate) || 0,
       tenureMonths: Number(result.tenureMonths) || 0,
       paidMonths: Number(result.paidMonths) || 0,
+      remainingMonths: Number(result.remainingMonths) || 0,
       totalInterestPaid: Number(result.totalInterestPaid) || 0,
       totalPrincipalPaid: Number(result.totalPrincipalPaid) || 0,
       disbursementDate: result.disbursementDate || '',
