@@ -1284,150 +1284,323 @@
     <canvas id="lotto-particles"></canvas>
     <nav class="landing-nav">
         <div class="landing-nav-logo">
-            <div class="ln-icon">🎱</div>
+            <div class="ln-icon">💰</div>
             <div class="ln-text">Fam<span>Ledger</span>AI</div>
         </div>
         <div class="landing-nav-links">
             <button class="ln-link" onclick="document.getElementById('landing-features').scrollIntoView({behavior:'smooth'})">Features</button>
-            <button class="ln-link" onclick="document.getElementById('landing-compare').scrollIntoView({behavior:'smooth'})">NRI Questions</button>
+            <button class="ln-link" onclick="document.getElementById('landing-compare').scrollIntoView({behavior:'smooth'})">For NRIs</button>
+            <button class="ln-link" onclick="document.getElementById('landing-testimonials').scrollIntoView({behavior:'smooth'})">Reviews</button>
             <button class="ln-link" onclick="goToAuth('login')">Sign In</button>
-            <button class="ln-cta" onclick="goToAuth('reg')">🎰 Get Started Free</button>
+            <button class="ln-cta" onclick="goToAuth('reg')">Get Started Free</button>
         </div>
     </nav>
 
+    <!-- HERO - PocketGuard style: clean, centered, trust-focused -->
     <section class="landing-hero">
-        <div class="landing-hero-badge">🇮🇳 BUILT FOR NRIs · POWERED BY AI · YOUR LUCKY MOVE</div>
-        <h1>Moving back to India?<br><span class="hero-gradient">Hit the jackpot on every decision.</span></h1>
-        <p>Rent or buy? Which health insurance? Term cover? NRE vs NRO? Tax traps? Stop gambling with your finances. FamLedgerAI is the AI co-pilot that turns your India move into a winning hand.</p>
+        <div class="landing-hero-badge">🇮🇳 Built for NRIs · Powered by AI</div>
+        <h1>Know exactly what to do<br><span class="hero-gradient">before you move back to India</span></h1>
+        <p>Rent or buy a home? Which health insurance? How much term cover? NRE/NRO transition? FamLedgerAI brings together everything you need to plan your return — powered by AI that understands Indian finance.</p>
         <div class="landing-hero-ctas">
-            <button class="hero-btn-primary" onclick="goToAuth('reg')">🎯 Start Planning Free →</button>
+            <button class="hero-btn-primary" onclick="goToAuth('reg')">Start Planning Free →</button>
             <button class="hero-btn-secondary" onclick="goToAuth('login')">Sign In</button>
         </div>
-        <!-- Floating Lotto Balls in Hero -->
-        <div id="hero-floating-balls" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:hidden; z-index:0;"></div>
+        <div class="trust-bar">
+            <span>🔒 Bank-level encryption</span>
+            <span>🤖 3 AI models</span>
+            <span>📊 50+ financial tools</span>
+            <span>💳 No credit card needed</span>
+        </div>
     </section>
 
+    <!-- STATS - PocketGuard style: clean dividers -->
     <section class="landing-stats">
         <div class="landing-stat">
-            <div class="lotto-ball" style="animation:ballBounce 2s ease-in-out infinite 0s;">18M</div>
-            <div class="ls-label">NRIs Worldwide</div>
+            <div class="ls-num" data-target="18">0<span class="ls-accent">M+</span></div>
+            <div class="ls-label">NRIs worldwide</div>
         </div>
         <div class="landing-stat">
-            <div class="lotto-ball" style="animation:ballBounce 2s ease-in-out infinite 0.3s;">73%</div>
-            <div class="ls-label">Plan to Return</div>
+            <div class="ls-num" data-target="73">0<span class="ls-accent">%</span></div>
+            <div class="ls-label">Plan to return</div>
         </div>
         <div class="landing-stat">
-            <div class="lotto-ball" style="animation:ballBounce 2s ease-in-out infinite 0.6s;">50+</div>
-            <div class="ls-label">Relocation Tools</div>
+            <div class="ls-num" data-target="50">0<span class="ls-accent">+</span></div>
+            <div class="ls-label">Financial tools</div>
         </div>
         <div class="landing-stat">
-            <div class="lotto-ball" style="animation:ballBounce 2s ease-in-out infinite 0.9s;">3</div>
-            <div class="ls-label">AI Models</div>
+            <div class="ls-num" data-target="7">0</div>
+            <div class="ls-label">Health sub-scores</div>
         </div>
     </section>
 
-    <section class="landing-features" id="landing-features">
+    <!-- PROBLEM-SOLUTION SECTIONS - PocketGuard alternating layout -->
+    <section class="pg-section" id="landing-features">
+        <div class="pg-row">
+            <div class="pg-text">
+                <div class="pg-label">Housing Decision</div>
+                <h3>Confused whether to rent or buy?</h3>
+                <p>Most NRIs either rush into buying property or waste money on overpriced rentals. Our AI compares EMI vs rent, property appreciation, stamp duty, registration costs, and your financial runway to give you a clear, data-backed answer for your target city.</p>
+                <ul class="pg-checklist">
+                    <li>City-wise property price analysis</li>
+                    <li>EMI affordability calculator</li>
+                    <li>Rent vs buy breakeven timeline</li>
+                </ul>
+            </div>
+            <div class="pg-visual">
+                <div class="pg-visual-card">
+                    <span class="pg-emoji">🏠</span>
+                    <div class="pg-mini-stat">₹47L</div>
+                    <div class="pg-mini-label">Avg. savings by renting first (Bangalore)</div>
+                    <div class="pg-bar"><div class="pg-bar-fill" style="width:72%; background:linear-gradient(90deg,#3b7eff,#60a5fa);"></div></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--text3);"><span>Rent</span><span>Buy</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pg-row">
+            <div class="pg-text">
+                <div class="pg-label">Health Insurance</div>
+                <h3>Don't know which health plan to pick?</h3>
+                <p>Indian health insurance has waiting periods, sub-limits, co-pays, and room rent caps that can catch you off guard. Upload any policy PDF and our AI extracts every detail, compares plans, and flags the traps before you sign.</p>
+                <ul class="pg-checklist">
+                    <li>PDF policy parser (HDFC Ergo, Star, Niva Bupa...)</li>
+                    <li>Waiting period & exclusion alerts</li>
+                    <li>Coverage adequacy analysis</li>
+                </ul>
+            </div>
+            <div class="pg-visual">
+                <div class="pg-visual-card">
+                    <span class="pg-emoji">🏥</span>
+                    <div class="pg-mini-stat">₹15L</div>
+                    <div class="pg-mini-label">Recommended minimum cover for family of 4</div>
+                    <div class="pg-bar"><div class="pg-bar-fill" style="width:60%; background:linear-gradient(90deg,#10d98e,#34d399);"></div></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--text3);"><span>Your cover</span><span>Recommended</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pg-row">
+            <div class="pg-text">
+                <div class="pg-label">Term Insurance</div>
+                <h3>How much life cover do you actually need?</h3>
+                <p>Generic "10x income" rules don't work for NRIs. We calculate your Human Life Value based on family size, liabilities, lifestyle, India's cost of living, and your return timeline — so your family is protected no matter what.</p>
+                <ul class="pg-checklist">
+                    <li>Human Life Value calculator</li>
+                    <li>Premium comparison across insurers</li>
+                    <li>NRI-specific eligibility checks</li>
+                </ul>
+            </div>
+            <div class="pg-visual">
+                <div class="pg-visual-card">
+                    <span class="pg-emoji">🛡️</span>
+                    <div class="pg-mini-stat">₹1.5Cr</div>
+                    <div class="pg-mini-label">Avg. recommended cover for returning NRI</div>
+                    <div class="pg-bar"><div class="pg-bar-fill" style="width:45%; background:linear-gradient(90deg,#ef4444,#f87171);"></div></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--text3);"><span>Current</span><span>Needed</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pg-row">
+            <div class="pg-text">
+                <div class="pg-label">Banking Transition</div>
+                <h3>What happens to your NRE/NRO accounts?</h3>
+                <p>Converting NRE to resident savings, handling NRO repatriation limits, understanding tax on NRE FD interest post-return — we break down the entire banking transition step by step so you don't lose money in the process.</p>
+                <ul class="pg-checklist">
+                    <li>NRE → Resident conversion guide</li>
+                    <li>NRO repatriation limits & process</li>
+                    <li>Tax implications on FD interest</li>
+                </ul>
+            </div>
+            <div class="pg-visual">
+                <div class="pg-visual-card">
+                    <span class="pg-emoji">🏦</span>
+                    <div style="display:flex; gap:12px; margin-top:8px;">
+                        <div style="flex:1; padding:12px; background:rgba(59,126,255,0.08); border-radius:10px; text-align:center;">
+                            <div style="font-size:11px; color:var(--accent); font-weight:600;">NRE</div>
+                            <div style="font-size:18px; font-weight:700; color:var(--text); margin-top:4px;">Tax Free</div>
+                        </div>
+                        <div style="flex:1; padding:12px; background:rgba(167,139,250,0.08); border-radius:10px; text-align:center;">
+                            <div style="font-size:11px; color:#a78bfa; font-weight:600;">NRO</div>
+                            <div style="font-size:18px; font-weight:700; color:var(--text); margin-top:4px;">30% TDS</div>
+                        </div>
+                    </div>
+                    <div class="pg-mini-label" style="margin-top:12px;">Know the difference before you convert</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pg-row">
+            <div class="pg-text">
+                <div class="pg-label">Tax Planning</div>
+                <h3>Will you be taxed in both countries?</h3>
+                <p>DTAA treaties, residential status rules, FBAR/FATCA obligations — dual-country taxation is a minefield. We help you understand which income gets taxed where and how to stay compliant without overpaying.</p>
+                <ul class="pg-checklist">
+                    <li>DTAA treaty guidance</li>
+                    <li>Residential status tracker</li>
+                    <li>FBAR & FATCA compliance</li>
+                </ul>
+            </div>
+            <div class="pg-visual">
+                <div class="pg-visual-card">
+                    <span class="pg-emoji">📋</span>
+                    <div class="pg-mini-stat">182 days</div>
+                    <div class="pg-mini-label">Stay threshold for Indian tax residency</div>
+                    <div class="pg-bar"><div class="pg-bar-fill" style="width:55%; background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--text3);"><span>Days in India</span><span>182 limit</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MORE FEATURES GRID - PocketGuard compact style -->
+    <section class="landing-features">
         <div class="landing-features-header">
-            <h2>Every question you have about moving back. <span style="color:#f59e0b;">Answered.</span></h2>
-            <p>From housing to insurance to taxes — we cover the decisions that keep NRIs up at night.</p>
+            <h2>Everything else you need, built in</h2>
+            <p>Beyond relocation — a complete financial dashboard for your family.</p>
         </div>
         <div class="landing-features-grid">
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(59,126,255,0.15),rgba(59,126,255,0.05)); border:1px solid rgba(59,126,255,0.2);">�</div>
-                <h3>Rent vs Buy Analysis</h3>
-                <p>Should you rent first or buy immediately? Our AI compares EMI vs rent, property appreciation, stamp duty, and your financial runway to give you a clear answer.</p>
-            </div>
-            <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(16,217,142,0.15),rgba(16,217,142,0.05)); border:1px solid rgba(16,217,142,0.2);">🏥</div>
-                <h3>Health Insurance Finder</h3>
-                <p>Indian health insurance is confusing. Upload your current policy or start fresh — we compare plans, check port-in options, and flag waiting period traps.</p>
-            </div>
-            <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(244,73,92,0.15),rgba(244,73,92,0.05)); border:1px solid rgba(244,73,92,0.2);">🛡️</div>
-                <h3>Term Insurance Guide</h3>
-                <p>How much cover do you actually need? We calculate based on your family size, liabilities, lifestyle, and India's cost of living — not generic rules of thumb.</p>
-            </div>
-            <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(167,139,250,0.15),rgba(167,139,250,0.05)); border:1px solid rgba(167,139,250,0.2);">🏦</div>
-                <h3>NRE / NRO Account Planning</h3>
-                <p>When to convert NRE to resident? How to handle NRO repatriation? Tax on NRE FD interest post-return? We break down the banking transition step by step.</p>
-            </div>
-            <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(245,197,66,0.15),rgba(245,197,66,0.05)); border:1px solid rgba(245,197,66,0.2);">📋</div>
-                <h3>DTAA Tax Optimizer</h3>
-                <p>Double Taxation Avoidance Agreements are complex. We help you understand which income gets taxed where, FBAR/FATCA obligations, and how to stay compliant in both countries.</p>
-            </div>
-            <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(6,182,212,0.15),rgba(6,182,212,0.05)); border:1px solid rgba(6,182,212,0.2);">🌆</div>
-                <h3>City Comparison Tool</h3>
-                <p>Bangalore vs Hyderabad vs Pune? Compare cost of living, school quality, healthcare access, air quality, and job markets — tailored for returning NRIs.</p>
-            </div>
-            <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(16,217,142,0.15),rgba(16,217,142,0.05)); border:1px solid rgba(16,217,142,0.2);">🩺</div>
+                <div class="landing-feature-icon" style="background:rgba(16,217,142,0.1);">🩺</div>
                 <h3>Financial Health Score</h3>
-                <p>A 0-100 score from 7 dimensions — cashflow, EMI load, emergency fund, debt, insurance, credit, and investments. Know exactly where you stand before the move.</p>
+                <p>0-100 score from 7 dimensions — cashflow, EMI load, emergency fund, debt, insurance, credit, and investments.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(244,73,92,0.15),rgba(244,73,92,0.05)); border:1px solid rgba(244,73,92,0.2);">🤖</div>
-                <h3>Multi-AI Financial Advisor</h3>
-                <p>Three AI models (Claude, GPT, Gemini) work together to give you personalized advice on investments, loans, insurance, and relocation budgeting.</p>
+                <div class="landing-feature-icon" style="background:rgba(244,73,92,0.1);">⚡</div>
+                <h3>Risk & Stress Testing</h3>
+                <p>"What if you lose your job?" or "What if rates rise 2%?" See how many months you'd survive.</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background:linear-gradient(135deg,rgba(167,139,250,0.15),rgba(167,139,250,0.05)); border:1px solid rgba(167,139,250,0.2);">👨‍👩‍👧‍👦</div>
+                <div class="landing-feature-icon" style="background:rgba(167,139,250,0.1);">🧬</div>
+                <h3>Wealth DNA Profile</h3>
+                <p>Conservative Stabilizer or Aggressive Accelerator? Your financial personality drives personalized strategies.</p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background:rgba(59,126,255,0.1);">🤖</div>
+                <h3>3 AI Models</h3>
+                <p>Claude, GPT, and Gemini work together with automatic fallback for investment, loan, and insurance advice.</p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background:rgba(245,197,66,0.1);">👨‍👩‍👧‍👦</div>
                 <h3>Full Family Finance</h3>
-                <p>Track finances for your entire family — spouse, kids, parents. Combined net worth, per-member expenses, and family-wide insurance coverage analysis.</p>
+                <p>Track every family member — spouse, kids, parents. Combined net worth and per-member expense tracking.</p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background:rgba(6,182,212,0.1);">🌆</div>
+                <h3>City Comparison</h3>
+                <p>Bangalore vs Hyderabad vs Pune — cost of living, schools, healthcare, air quality, and job markets.</p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background:rgba(16,217,142,0.1);">⚔️</div>
+                <h3>Debt Optimizer</h3>
+                <p>Snowball vs Avalanche vs Hybrid — see which strategy saves the most interest with payoff schedules.</p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background:rgba(244,73,92,0.1);">📱</div>
+                <h3>WhatsApp Reminders</h3>
+                <p>EMI due dates, insurance renewals, and recurring bills delivered straight to your WhatsApp.</p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background:rgba(167,139,250,0.1);">🏆</div>
+                <h3>Gov Scheme Tracker</h3>
+                <p>PPF, NPS, PMJJBY, PMSBY, Sukanya Samriddhi — track eligibility, benefits, and enrollment.</p>
             </div>
         </div>
     </section>
 
-    <!-- NRI Pain Points / Why Us Section -->
-    <section class="landing-cta-section" id="landing-compare" style="padding-bottom:40px;">
-        <h2>The questions every NRI asks <span style="color:#f59e0b;">before moving back</span></h2>
-        <p style="margin-bottom:40px;">We built FamLedgerAI because no one else answers these properly.</p>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; max-width:900px; margin:0 auto; text-align:left;">
+    <!-- TESTIMONIALS - PocketGuard style -->
+    <section class="testimonials-section" id="landing-testimonials">
+        <h2>Trusted by NRIs planning their return</h2>
+        <div class="testimonials-grid">
+            <div class="testimonial-card">
+                <div class="testimonial-stars">★★★★★</div>
+                <div class="testimonial-text">"I was completely lost about health insurance in India. Uploaded my HDFC Ergo policy and it extracted everything — premiums, waiting periods, even the fine print. Saved me hours of research."</div>
+                <div class="testimonial-author">Priya M.</div>
+                <div class="testimonial-role">Software Engineer, San Francisco → Bangalore</div>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">★★★★★</div>
+                <div class="testimonial-text">"The rent vs buy analysis convinced me to rent for the first year. The numbers were clear — buying immediately would have stretched my finances thin. Best decision I made."</div>
+                <div class="testimonial-author">Rahul K.</div>
+                <div class="testimonial-role">Product Manager, London → Hyderabad</div>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">★★★★★</div>
+                <div class="testimonial-text">"Finally an app that understands NRI problems. The NRE/NRO guidance alone is worth it. I had no idea about the tax implications of converting my NRE FDs after returning."</div>
+                <div class="testimonial-author">Anita S.</div>
+                <div class="testimonial-role">Data Scientist, Dubai → Pune</div>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">★★★★★</div>
+                <div class="testimonial-text">"The financial health score opened my eyes. I thought I was doing well, but my insurance coverage was way below what my family needed. Fixed it before the move."</div>
+                <div class="testimonial-author">Vikram T.</div>
+                <div class="testimonial-role">Engineering Lead, Singapore → Chennai</div>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">★★★★★</div>
+                <div class="testimonial-text">"Used the city comparison tool to decide between Bangalore and Hyderabad. The cost of living breakdown and school quality data made the choice obvious for our family."</div>
+                <div class="testimonial-author">Deepa R.</div>
+                <div class="testimonial-role">Finance Director, Toronto → Bangalore</div>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">★★★★★</div>
+                <div class="testimonial-text">"Three AI models giving me different perspectives on my investment portfolio was a game changer. The DTAA tax optimizer saved me from double-paying on my US 401k withdrawal."</div>
+                <div class="testimonial-author">Suresh P.</div>
+                <div class="testimonial-role">VP Engineering, Seattle → Gurgaon</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- NRI QUESTIONS - clean version -->
+    <section class="landing-cta-section" id="landing-compare">
+        <h2>The questions every NRI asks</h2>
+        <p>We built FamLedgerAI because no one else answers these properly.</p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; max-width:900px; margin:0 auto;">
             <div class="nri-q-card">
-                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🏠 Housing</div>
+                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🏠 Housing</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"Should I rent or buy when I land?"</div>
-                <div style="font-size:12px; color:var(--text3);">Our AI analyzes your savings, income timeline, city prices, and loan eligibility to give you a data-backed recommendation.</div>
+                <div style="font-size:12px; color:var(--text3);">AI analyzes your savings, income timeline, city prices, and loan eligibility for a data-backed recommendation.</div>
             </div>
             <div class="nri-q-card">
-                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🏥 Health Cover</div>
+                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🏥 Health Cover</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"Which health insurance should I buy?"</div>
-                <div style="font-size:12px; color:var(--text3);">Upload any policy PDF — we extract every detail, compare plans, and flag gaps. HDFC Ergo, Star Health, Niva Bupa — we parse them all.</div>
+                <div style="font-size:12px; color:var(--text3);">Upload any policy PDF — we extract every detail, compare plans, and flag gaps across all major insurers.</div>
             </div>
             <div class="nri-q-card">
-                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🛡️ Life Cover</div>
+                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🛡️ Life Cover</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"How much term insurance do I need?"</div>
-                <div style="font-size:12px; color:var(--text3);">We calculate your Human Life Value based on income, liabilities, dependents, and India's cost of living — not a generic 10x formula.</div>
+                <div style="font-size:12px; color:var(--text3);">Human Life Value calculation based on income, liabilities, dependents, and India's cost of living.</div>
             </div>
             <div class="nri-q-card">
-                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🏦 Banking</div>
+                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🏦 Banking</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"What happens to my NRE/NRO accounts?"</div>
-                <div style="font-size:12px; color:var(--text3);">Step-by-step guide on converting accounts, repatriating funds, and managing the transition without losing tax benefits.</div>
+                <div style="font-size:12px; color:var(--text3);">Step-by-step guide on converting accounts, repatriating funds, and managing the transition.</div>
             </div>
             <div class="nri-q-card">
-                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">📋 Taxes</div>
+                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">📋 Taxes</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"Will I be taxed in both countries?"</div>
-                <div style="font-size:12px; color:var(--text3);">DTAA guidance, residential status tracking, FBAR/FATCA obligations, and which income gets taxed where — all in one place.</div>
+                <div style="font-size:12px; color:var(--text3);">DTAA guidance, residential status tracking, FBAR/FATCA obligations — all in one place.</div>
             </div>
             <div class="nri-q-card">
-                <div style="font-size:11px; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🌆 Relocation</div>
+                <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">🌆 Relocation</div>
                 <div style="font-size:14px; color:var(--text); font-weight:600; margin-bottom:4px;">"Which city should I move to?"</div>
-                <div style="font-size:12px; color:var(--text3);">Compare Bangalore, Hyderabad, Pune, Chennai, and more — cost of living, schools, healthcare, job market, and quality of life.</div>
+                <div style="font-size:12px; color:var(--text3);">Compare cost of living, schools, healthcare, job market, and quality of life across Indian cities.</div>
             </div>
         </div>
     </section>
 
-    <section class="jackpot-cta">
-        <div class="jackpot-badge">
-            <span>🎰</span>
-            <span>YOUR WINNING MOVE STARTS HERE</span>
-            <span>🎰</span>
+    <!-- FINAL CTA - PocketGuard style -->
+    <section class="final-cta">
+        <h2>Your India move, planned and sorted</h2>
+        <p>Join thousands of NRIs who stopped guessing and started planning with AI-powered clarity.</p>
+        <div class="final-cta-perks">
+            <span>Free to start</span>
+            <span>No credit card</span>
+            <span>No ads</span>
+            <span>Cancel anytime</span>
         </div>
-        <h2>Your India move, <span style="color:#f59e0b;">planned and sorted</span></h2>
-        <p>Free to start. No credit card. No ads. Just clarity on the biggest financial decisions of your life.</p>
         <div class="landing-hero-ctas">
-            <button class="hero-btn-primary" onclick="goToAuth('reg')">🎯 Start Planning Free →</button>
+            <button class="hero-btn-primary" onclick="goToAuth('reg')">Start Planning Free →</button>
         </div>
     </section>
 
@@ -7020,197 +7193,157 @@ function populateProfileSelector() {
 }
 function showAuth() { $('landing').style.display='block'; $('auth').style.display='none'; $('app').style.display='none'; clearTimeout(inactivityTimer); }
 
-// ========== LOTTO ANIMATION ENGINE ==========
-(function initLottoAnimations() {
-    // 1. Floating Particles Canvas
+// ========== LANDING PAGE ANIMATION ENGINE ==========
+(function initLandingAnimations() {
+    // 1. Subtle Particle Background
     const canvas = document.getElementById('lotto-particles');
     if (canvas) {
         const ctx = canvas.getContext('2d');
         let particles = [];
-        const colors = ['#f59e0b','#ef4444','#3b82f6','#a78bfa','#10d98e','#fbbf24'];
-        
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
+        const colors = ['#3b7eff','#a78bfa','#10d98e','#60a5fa'];
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
-        
         class Particle {
             constructor() { this.reset(); }
             reset() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 3 + 1;
-                this.speedX = (Math.random() - 0.5) * 0.5;
-                this.speedY = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 2 + 0.5;
+                this.speedX = (Math.random() - 0.5) * 0.3;
+                this.speedY = (Math.random() - 0.5) * 0.3;
                 this.color = colors[Math.floor(Math.random() * colors.length)];
-                this.opacity = Math.random() * 0.4 + 0.1;
+                this.opacity = Math.random() * 0.3 + 0.05;
                 this.pulse = Math.random() * Math.PI * 2;
             }
             update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                this.pulse += 0.02;
-                this.opacity = 0.1 + Math.sin(this.pulse) * 0.15;
+                this.x += this.speedX; this.y += this.speedY;
+                this.pulse += 0.015;
+                this.opacity = 0.05 + Math.sin(this.pulse) * 0.1;
                 if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
                 if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
             }
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.opacity;
-                ctx.fill();
-                // Glow
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.opacity * 0.15;
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.globalAlpha = this.opacity; ctx.fill();
                 ctx.globalAlpha = 1;
             }
         }
-        
-        for (let i = 0; i < 60; i++) particles.push(new Particle());
-        
-        // Draw connections between nearby particles
-        function drawConnections() {
+        for (let i = 0; i < 40; i++) particles.push(new Particle());
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            // Subtle connections
             for (let i = 0; i < particles.length; i++) {
                 for (let j = i + 1; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 150) {
-                        ctx.beginPath();
-                        ctx.moveTo(particles[i].x, particles[i].y);
+                    const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 120) {
+                        ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y);
                         ctx.lineTo(particles[j].x, particles[j].y);
                         ctx.strokeStyle = particles[i].color;
-                        ctx.globalAlpha = (1 - dist / 150) * 0.06;
-                        ctx.lineWidth = 0.5;
-                        ctx.stroke();
-                        ctx.globalAlpha = 1;
+                        ctx.globalAlpha = (1 - dist/120) * 0.04; ctx.lineWidth = 0.5;
+                        ctx.stroke(); ctx.globalAlpha = 1;
                     }
                 }
             }
+            requestAnimationFrame(animate);
         }
-        
-        function animateParticles() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach(p => { p.update(); p.draw(); });
-            drawConnections();
-            requestAnimationFrame(animateParticles);
-        }
-        animateParticles();
+        animate();
     }
-    
-    // 2. Floating Lotto Balls in Hero
-    const heroBalls = document.getElementById('hero-floating-balls');
-    if (heroBalls) {
-        const emojis = ['🎱','🎰','💰','🎯','🏆','⭐','💎','🎲'];
-        for (let i = 0; i < 12; i++) {
-            const ball = document.createElement('div');
-            const size = Math.random() * 30 + 20;
-            const left = Math.random() * 100;
-            const delay = Math.random() * 8;
-            const duration = Math.random() * 6 + 8;
-            ball.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-            ball.style.cssText = `
-                position:absolute; font-size:${size}px; left:${left}%;
-                bottom:-50px; opacity:0.12;
-                animation:confettiFall ${duration}s linear ${delay}s infinite reverse;
-                filter:blur(${Math.random() > 0.5 ? 1 : 0}px);
-            `;
-            heroBalls.appendChild(ball);
-        }
-    }
-    
-    // 3. Scroll Reveal for Feature Cards & NRI Q Cards
+
+    // 2. Nav scroll effect
+    window.addEventListener('scroll', () => {
+        const nav = document.querySelector('.landing-nav');
+        if (nav) nav.classList.toggle('scrolled', window.scrollY > 50);
+    });
+
+    // 3. Scroll Reveal for cards
     const revealObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry, idx) => {
+        entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const el = entry.target;
                 const siblings = Array.from(el.parentElement.children);
                 const i = siblings.indexOf(el);
-                setTimeout(() => {
-                    el.classList.add('revealed');
-                }, i * 100);
+                setTimeout(() => el.classList.add('revealed'), i * 80);
                 revealObserver.unobserve(el);
             }
         });
-    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-    
-    document.querySelectorAll('.landing-feature-card, .nri-q-card').forEach(card => {
-        revealObserver.observe(card);
+    }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.landing-feature-card, .nri-q-card').forEach(c => revealObserver.observe(c));
+
+    // 4. Scroll reveal for PG rows
+    const rowObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+                rowObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.pg-row').forEach(row => {
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(40px)';
+        row.style.transition = 'all 0.7s cubic-bezier(0.16, 1, 0.3, 1)';
+        rowObserver.observe(row);
     });
-    
-    // 4. Lotto Ball Number Counter Animation
+
+    // 5. Counter animation for stats
     const statObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                const balls = entry.target.querySelectorAll('.lotto-ball');
-                balls.forEach((ball, i) => {
-                    const finalText = ball.textContent;
-                    const numMatch = finalText.match(/\d+/);
-                    if (numMatch) {
-                        const target = parseInt(numMatch[0]);
-                        const suffix = finalText.replace(/\d+/, '');
-                        let current = 0;
-                        const step = Math.max(1, Math.floor(target / 30));
-                        const interval = setInterval(() => {
-                            current += step;
-                            if (current >= target) {
-                                current = target;
-                                clearInterval(interval);
-                            }
-                            ball.textContent = current + suffix;
-                        }, 40);
-                    }
+                entry.target.querySelectorAll('.ls-num[data-target]').forEach(el => {
+                    const target = parseInt(el.dataset.target);
+                    const suffix = el.innerHTML.replace(/^[\d]+/, '');
+                    let current = 0;
+                    const step = Math.max(1, Math.floor(target / 40));
+                    const interval = setInterval(() => {
+                        current += step;
+                        if (current >= target) { current = target; clearInterval(interval); }
+                        el.innerHTML = current + suffix;
+                    }, 30);
                 });
                 statObserver.unobserve(entry.target);
             }
         });
     }, { threshold: 0.5 });
-    
-    const statsSection = document.querySelector('.landing-stats');
-    if (statsSection) statObserver.observe(statsSection);
-    
-    // 5. Confetti Burst on CTA Hover
-    document.querySelectorAll('.hero-btn-primary').forEach(btn => {
-        btn.addEventListener('mouseenter', function(e) {
-            for (let i = 0; i < 8; i++) {
-                const confetti = document.createElement('div');
-                const color = ['#f59e0b','#ef4444','#3b82f6','#a78bfa','#10d98e'][Math.floor(Math.random()*5)];
-                confetti.style.cssText = `
-                    position:fixed; width:8px; height:8px; background:${color};
-                    border-radius:${Math.random()>0.5?'50%':'2px'};
-                    left:${e.clientX + (Math.random()-0.5)*60}px;
-                    top:${e.clientY + (Math.random()-0.5)*40}px;
-                    pointer-events:none; z-index:9999;
-                    animation:confettiFall ${Math.random()*1+0.5}s ease-out forwards;
-                `;
-                document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 1500);
+    const stats = document.querySelector('.landing-stats');
+    if (stats) statObserver.observe(stats);
+
+    // 6. Testimonial cards stagger
+    const testObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const cards = entry.target.querySelectorAll('.testimonial-card');
+                cards.forEach((card, i) => {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    card.style.transition = `all 0.5s ease ${i * 0.1}s`;
+                    setTimeout(() => { card.style.opacity = '1'; card.style.transform = 'translateY(0)'; }, 50);
+                });
+                testObserver.unobserve(entry.target);
             }
         });
-    });
-    
-    // 6. Parallax on Hero Section
-    let ticking = false;
-    window.addEventListener('scroll', () => {
-        if (!ticking) {
-            requestAnimationFrame(() => {
-                const scrollY = window.scrollY;
-                const hero = document.querySelector('.landing-hero');
-                if (hero && scrollY < window.innerHeight) {
-                    hero.style.transform = `translateY(${scrollY * 0.15}px)`;
-                    hero.style.opacity = 1 - (scrollY / (window.innerHeight * 0.8));
-                }
-                ticking = false;
-            });
-            ticking = true;
-        }
-    });
+    }, { threshold: 0.1 });
+    const testSection = document.querySelector('.testimonials-section');
+    if (testSection) testObserver.observe(testSection);
+
+    // 7. Progress bars animate on scroll
+    const barObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const fills = entry.target.querySelectorAll('.pg-bar-fill');
+                fills.forEach(fill => {
+                    const w = fill.style.width;
+                    fill.style.width = '0%';
+                    setTimeout(() => { fill.style.width = w; }, 200);
+                });
+                barObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.3 });
+    document.querySelectorAll('.pg-visual-card').forEach(c => barObserver.observe(c));
 })();
 
 // Go from landing page to auth (login or register)
