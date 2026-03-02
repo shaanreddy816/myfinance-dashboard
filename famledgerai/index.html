@@ -1245,6 +1245,7 @@
                                 <input type="password" id="r-pw2" required class="ainp"
                                        autocomplete="new-password"
                                        style="padding-right:45px;"
+                                       onkeypress="if(event.key==='Enter') handleModernRegistration()"
                                        oninput="validatePasswordMatch()">
                                 <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('r-pw2', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
                             </div>
@@ -1411,7 +1412,7 @@
                             <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;">
                                 Email address
                             </label>
-                            <input id="l-em" class="ainp" type="email" autocomplete="email">
+                            <input id="l-em" class="ainp" type="email" autocomplete="email" onkeypress="if(event.key==='Enter') doLogin()">
                             <div id="l-em-error" style="display:none; color:var(--red); font-size:12px; margin-top:6px; padding:8px 12px; background:var(--red-dim); border-left:3px solid var(--red); border-radius:4px;"></div>
                         </div>
 
@@ -1420,7 +1421,7 @@
                                 Password
                             </label>
                             <div style="position:relative;">
-                                <input id="l-pw" class="ainp" type="password" autocomplete="current-password" style="padding-right:45px;">
+                                <input id="l-pw" class="ainp" type="password" autocomplete="current-password" style="padding-right:45px;" onkeypress="if(event.key==='Enter') doLogin()">
                                 <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('l-pw', this)" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text3); font-size:16px;"></i>
                             </div>
                         </div>
