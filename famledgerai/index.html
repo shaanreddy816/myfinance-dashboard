@@ -7219,6 +7219,7 @@ async function checkSession() {
 }
 
 function showApp() {
+    console.log('showApp called. userData.profile.name:', userData.profile?.name, 'currentUserEmail:', currentUserEmail);
     $('landing').style.display='none'; $('auth').style.display='none'; $('app').style.display='block';
     $('monthPicker').value = currentMonth;
     populateProfileSelector();
@@ -8169,6 +8170,7 @@ function getMemberName(memberId) {
 }
 
 function renderOverview() {
+    console.log('renderOverview called. profile:', JSON.stringify({ name: userData.profile.name, age: userData.profile.age, occupation: userData.profile.occupation, goals: userData.profile.goals }));
     if(!userData.profile.name && !userData.profile.age) { sh('page-overview', emptyState('Welcome! Set up your profile first.','⚙️ Complete Profile','goSettings')); return; }
 
     const isAll = currentProfile === 'all';
