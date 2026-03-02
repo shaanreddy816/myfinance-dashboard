@@ -7737,6 +7737,7 @@ window.addKidField = () => {
 };
 
 window.doReg = async () => {
+    isRegistering = true; // Prevent onAuthStateChange from interfering
     const name       = $('r-nm').value.trim();
     const spouseName = $('r-spouse')?.value?.trim() || '';
     const kidInputs  = document.querySelectorAll('#r-kids-wrap input');
@@ -7750,9 +7751,9 @@ window.doReg = async () => {
     const pass       = $('r-pw').value;
     const pass2      = $('r-pw2').value;
 
-    if(!name||!email||!age||!occupation||!incomeRange||!pass||!pass2) { alert('Please fill all fields.'); return; }
-    if(pass.length<6) { alert('Password must be at least 6 characters.'); return; }
-    if(pass!==pass2)  { alert('Passwords do not match.'); return; }
+    if(!name||!email||!age||!occupation||!incomeRange||!pass||!pass2) { alert('Please fill all fields.'); isRegistering=false; return; }
+    if(pass.length<6) { alert('Password must be at least 6 characters.'); isRegistering=false; return; }
+    if(pass!==pass2)  { alert('Passwords do not match.'); isRegistering=false; return; }
 
     // Build family members array
     const familyMembers = [{ id:'self', name, role:'self' }];
@@ -7818,6 +7819,7 @@ window.doReg = async () => {
             
             btn.textContent='Create Account →'; 
             btn.disabled=false; 
+            isRegistering=false;
             return; 
         }
 
@@ -7844,10 +7846,12 @@ window.doReg = async () => {
         showCongratulationsModal(name);
         
         setTimeout(() => {
+            isRegistering = false; // Allow onAuthStateChange again
             showApp();
             resetInactivity();
         }, 3000);
     } catch(e) {
+        isRegistering = false; // Allow onAuthStateChange again
         console.error('Registration error:', e);
         
         // Show user-friendly error message
@@ -12869,9 +12873,15 @@ document.querySelectorAll('#aform-reg .goal-option, #aform-reg .risk-option').fo
 });
 
 // ========== INIT ==========
+let isRegistering = false; // Flag to prevent onAuthStateChange from interfering with registration
+
 window.onload = () => {
     checkSession();
     sb.auth.onAuthStateChange((event, session) => {
+        if(isRegistering) {
+            console.log('Skipping onAuthStateChange during registration');
+            return;
+        }
         if(event==='SIGNED_IN') {
             currentUserEmail = session.user.email;
             loadUserData(currentUserEmail).then(()=>{ showApp(); resetInactivity(); });
