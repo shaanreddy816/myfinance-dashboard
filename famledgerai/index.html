@@ -6285,38 +6285,42 @@ async function loadUserData(email) {
     console.log('loadUserData called for:', email);
     const { data, error } = await sb.from('user_data').select('*').eq('email', email).maybeSingle();
     if(error) { console.error('Load error:', error); return; }
+    
+    // Get current auth user info for validation
+    let authUser = null, authMeta = null;
+    try {
+        const { data: { user } } = await sb.auth.getUser();
+        authUser = user;
+        authMeta = user?.user_metadata;
+    } catch(e) { console.error('Failed to get auth user:', e); }
+    
     if(data) {
         console.log('✅ Loaded user data from Supabase:', JSON.stringify({ 
             profileName: data.profile?.name, 
             profileAge: data.profile?.age,
+            storedAuthUid: data.profile?._authUid,
+            currentAuthUid: authUser?.id,
             hasIncome: !!data.income, 
             incomeHusband: data.income?.husband,
-            hasExpenses: !!data.expenses,
-            expenseCount: data.expenses?.monthly?.length,
-            loanCount: data.loans?.length,
-            hasInsurance: !!data.insurance
+            loanCount: data.loans?.length
         }));
         
-        // Verify loaded data belongs to current auth user by checking name against auth metadata
-        let authMeta = null;
-        try {
-            const { data: { user } } = await sb.auth.getUser();
-            authMeta = user?.user_metadata;
-        } catch(e) {}
+        // CRITICAL: Check if this data belongs to the current auth user.
+        // When a user is deleted from Supabase Auth and re-registers with the same email,
+        // they get a NEW auth UID. The old user_data row is stale and must be reset.
+        const storedUid = data.profile?._authUid;
+        const currentUid = authUser?.id;
         
-        const loadedName = (data.profile?.name || '').toLowerCase().trim();
-        const authName = (authMeta?.name || `${authMeta?.firstName || ''} ${authMeta?.lastName || ''}`.trim()).toLowerCase().trim();
-        
-        // If data has _wizardCompleted but name doesn't match auth metadata, data is corrupted/stale
-        if (data.profile?._wizardCompleted && authName && loadedName && loadedName !== authName) {
-            console.warn('⚠️ STALE DATA DETECTED: loaded name "' + loadedName + '" != auth name "' + authName + '". Resetting.');
+        if (storedUid && currentUid && storedUid !== currentUid) {
+            console.warn('⚠️ STALE DATA: auth UID mismatch. Stored:', storedUid, 'Current:', currentUid, '— resetting.');
             userData = {
                 profile: {
                     name: authMeta?.name || `${authMeta?.firstName || ''} ${authMeta?.lastName || ''}`.trim(),
                     firstName: authMeta?.firstName || '',
                     lastName: authMeta?.lastName || '',
                     phone: authMeta?.phone || '',
-                    whatsapp_number: authMeta?.phone || ''
+                    whatsapp_number: authMeta?.phone || '',
+                    _authUid: currentUid
                 },
                 income: { husband:0, wife:0, rental:0, rentalActive:false },
                 expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
@@ -6329,8 +6333,41 @@ async function loadUserData(email) {
                 termCover: 0
             };
             await saveUserData(email);
-            console.log('✅ Stale data cleared and clean state saved');
+            console.log('✅ Stale data cleared for re-registered user');
             return;
+        }
+        
+        // Also detect stale data if no _authUid stored yet but data has _wizardCompleted
+        // and the auth user was created very recently (within last 10 minutes) — means fresh registration
+        if (!storedUid && data.profile?._wizardCompleted && authUser?.created_at) {
+            const authCreated = new Date(authUser.created_at).getTime();
+            const now = Date.now();
+            const tenMinutes = 10 * 60 * 1000;
+            if (now - authCreated < tenMinutes) {
+                console.warn('⚠️ STALE DATA: no _authUid stored but auth user created', Math.round((now - authCreated)/1000), 'seconds ago. Resetting.');
+                userData = {
+                    profile: {
+                        name: authMeta?.name || `${authMeta?.firstName || ''} ${authMeta?.lastName || ''}`.trim(),
+                        firstName: authMeta?.firstName || '',
+                        lastName: authMeta?.lastName || '',
+                        phone: authMeta?.phone || '',
+                        whatsapp_number: authMeta?.phone || '',
+                        _authUid: currentUid
+                    },
+                    income: { husband:0, wife:0, rental:0, rentalActive:false },
+                    expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
+                    investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
+                    loans: [],
+                    insurance: { term:[], health:[], vehicle:[] },
+                    schemes: [],
+                    bankAccounts: [],
+                    liquidSavings: 0,
+                    termCover: 0
+                };
+                await saveUserData(email);
+                console.log('✅ Stale data cleared for fresh registration');
+                return;
+            }
         }
         
         userData = {
@@ -6346,7 +6383,13 @@ async function loadUserData(email) {
             termCover:   data.profile?.termCover || data.insurance?.termCover || 0
         };
         
-        // If profile name is missing, recover from auth metadata (registration stores it there)
+        // Backfill _authUid for existing users who don't have it yet
+        if (!userData.profile._authUid && currentUid) {
+            userData.profile._authUid = currentUid;
+            await saveUserData(email);
+        }
+        
+        // If profile name is missing, recover from auth metadata
         if (!userData.profile.name && authMeta) {
             if (authMeta.name || authMeta.firstName) {
                 console.log('Recovering empty profile from auth metadata:', authMeta);
@@ -6354,6 +6397,7 @@ async function loadUserData(email) {
                 userData.profile.firstName = authMeta.firstName || '';
                 userData.profile.lastName = authMeta.lastName || '';
                 userData.profile.phone = authMeta.phone || '';
+                userData.profile._authUid = currentUid;
                 if (!userData.profile.familyMembers || userData.profile.familyMembers.length === 0) {
                     userData.profile.familyMembers = [{ id: 'self', name: userData.profile.name, role: 'self' }];
                 }
@@ -6365,7 +6409,7 @@ async function loadUserData(email) {
         console.warn('⚠️ No user_data row found in Supabase for:', email);
         // Reset userData to clean state for new user
         userData = {
-            profile: {},
+            profile: { _authUid: authUser?.id || '' },
             income: { husband:0, wife:0, rental:0, rentalActive:false },
             expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
             investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
@@ -6376,21 +6420,19 @@ async function loadUserData(email) {
             liquidSavings: 0,
             termCover: 0
         };
-        // Try to recover profile from auth metadata
-        try {
-            const { data: { user } } = await sb.auth.getUser();
-            const meta = user?.user_metadata;
-            if (meta?.name || meta?.firstName) {
-                console.log('Recovering profile from auth metadata:', meta);
-                userData.profile = {
-                    name: meta.name || `${meta.firstName || ''} ${meta.lastName || ''}`.trim(),
-                    firstName: meta.firstName || '',
-                    lastName: meta.lastName || '',
-                    phone: meta.phone || '',
-                    familyMembers: [{ id: 'self', name: meta.name || `${meta.firstName || ''} ${meta.lastName || ''}`.trim(), role: 'self' }]
-                };
-            }
-        } catch(e) { console.error('Auth metadata recovery failed:', e); }
+        // Recover profile from auth metadata
+        if (authMeta?.name || authMeta?.firstName) {
+            console.log('Recovering profile from auth metadata:', authMeta);
+            userData.profile = {
+                name: authMeta.name || `${authMeta.firstName || ''} ${authMeta.lastName || ''}`.trim(),
+                firstName: authMeta.firstName || '',
+                lastName: authMeta.lastName || '',
+                phone: authMeta.phone || '',
+                whatsapp_number: authMeta.phone || '',
+                _authUid: authUser?.id || '',
+                familyMembers: [{ id: 'self', name: authMeta.name || `${authMeta.firstName || ''} ${authMeta.lastName || ''}`.trim(), role: 'self' }]
+            };
+        }
         await saveUserData(email);
     }
 
@@ -6926,10 +6968,11 @@ window.showProfileWizard = async () => {
     window.scrollTo(0, 0);
     
     // Get authoritative name/phone from auth metadata (set during registration)
-    let authName = '', authFirstName = '', authLastName = '', authPhone = '';
+    let authName = '', authFirstName = '', authLastName = '', authPhone = '', authUid = '';
     try {
         const { data: { user } } = await sb.auth.getUser();
         const meta = user?.user_metadata;
+        authUid = user?.id || '';
         if (meta) {
             authFirstName = meta.firstName || '';
             authLastName = meta.lastName || '';
@@ -6956,7 +6999,8 @@ window.showProfileWizard = async () => {
             firstName: authFirstName,
             lastName: authLastName,
             phone: authPhone,
-            whatsapp_number: authPhone
+            whatsapp_number: authPhone,
+            _authUid: authUid
         },
         income: { husband:0, wife:0, rental:0, rentalActive:false },
         expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
@@ -7159,6 +7203,13 @@ window.completeProfileWizard = async () => {
         };
         
         // Build complete userData
+        // Get auth UID to stamp on the data for ownership verification
+        let authUid = '';
+        try {
+            const { data: { user: authU } } = await sb.auth.getUser();
+            authUid = authU?.id || '';
+        } catch(e) {}
+        
         userData = {
             profile: {
                 name: fullName, firstName, lastName, phone,
@@ -7172,7 +7223,8 @@ window.completeProfileWizard = async () => {
                 _expenseMigrationV1: true,
                 _monthMigrationV1: true,
                 _familyMigrationV1: true,
-                _wizardCompleted: true
+                _wizardCompleted: true,
+                _authUid: authUid
             },
             income: {
                 husband: monthlyIncome,
