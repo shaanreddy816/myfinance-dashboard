@@ -6051,6 +6051,19 @@ async function loadUserData(email) {
         }
     } else {
         console.warn('⚠️ No user_data row found in Supabase for:', email);
+        // Reset userData to clean state for new user
+        userData = {
+            profile: {},
+            income: { husband:0, wife:0, rental:0, rentalActive:false },
+            expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
+            investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
+            loans: [],
+            insurance: { term:[], health:[], vehicle:[] },
+            schemes: [],
+            bankAccounts: [],
+            liquidSavings: 0,
+            termCover: 0
+        };
         // Try to recover profile from auth metadata
         try {
             const { data: { user } } = await sb.auth.getUser();
@@ -6190,7 +6203,7 @@ async function checkSession() {
             }
             
             // Check if profile is incomplete — redirect to wizard
-            if (!userData.profile?.age || !userData.profile?.occupation) {
+            if (!userData.profile?._wizardCompleted || !userData.profile?.age || !userData.profile?.occupation) {
                 showProfileWizard();
             } else {
                 showApp();
@@ -6586,10 +6599,31 @@ window.showProfileWizard = () => {
     document.getElementById('profile-wizard').style.display = 'block';
     window.scrollTo(0, 0);
     
+    // Reset userData to clean state (keep only name/phone from auth metadata)
+    const keepProfile = {
+        name: userData.profile?.name || '',
+        firstName: userData.profile?.firstName || '',
+        lastName: userData.profile?.lastName || '',
+        phone: userData.profile?.phone || '',
+        whatsapp_number: userData.profile?.whatsapp_number || userData.profile?.phone || ''
+    };
+    userData = {
+        profile: keepProfile,
+        income: { husband:0, wife:0, rental:0, rentalActive:false },
+        expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
+        investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
+        loans: [],
+        insurance: { term:[], health:[], vehicle:[] },
+        schemes: [],
+        bankAccounts: [],
+        liquidSavings: 0,
+        termCover: 0
+    };
+    
     // Pre-fill greeting from registration data
     try {
         const pending = JSON.parse(localStorage.getItem('pending_registration_data') || '{}');
-        const firstName = pending.firstName || '';
+        const firstName = pending.firstName || keepProfile.firstName || '';
         if (firstName) {
             document.getElementById('wizard-greeting').textContent = `Welcome ${firstName}! Complete Your Profile`;
         }
@@ -6785,7 +6819,8 @@ window.completeProfileWizard = async () => {
                 liquidSavings: cashValue,
                 _expenseMigrationV1: true,
                 _monthMigrationV1: true,
-                _familyMigrationV1: true
+                _familyMigrationV1: true,
+                _wizardCompleted: true
             },
             income: {
                 husband: monthlyIncome,
@@ -6914,7 +6949,7 @@ window.doLogin = async () => {
         }
         
         // Check if profile is incomplete — redirect to wizard
-        if (!userData.profile?.age || !userData.profile?.occupation) {
+        if (!userData.profile?._wizardCompleted || !userData.profile?.age || !userData.profile?.occupation) {
             showProfileWizard();
         } else {
             showApp(); resetInactivity();
@@ -11957,7 +11992,7 @@ window.onload = () => {
                 currentUserEmail = newEmail;
                 loadUserData(currentUserEmail).then(()=>{
                     // Check if profile is incomplete (new user who verified email)
-                    if (!userData.profile?.age || !userData.profile?.occupation) {
+                    if (!userData.profile?._wizardCompleted || !userData.profile?.age || !userData.profile?.occupation) {
                         showProfileWizard();
                     } else {
                         showApp(); resetInactivity();
