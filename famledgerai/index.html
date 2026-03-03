@@ -2399,29 +2399,42 @@
 <script type="module" src="/src/main.js"></script>
 
 <script type="module">
-// MIGRATION NOTE: Supabase client is now imported from src/main.js
-// The code below is commented out but kept for reference during migration
-/*
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// MIGRATION NOTE: Wait for modules to load before accessing them
+// The main.js module loads asynchronously, so we need to wait for it
 
-// Supabase credentials — hardcoded for single-file deploy (no Vite build step)
-// Override via localStorage if needed (config modal still works)
-const SUPABASE_URL      = localStorage.getItem('sb_url') || 'https://ivvkzforsgruhofpekir.supabase.co';
-const SUPABASE_ANON_KEY = localStorage.getItem('sb_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2dmt6Zm9yc2dydWhvZnBla2lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODg4NjMsImV4cCI6MjA4NzQ2NDg2M30.aKVXCPFsNIbN3dH2xbjJKntGG0bQu9HSywvTWEnGnhU';
+// Wait for window.sb to be available (set by src/main.js)
+function waitForModules() {
+  return new Promise((resolve) => {
+    if (window.sb) {
+      resolve();
+    } else {
+      const checkInterval = setInterval(() => {
+        if (window.sb) {
+          clearInterval(checkInterval);
+          resolve();
+        }
+      }, 50);
+    }
+  });
+}
 
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize app after modules are loaded
+waitForModules().then(() => {
+  console.log('✅ Modules loaded, initializing app...');
+  
+  // Supabase client is now available via window.sb (imported from src/main.js)
+  const sb = window.sb;
 
-// Expose supabase client globally for use in other scripts
-window.supabase = sb;
-window.sb = sb;
-*/
+  // Hide the creds notice since we have hardcoded credentials
+  const credsNotice = document.getElementById('creds-notice-login');
+  if(credsNotice) credsNotice.style.display = 'none';
 
-// Supabase client is now available via window.sb (imported from src/main.js)
-const sb = window.sb;
+  // Continue with the rest of the initialization...
+  initializeApp();
+});
 
-// Hide the creds notice since we have hardcoded credentials
-const credsNotice = document.getElementById('creds-notice-login');
-if(credsNotice) credsNotice.style.display = 'none';
+function initializeApp() {
+  const sb = window.sb;
 
 // ========== TRANSLATIONS ==========
 const translations = {
@@ -16036,6 +16049,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
     console.log('PWA install prompt available');
 });
 
+} // End of initializeApp()
 
 </script>
 </body>

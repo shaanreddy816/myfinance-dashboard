@@ -151,20 +151,25 @@ mkdir -p src/{engines,ui,store,dal,lib,styles}
 
 ---
 
-### Task 6: Integrate Engines Back into index.html
+### Task 6: Set Up Vite Dev Server ✅ DONE
 
-**6.1** Import engines at top of `<script>` in `index.html`:
-```javascript
-import { calculateForecast } from './src/engines/forecastEngine.js';
-import { calculateRiskScore } from './src/engines/riskEngine.js';
-import { runStressTest } from './src/engines/stressEngine.js';
-```
+**6.1** Create `src/main.js` entry point ✅
+- Import extracted engines (forecast, risk, stress)
+- Import Supabase client module
+- Expose modules globally for backward compatibility
 
-**6.2** Replace inline engine code with imported functions
+**6.2** Update `index.html` to use Vite entry point ✅
+- Add `<script type="module" src="/src/main.js"></script>`
+- Comment out old CDN-based Supabase import
+- Use `window.sb` from imported module
 
-**6.3** Test app manually - verify all calculations work
+**6.3** Test Vite dev server ✅
+- Run `npm run dev`
+- Server starts in 2.5 seconds on http://localhost:5173/
+- Modules load successfully
 
-**6.4** Commit: `git commit -m "refactor: Integrate extracted engines into index.html"`
+**6.4** Commit changes ✅
+- `git commit -m "refactor(phase1): Set up Vite dev server with module imports"`
 
 ---
 
