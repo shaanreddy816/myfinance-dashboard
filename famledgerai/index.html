@@ -9044,7 +9044,7 @@ async function saveNormalizedData() {
         
         if (userData.income?.husband > 0 && selfMemberId) {
             incomes.push({
-                id: 'income-self-salary',
+                // Don't set id - let Supabase generate UUID
                 member_id: selfMemberId,
                 type: 'salary',
                 amount: userData.income.husband,
@@ -9055,7 +9055,7 @@ async function saveNormalizedData() {
         
         if (userData.income?.wife > 0 && spouseMemberId) {
             incomes.push({
-                id: 'income-spouse-salary',
+                // Don't set id - let Supabase generate UUID
                 member_id: spouseMemberId,
                 type: 'salary',
                 amount: userData.income.wife,
@@ -9066,7 +9066,7 @@ async function saveNormalizedData() {
         
         if (userData.income?.rental > 0 && selfMemberId) {
             incomes.push({
-                id: 'income-rental',
+                // Don't set id - let Supabase generate UUID
                 member_id: selfMemberId,
                 type: 'rental',
                 amount: userData.income.rental,
@@ -9077,7 +9077,7 @@ async function saveNormalizedData() {
         
         if (userData.income?.business > 0 && selfMemberId) {
             incomes.push({
-                id: 'income-business',
+                // Don't set id - let Supabase generate UUID
                 member_id: selfMemberId,
                 type: 'business',
                 amount: userData.income.business,
@@ -9088,7 +9088,7 @@ async function saveNormalizedData() {
         
         if (userData.income?.other > 0 && selfMemberId) {
             incomes.push({
-                id: 'income-other',
+                // Don't set id - let Supabase generate UUID
                 member_id: selfMemberId,
                 type: 'other',
                 amount: userData.income.other,
@@ -9098,7 +9098,27 @@ async function saveNormalizedData() {
         }
         
         if (incomes.length > 0) {
-            await saveTable('incomes', incomes);
+            // For incomes, delete existing and insert new (simpler than upsert without IDs)
+            // Delete existing incomes for this household
+            const { error: deleteError } = await sb
+                .from('incomes')
+                .delete()
+                .eq('household_id', householdId);
+            
+            if (deleteError) {
+                console.error('❌ Error deleting old incomes:', deleteError);
+            }
+            
+            // Insert new incomes (without id, let Supabase generate UUIDs)
+            const { data, error } = await sb
+                .from('incomes')
+                .insert(incomes.map(inc => ({ ...inc, household_id: householdId })));
+            
+            if (error) {
+                console.error('❌ Error saving incomes:', error);
+            } else {
+                console.log('✅ Saved', incomes.length, 'income rows');
+            }
         }
         
         // Extract and save expenses
