@@ -1,13 +1,22 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
 
 export default defineConfig({
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
+  root: '.', // Keep root at project level for now (during migration)
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html')
       }
     }
+  },
+  server: {
+    port: 5173,
+    open: true
+  },
+  define: {
+    'process.env': {}
   }
-})
+});
