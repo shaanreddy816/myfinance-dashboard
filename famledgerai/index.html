@@ -6296,6 +6296,43 @@ async function loadUserData(email) {
             loanCount: data.loans?.length,
             hasInsurance: !!data.insurance
         }));
+        
+        // Verify loaded data belongs to current auth user by checking name against auth metadata
+        let authMeta = null;
+        try {
+            const { data: { user } } = await sb.auth.getUser();
+            authMeta = user?.user_metadata;
+        } catch(e) {}
+        
+        const loadedName = (data.profile?.name || '').toLowerCase().trim();
+        const authName = (authMeta?.name || `${authMeta?.firstName || ''} ${authMeta?.lastName || ''}`.trim()).toLowerCase().trim();
+        
+        // If data has _wizardCompleted but name doesn't match auth metadata, data is corrupted/stale
+        if (data.profile?._wizardCompleted && authName && loadedName && loadedName !== authName) {
+            console.warn('⚠️ STALE DATA DETECTED: loaded name "' + loadedName + '" != auth name "' + authName + '". Resetting.');
+            userData = {
+                profile: {
+                    name: authMeta?.name || `${authMeta?.firstName || ''} ${authMeta?.lastName || ''}`.trim(),
+                    firstName: authMeta?.firstName || '',
+                    lastName: authMeta?.lastName || '',
+                    phone: authMeta?.phone || '',
+                    whatsapp_number: authMeta?.phone || ''
+                },
+                income: { husband:0, wife:0, rental:0, rentalActive:false },
+                expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
+                investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
+                loans: [],
+                insurance: { term:[], health:[], vehicle:[] },
+                schemes: [],
+                bankAccounts: [],
+                liquidSavings: 0,
+                termCover: 0
+            };
+            await saveUserData(email);
+            console.log('✅ Stale data cleared and clean state saved');
+            return;
+        }
+        
         userData = {
             profile:     data.profile     || {},
             income:      data.income      || { husband:0, wife:0, rental:0, rentalActive:false },
@@ -6310,23 +6347,19 @@ async function loadUserData(email) {
         };
         
         // If profile name is missing, recover from auth metadata (registration stores it there)
-        if (!userData.profile.name) {
-            try {
-                const { data: { user } } = await sb.auth.getUser();
-                const meta = user?.user_metadata;
-                if (meta?.name || meta?.firstName) {
-                    console.log('Recovering empty profile from auth metadata:', meta);
-                    userData.profile.name = meta.name || `${meta.firstName || ''} ${meta.lastName || ''}`.trim();
-                    userData.profile.firstName = meta.firstName || '';
-                    userData.profile.lastName = meta.lastName || '';
-                    userData.profile.phone = meta.phone || '';
-                    if (!userData.profile.familyMembers || userData.profile.familyMembers.length === 0) {
-                        userData.profile.familyMembers = [{ id: 'self', name: userData.profile.name, role: 'self' }];
-                    }
-                    await saveUserData(email);
-                    console.log('✅ Profile recovered and saved');
+        if (!userData.profile.name && authMeta) {
+            if (authMeta.name || authMeta.firstName) {
+                console.log('Recovering empty profile from auth metadata:', authMeta);
+                userData.profile.name = authMeta.name || `${authMeta.firstName || ''} ${authMeta.lastName || ''}`.trim();
+                userData.profile.firstName = authMeta.firstName || '';
+                userData.profile.lastName = authMeta.lastName || '';
+                userData.profile.phone = authMeta.phone || '';
+                if (!userData.profile.familyMembers || userData.profile.familyMembers.length === 0) {
+                    userData.profile.familyMembers = [{ id: 'self', name: userData.profile.name, role: 'self' }];
                 }
-            } catch(e) { console.error('Auth metadata recovery failed:', e); }
+                await saveUserData(email);
+                console.log('✅ Profile recovered and saved');
+            }
         }
     } else {
         console.warn('⚠️ No user_data row found in Supabase for:', email);
@@ -6438,6 +6471,7 @@ function debounceSave() {
 // ========== AUTH ==========
 async function checkSession() {
     const ls = document.getElementById('loading-screen');
+    isLoadingSession = true;
     try {
         console.log('Checking session with Supabase URL:', SUPABASE_URL);
         const { data: { session }, error } = await sb.auth.getSession();
@@ -6498,6 +6532,7 @@ async function checkSession() {
         console.error('checkSession error:', e);
         showAuth();
     } finally {
+        isLoadingSession = false;
         if (ls) ls.style.display = 'none';
     }
 }
@@ -6882,7 +6917,7 @@ window.showVerificationScreen = (email) => {
 };
 
 // Show profile wizard
-window.showProfileWizard = () => {
+window.showProfileWizard = async () => {
     $('landing').style.display = 'none';
     $('auth').style.display = 'none';
     $('app').style.display = 'none';
@@ -6890,16 +6925,39 @@ window.showProfileWizard = () => {
     document.getElementById('profile-wizard').style.display = 'block';
     window.scrollTo(0, 0);
     
-    // Reset userData to clean state (keep only name/phone from auth metadata)
-    const keepProfile = {
-        name: userData.profile?.name || '',
-        firstName: userData.profile?.firstName || '',
-        lastName: userData.profile?.lastName || '',
-        phone: userData.profile?.phone || '',
-        whatsapp_number: userData.profile?.whatsapp_number || userData.profile?.phone || ''
-    };
+    // Get authoritative name/phone from auth metadata (set during registration)
+    let authName = '', authFirstName = '', authLastName = '', authPhone = '';
+    try {
+        const { data: { user } } = await sb.auth.getUser();
+        const meta = user?.user_metadata;
+        if (meta) {
+            authFirstName = meta.firstName || '';
+            authLastName = meta.lastName || '';
+            authName = meta.name || `${authFirstName} ${authLastName}`.trim();
+            authPhone = meta.phone || '';
+        }
+    } catch(e) { console.error('Failed to get auth metadata:', e); }
+    
+    // Fallback to pending registration data in localStorage
+    if (!authFirstName) {
+        try {
+            const pending = JSON.parse(localStorage.getItem('pending_registration_data') || '{}');
+            authFirstName = pending.firstName || '';
+            authLastName = pending.lastName || '';
+            authName = authFirstName && authLastName ? `${authFirstName} ${authLastName}` : '';
+            authPhone = pending.phone || '';
+        } catch(e) {}
+    }
+    
+    // Reset userData to completely clean state with ONLY auth metadata
     userData = {
-        profile: keepProfile,
+        profile: {
+            name: authName,
+            firstName: authFirstName,
+            lastName: authLastName,
+            phone: authPhone,
+            whatsapp_number: authPhone
+        },
         income: { husband:0, wife:0, rental:0, rentalActive:false },
         expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
         investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
@@ -6918,14 +6976,10 @@ window.showProfileWizard = () => {
         }).catch(e => console.error('Failed to save clean userData:', e));
     }
     
-    // Pre-fill greeting from registration data or auth metadata
-    try {
-        const pending = JSON.parse(localStorage.getItem('pending_registration_data') || '{}');
-        const firstName = pending.firstName || keepProfile.firstName || '';
-        if (firstName) {
-            document.getElementById('wizard-greeting').textContent = `Welcome ${firstName}! Complete Your Profile`;
-        }
-    } catch(e) {}
+    // Pre-fill greeting
+    if (authFirstName) {
+        document.getElementById('wizard-greeting').textContent = `Welcome ${authFirstName}! Complete Your Profile`;
+    }
 };
 
 // Add child field in wizard
@@ -12275,29 +12329,34 @@ window.changeLanguage = lang => {
 
 // ========== INIT ==========
 let isRegistering = false; // Flag to prevent onAuthStateChange from interfering with registration
+let isLoadingSession = false; // Mutex to prevent concurrent loadUserData calls from checkSession + onAuthStateChange race
 
 window.onload = () => {
     checkSession();
     sb.auth.onAuthStateChange((event, session) => {
-        console.log('onAuthStateChange:', event, 'isRegistering:', isRegistering, 'email:', session?.user?.email);
+        console.log('onAuthStateChange:', event, 'isRegistering:', isRegistering, 'isLoadingSession:', isLoadingSession, 'email:', session?.user?.email);
         if(isRegistering) {
             console.log('Skipping onAuthStateChange during registration');
             return;
         }
+        if(isLoadingSession) {
+            console.log('Skipping onAuthStateChange — checkSession already handling this');
+            return;
+        }
         if(event==='SIGNED_IN' && session) {
-            // Only reload data if it's a different user than what's already loaded
             const newEmail = session.user.email;
+            // Only reload if truly a different user or no data loaded yet
             if(newEmail !== currentUserEmail || !userData.profile?.name) {
+                isLoadingSession = true;
                 currentUserEmail = newEmail;
                 loadUserData(currentUserEmail).then(()=>{
-                    // Check if profile is incomplete (new user who verified email)
                     const profileComplete = userData.profile?._wizardCompleted || (userData.profile?.age && userData.profile?.occupation);
                     if (!profileComplete) {
                         showProfileWizard();
                     } else {
                         showApp(); resetInactivity();
                     }
-                });
+                }).finally(() => { isLoadingSession = false; });
             }
         } else if(event==='SIGNED_OUT') {
             // Reset userData to empty on sign out

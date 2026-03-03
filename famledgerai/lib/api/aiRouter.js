@@ -287,31 +287,31 @@ function getMockAdvice(module) {
       missingData: ['detailed expense breakdown', 'investment history', 'tax returns']
     },
     loan_advisor: {
-      summary: 'Your home loan is a long-term commitment. With a floating rate of 7.45%, focus on making periodic prepayments to reduce total interest outgo significantly.',
+      summary: 'Focus on making periodic prepayments to reduce total interest outgo. Prioritize high-interest loans first.',
       debtHealthScore: 65,
       debtHealthLabel: 'Moderate',
-      priorityOrder: ['SBI Home Loan'],
-      priorityReason: 'Since this is your only loan, all extra payments should go here. Home loans have tax benefits under Section 24(b) for interest (up to ₹2L/yr) and Section 80C for principal (up to ₹1.5L/yr), so balance prepayment with tax savings.',
+      priorityOrder: ['Your highest-rate loan'],
+      priorityReason: 'Focus extra payments on your highest interest rate loan first. Home loans have tax benefits under Section 24(b) for interest (up to ₹2L/yr) and Section 80C for principal (up to ₹1.5L/yr).',
       strategies: [
-        { name: 'Extra ₹10,000/month Prepayment', description: 'Pay ₹83,377 instead of ₹73,377 each month. This reduces your tenure significantly and saves lakhs in interest.', timeSaved: '5-6 years', interestSaved: 1500000, difficulty: 'Easy', recommended: true },
-        { name: 'Annual Lumpsum of ₹1-2 Lakhs', description: 'Use annual bonus or savings to make a lumpsum prepayment once a year. Even ₹1L/year makes a big difference over 30 years.', timeSaved: '3-4 years', interestSaved: 800000, difficulty: 'Easy', recommended: true },
-        { name: 'Rate Negotiation / Balance Transfer', description: 'Check with other banks for lower rates. If you can get 7.0% or below, a balance transfer could save significant interest. SBI periodically revises rates — request a rate review.', timeSaved: '2-3 years', interestSaved: 500000, difficulty: 'Medium', recommended: false }
+        { name: 'Extra Monthly Prepayment', description: 'Add ₹5,000-10,000 extra to your highest EMI each month. This reduces tenure significantly and saves lakhs in interest.', timeSaved: '3-5 years', interestSaved: 1000000, difficulty: 'Easy', recommended: true },
+        { name: 'Annual Lumpsum Prepayment', description: 'Use annual bonus or savings to make a lumpsum prepayment once a year. Even ₹1L/year makes a big difference.', timeSaved: '2-4 years', interestSaved: 800000, difficulty: 'Easy', recommended: true },
+        { name: 'Rate Negotiation / Balance Transfer', description: 'Check with other banks for lower rates. A balance transfer could save significant interest if you find a rate 0.5% or more lower.', timeSaved: '1-3 years', interestSaved: 500000, difficulty: 'Medium', recommended: false }
       ],
       quickWins: [
-        'SBI floating rate home loans have ZERO prepayment charges — take advantage of this',
-        'Claim Section 24(b) deduction of up to ₹2L/year on home loan interest to reduce tax',
+        'Floating rate home loans typically have ZERO prepayment charges — take advantage',
+        'Claim Section 24(b) deduction of up to ₹2L/year on home loan interest',
         'Claim Section 80C deduction of up to ₹1.5L/year on principal repayment',
         'Set up auto-debit for EMI to avoid late payment charges'
       ],
-      warnings: ['Your EMI of ₹73,377 is a significant monthly commitment — ensure you maintain an emergency fund of at least 6 months expenses'],
-      refinanceAdvice: 'At 7.45%, your rate is reasonable for current market conditions. Monitor RBI repo rate changes — if rates drop below 7%, consider requesting SBI for a rate reduction or explore balance transfer to banks offering 6.5-7%.',
-      monthlyPlan: 'Pay your regular EMI of ₹73,377 + try to add ₹5,000-10,000 extra as prepayment each month. Even small consistent prepayments compound into massive savings over 30 years.',
+      warnings: ['Ensure you maintain an emergency fund of at least 6 months expenses before making prepayments'],
+      refinanceAdvice: 'Monitor RBI repo rate changes. If rates drop significantly, consider requesting your bank for a rate reduction or explore balance transfer options.',
+      monthlyPlan: 'Pay your regular EMIs and try to add extra as prepayment each month. Even small consistent prepayments compound into significant savings over time.',
       projections: {
-        currentPayoffDate: 'April 2054',
-        optimizedPayoffDate: 'March 2048',
-        totalInterestCurrent: 17200000,
-        totalInterestOptimized: 12500000,
-        totalSavings: 4700000
+        currentPayoffDate: 'Based on your loan tenure',
+        optimizedPayoffDate: 'With prepayments',
+        totalInterestCurrent: 0,
+        totalInterestOptimized: 0,
+        totalSavings: 0
       }
     },
     loan_parse: {
