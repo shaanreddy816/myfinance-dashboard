@@ -1,24 +1,35 @@
-import './style.css'
-import javascriptLogo from './javascript.svg'
-import viteLogo from '/vite.svg'
-import { setupCounter } from './counter.js'
+/**
+ * Main Entry Point — Initializes the FamLedgerAI application
+ *
+ * This file serves as the bridge between the old monolithic index.html
+ * and the new modular architecture. It imports extracted modules and
+ * makes them available globally for the existing inline code.
+ */
 
-document.querySelector('#app').innerHTML = `
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-      <img src="${javascriptLogo}" class="logo vanilla" alt="JavaScript logo" />
-    </a>
-    <h1>Hello Vite!</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite logo to learn more
-    </p>
-  </div>
-`
+// Import extracted modules
+import { sb, setCurrentUserEmail, isAuthenticated, getCurrentSession } from './lib/supabaseClient.js';
+import * as forecastEngine from './engines/forecastEngine.js';
+import * as riskEngine from './engines/riskEngine.js';
+import * as stressEngine from './engines/stressEngine.js';
 
-setupCounter(document.querySelector('#counter'))
+// Expose modules globally for backward compatibility with inline code
+// (This will be removed once all code is migrated to imports)
+window.sb = sb;
+window.supabase = sb;
+window.setCurrentUserEmail = setCurrentUserEmail;
+window.isAuthenticated = isAuthenticated;
+window.getCurrentSession = getCurrentSession;
+
+// Expose engine functions globally
+window.forecastEngine = forecastEngine;
+window.riskEngine = riskEngine;
+window.stressEngine = stressEngine;
+
+console.log('✅ FamLedgerAI modules loaded');
+console.log('📦 Forecast Engine:', Object.keys(forecastEngine).length, 'functions');
+console.log('📦 Risk Engine:', Object.keys(riskEngine).length, 'functions');
+console.log('📦 Stress Engine:', Object.keys(stressEngine).length, 'functions');
+console.log('🔐 Supabase client initialized');
+
+// The rest of the app initialization will happen in the inline script
+// in index.html (for now, until we migrate everything)

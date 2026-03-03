@@ -117,40 +117,60 @@ mkdir -p src/{engines,ui,store,dal,lib,styles}
 - 38 tests passing in 16ms
 - 100% coverage for stress engine functions
 
----**4.4** Create `src/engines/stressEngine.test.js`
+---
 
-**4.5** Write tests for:
-- Job loss survival months
-- Medical emergency impact
-- Market crash portfolio decline
-- Delta from baseline
-- Zero liquid savings edge case
-- High emergency fund edge case
+### Task 5: Create Supabase Client Module ✅ DONE
 
-**4.6** Run tests and verify coverage
+**5.1** Create `src/lib/supabaseClient.js` ✅
+
+**5.2** Extract Supabase initialization: ✅
+- `createClient()` with configuration priority (localStorage → env → defaults)
+- `getSupabaseUrl()` and `getSupabaseAnonKey()` helpers
+- Singleton client instance export
+
+**5.3** Add auth state management: ✅
+- `currentUserEmail` tracking
+- `setCurrentUserEmail()` setter
+- `isAuthenticated()` helper
+- `getCurrentSession()` async helper
+- `initAuthListener()` for auth state changes
+- `signOut()` helper
+
+**5.4** Add JSDoc comments ✅
+
+**5.5** Create `src/lib/supabaseClient.test.js` ✅
+
+**5.6** Write tests for: ✅
+- `setCurrentUserEmail()` functionality (3 tests)
+- `isAuthenticated()` state checking (3 tests)
+- Environment handling (localStorage, import.meta.env)
+
+**5.7** Run tests and verify ✅
+- 6 tests passing in 6ms
+- Handles Node environment (no localStorage)
 
 ---
 
-### Task 5: Integrate Engines Back into index.html
+### Task 6: Integrate Engines Back into index.html
 
-**5.1** Import engines at top of `<script>` in `index.html`:
+**6.1** Import engines at top of `<script>` in `index.html`:
 ```javascript
 import { calculateForecast } from './src/engines/forecastEngine.js';
 import { calculateRiskScore } from './src/engines/riskEngine.js';
 import { runStressTest } from './src/engines/stressEngine.js';
 ```
 
-**5.2** Replace inline engine code with imported functions
+**6.2** Replace inline engine code with imported functions
 
-**5.3** Test app manually - verify all calculations work
+**6.3** Test app manually - verify all calculations work
 
-**5.4** Commit: `git commit -m "refactor: Extract engines with unit tests"`
+**6.4** Commit: `git commit -m "refactor: Integrate extracted engines into index.html"`
 
 ---
 
 ## Phase 2: Extract UI Rendering (Days 4-6)
 
-### Task 6: Extract Overview Rendering
+### Task 7: Extract Overview Rendering
 
 **6.1** Create `src/ui/renderOverview.js`
 

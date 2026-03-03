@@ -2394,7 +2394,14 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+
+<!-- Vite Entry Point: Imports extracted modules (engines, supabase client) -->
+<script type="module" src="/src/main.js"></script>
+
 <script type="module">
+// MIGRATION NOTE: Supabase client is now imported from src/main.js
+// The code below is commented out but kept for reference during migration
+/*
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 // Supabase credentials — hardcoded for single-file deploy (no Vite build step)
@@ -2407,6 +2414,10 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Expose supabase client globally for use in other scripts
 window.supabase = sb;
 window.sb = sb;
+*/
+
+// Supabase client is now available via window.sb (imported from src/main.js)
+const sb = window.sb;
 
 // Hide the creds notice since we have hardcoded credentials
 const credsNotice = document.getElementById('creds-notice-login');
