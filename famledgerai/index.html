@@ -2575,15 +2575,170 @@ function t(key) { return translations[currentLang]?.[key] || translations['en'][
 const KITE_API_KEY = '77labkoqjfkr779r'; // Zerodha Kite Connect Personal (Free)
 const ZERODHA_REDIRECT = 'https://famledgerai.com/api/integrations/zerodha/callback';
 
-window.connectZerodha = () => {
+window.connectZerodha = (memberId) => {
   if (!currentUserEmail) {
     alert('You must be logged in first.');
     return;
   }
+  // Resolve which member to connect — if "all" or unspecified, default to 'self'
+  const targetMember = (!memberId || memberId === 'all') ? 'self' : memberId;
   // Kite uses redirect_params (not state) to pass custom data back to the callback
-  const redirectParams = encodeURIComponent('user_email=' + encodeURIComponent(currentUserEmail));
+  const redirectParams = encodeURIComponent(
+    'user_email=' + encodeURIComponent(currentUserEmail) +
+    '&member_id=' + encodeURIComponent(targetMember)
+  );
   const loginUrl = `https://kite.zerodha.com/connect/login?v=3&api_key=${KITE_API_KEY}&redirect_params=${redirectParams}`;
   window.location.href = loginUrl;
+};
+
+window.disconnectZerodha = async (memberId) => {
+  if (!currentUserEmail) return;
+  const targetMember = (!memberId || memberId === 'all') ? 'self' : memberId;
+  if (!confirm(`Disconnect Zerodha for ${getMemberName(targetMember)}?`)) return;
+  try {
+    const res = await fetch('/api/integrations/zerodha/disconnect', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': currentUserEmail,
+        'X-Member-Id': targetMember
+      }
+    });
+    if (res.ok) {
+      alert('Zerodha disconnected successfully.');
+      renderInvestments();
+    } else {
+      alert('Failed to disconnect Zerodha. Please try again.');
+    }
+  } catch (e) {
+    console.error('Disconnect Zerodha error:', e);
+    alert('Error disconnecting Zerodha.');
+  }
+};
+
+// Check Zerodha connection status for a specific member
+// Returns { status: 'connected'|'expired'|'not_connected', lastSync: ISO string|null }
+async function checkZerodhaStatus(memberId) {
+  if (!currentUserEmail) return { status: 'not_connected', lastSync: null };
+  const targetMember = (!memberId || memberId === 'all') ? 'self' : memberId;
+  try {
+    const res = await fetch('/api/integrations/zerodha/holdings', {
+      headers: { 'X-User-Id': currentUserEmail, 'X-Member-Id': targetMember }
+    });
+    if (res.status === 200) {
+      const data = await res.json();
+      const lastSync = (data && data.length > 0 && data[0].last_synced) ? data[0].last_synced : new Date().toISOString();
+      return { status: 'connected', lastSync };
+    }
+    if (res.status === 401) {
+      const body = await res.json().catch(() => ({}));
+      if (body.needsReauth) return { status: 'expired', lastSync: null };
+    }
+    return { status: 'not_connected', lastSync: null };
+  } catch (e) {
+    console.error('checkZerodhaStatus error for', targetMember, e);
+    return { status: 'not_connected', lastSync: null };
+  }
+}
+
+// Load Zerodha connection statuses for all family members in parallel
+async function loadZerodhaConnectionStatuses() {
+  const members = userData.profile.familyMembers || [];
+  if (members.length === 0) return {};
+  const results = await Promise.all(members.map(m => checkZerodhaStatus(m.id)));
+  const statusMap = {};
+  members.forEach((m, i) => { statusMap[m.id] = results[i]; });
+  return statusMap;
+}
+
+// Render the Zerodha connection rows after statuses are loaded
+function renderZerodhaConnectionRows(statusMap) {
+  const container = document.getElementById('zerodha-connections-list');
+  if (!container) return;
+  const members = userData.profile.familyMembers || [];
+  if (members.length === 0) {
+    container.innerHTML = '<div style="padding:12px; font-size:13px; color:var(--text3);">No family members configured. Add members above first.</div>';
+    return;
+  }
+  let html = '';
+  members.forEach(m => {
+    const icon = m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : m.role==='kid' ? '👶' : m.role==='father' ? '👴' : m.role==='mother' ? '👵' : '👤';
+    const info = statusMap[m.id] || { status: 'not_connected', lastSync: null };
+    let statusBadge = '';
+    let actionBtn = '';
+    let syncInfo = '';
+
+    if (info.status === 'connected') {
+      statusBadge = '<span style="font-size:11px; padding:3px 8px; border-radius:12px; background:var(--green-dim, rgba(34,197,94,0.1)); color:var(--green, #22c55e); font-weight:600;">✅ Connected</span>';
+      actionBtn = `<button onclick="disconnectZerodhaFromSettings('${m.id}')" style="font-size:11px; padding:4px 10px; border-radius:var(--radius-sm); background:var(--red-dim, rgba(239,68,68,0.1)); color:var(--red, #ef4444); border:1px solid var(--red, #ef4444); cursor:pointer; font-weight:600;">Disconnect</button>`;
+      if (info.lastSync) {
+        const syncDate = new Date(info.lastSync);
+        const timeAgo = getTimeAgo(syncDate);
+        syncInfo = `<div style="font-size:10px; color:var(--text3); margin-top:2px;">Last synced: ${timeAgo}</div>`;
+      }
+    } else if (info.status === 'expired') {
+      statusBadge = '<span style="font-size:11px; padding:3px 8px; border-radius:12px; background:rgba(245,158,11,0.1); color:#f59e0b; font-weight:600;">⚠️ Expired</span>';
+      actionBtn = `<button onclick="connectZerodha('${m.id}')" style="font-size:11px; padding:4px 10px; border-radius:var(--radius-sm); background:var(--accent-glow, rgba(99,102,241,0.1)); color:var(--accent2, #818cf8); border:1px solid var(--accent2, #818cf8); cursor:pointer; font-weight:600;">🔗 Reconnect</button>`;
+    } else {
+      statusBadge = '<span style="font-size:11px; padding:3px 8px; border-radius:12px; background:var(--bg3, rgba(100,100,100,0.1)); color:var(--text3); font-weight:600;">Not Connected</span>';
+      actionBtn = `<button onclick="connectZerodha('${m.id}')" style="font-size:11px; padding:4px 10px; border-radius:var(--radius-sm); background:var(--accent-glow, rgba(99,102,241,0.1)); color:var(--accent2, #818cf8); border:1px solid var(--accent2, #818cf8); cursor:pointer; font-weight:600;">🔗 Connect Zerodha</button>`;
+    }
+
+    html += `<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border); gap:8px;">
+      <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
+        <span style="font-size:18px;">${icon}</span>
+        <div style="min-width:0;">
+          <div style="font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.name}</div>
+          ${syncInfo}
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+        ${statusBadge}
+        ${actionBtn}
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+// Helper: human-readable time ago
+function getTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHrs = Math.floor(diffMins / 60);
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+// Disconnect Zerodha from Settings page (refreshes settings instead of investments)
+window.disconnectZerodhaFromSettings = async (memberId) => {
+  if (!currentUserEmail) return;
+  const targetMember = (!memberId || memberId === 'all') ? 'self' : memberId;
+  if (!confirm(`Disconnect Zerodha for ${getMemberName(targetMember)}?`)) return;
+  try {
+    const res = await fetch('/api/integrations/zerodha/disconnect', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': currentUserEmail,
+        'X-Member-Id': targetMember
+      }
+    });
+    if (res.ok) {
+      alert('Zerodha disconnected successfully.');
+      renderSettings();
+    } else {
+      alert('Failed to disconnect Zerodha. Please try again.');
+    }
+  } catch (e) {
+    console.error('Disconnect Zerodha error:', e);
+    alert('Error disconnecting Zerodha.');
+  }
 };
 
 // ========== STATE ==========
@@ -4482,13 +4637,15 @@ function computeMonthlyExpenses() {
 
 function computeTotalEmi() {
     return computeCache.get('totalEmi', () => {
-        return (userData.loans||[]).reduce((s,l)=>s+(l.emi||0),0);
+        const loans = getLoansForMember(currentProfile);
+        return loans.reduce((s,l)=>s+(l.emi||0),0);
     });
 }
 
 function computeTotalLoanOutstanding() {
     return computeCache.get('totalLoanOutstanding', () => {
-        return (userData.loans||[]).reduce((s,l)=>s+(l.outstanding||0),0);
+        const loans = getLoansForMember(currentProfile);
+        return loans.reduce((s,l)=>s+(l.outstanding||0),0);
     });
 }
 
@@ -4522,21 +4679,959 @@ function computeDebtRatio() {
     });
 }
 
+function computeInsuranceCoverage() {
+    return computeCache.get('insuranceCoverage', () => {
+        const ins = getInsuranceForMember(currentProfile);
+        // Filter out cross-referenced policies to avoid double-counting
+        const termLife = [...(ins.term||[]), ...(ins.life||[])].filter(p => !p._crossReferenced);
+        const health = (ins.health||[]).filter(p => !p._crossReferenced);
+        const termCover = termLife.reduce((s,p) => s + (p.cover||0), 0);
+        const healthCover = health.reduce((s,p) => s + (p.cover||p.sum_insured||0), 0);
+        return { termCover, healthCover };
+    });
+}
+
 function computeInsuranceRatio() {
     return computeCache.get('insuranceRatio', () => {
         const annualIncome = computeMonthlyIncome() * 12;
         if(!annualIncome) return 0;
-        return (userData.termCover||0) / (annualIncome * 12);
+        const { termCover } = computeInsuranceCoverage();
+        return termCover / (annualIncome * 12);
     });
 }
 
 function computeTotalInvestments() {
-    const inv = userData.investments || {};
+    const inv = getInvestmentsForMember(currentProfile);
     const mf  = (inv.mutualFunds||[]).reduce((s,f)=>s+(f.value||0),0);
     const st  = (inv.stocks||[]).reduce((s,f)=>s+(f.value||0),0);
     const fd  = (inv.fd||[]).reduce((s,f)=>s+(f.value||0),0);
     const ppf = (inv.ppf||[]).reduce((s,f)=>s+(f.value||0),0);
     return mf+st+fd+ppf;
+}
+
+// ========== FORECAST ASSUMPTIONS ==========
+function getDefaultAssumptions() {
+    return { equityReturn: 12, debtReturn: 7, incomeGrowth: 8, expenseInflation: 6, medicalInflation: 10 };
+}
+
+function getForecastAssumptions() {
+    const defaults = getDefaultAssumptions();
+    const saved = userData.profile?.forecastAssumptions || {};
+    return { ...defaults, ...saved };
+}
+
+// ========== FORECAST ENGINE ==========
+
+function computeWeightedReturnRate() {
+    const inv = getInvestmentsForMember(currentProfile);
+    const equityVal = (inv.mutualFunds || []).reduce((s, f) => s + (f.value || 0), 0)
+                    + (inv.stocks || []).reduce((s, f) => s + (f.value || 0), 0);
+    const debtVal   = (inv.fd || []).reduce((s, f) => s + (f.value || 0), 0)
+                    + (inv.ppf || []).reduce((s, f) => s + (f.value || 0), 0);
+    const total = equityVal + debtVal;
+    const equityFraction = total > 0 ? equityVal / total : 0.5;
+    const debtFraction   = total > 0 ? debtVal / total : 0.5;
+    const assumptions = getForecastAssumptions();
+    return (assumptions.equityReturn / 100 * equityFraction) + (assumptions.debtReturn / 100 * debtFraction);
+}
+
+function computeForecastLoanAmortization(loan, extraMonthlyPayment) {
+    const extra = extraMonthlyPayment || 0;
+    let outstanding = loan.outstanding || 0;
+    const emi = loan.emi || 0;
+    const rate = loan.rate || 0;
+
+    if (outstanding <= 0 || emi <= 0) {
+        return {
+            yearEndBalances: new Array(15).fill(0),
+            payoffMonth: 0,
+            totalInterestPaid: 0,
+            totalInterestWithExtra: 0
+        };
+    }
+
+    // Rate = 0 edge case: simple division
+    if (rate === 0) {
+        const payoffMonth = Math.ceil(outstanding / (emi + extra));
+        const yearEndBalances = [];
+        let bal = outstanding;
+        for (let y = 1; y <= 15; y++) {
+            const monthsThisYear = 12;
+            for (let m = 0; m < monthsThisYear; m++) {
+                if (bal <= 0) break;
+                bal = Math.max(0, bal - (emi + extra));
+            }
+            yearEndBalances.push(Math.max(0, bal));
+        }
+        return { yearEndBalances, payoffMonth, totalInterestPaid: 0, totalInterestWithExtra: 0 };
+    }
+
+    const monthlyRate = rate / 100 / 12;
+
+    // Check if EMI covers monthly interest (without extra payment for baseline)
+    const initialMonthlyInterest = outstanding * monthlyRate;
+
+    // Compute baseline (no extra payment) for totalInterestPaid
+    let baseBal = outstanding;
+    let baseInterest = 0;
+    let basePayoffMonth = 0;
+    const baseNeverPaysOff = emi <= baseBal * monthlyRate;
+    for (let m = 1; m <= 180; m++) {
+        const interest = baseBal * monthlyRate;
+        baseInterest += interest;
+        const principal = emi - interest;
+        if (principal <= 0) {
+            // EMI doesn't cover interest — cap at 180
+            basePayoffMonth = 180;
+            baseInterest = 0;
+            baseBal = outstanding;
+            for (let mm = 1; mm <= 180; mm++) {
+                const mi = baseBal * monthlyRate;
+                baseInterest += mi;
+                baseBal = Math.max(0, baseBal + mi - emi);
+            }
+            break;
+        }
+        baseBal = Math.max(0, baseBal - principal);
+        if (baseBal <= 0) {
+            basePayoffMonth = m;
+            break;
+        }
+    }
+    if (basePayoffMonth === 0) basePayoffMonth = 180;
+
+    // Compute with extra payment
+    let bal = outstanding;
+    let totalInterestWithExtra = 0;
+    let payoffMonth = 0;
+    const yearEndBalances = [];
+    let paidOff = false;
+
+    for (let y = 1; y <= 15; y++) {
+        for (let m = 0; m < 12; m++) {
+            if (paidOff) break;
+            const monthNum = (y - 1) * 12 + m + 1;
+            const interest = bal * monthlyRate;
+            totalInterestWithExtra += interest;
+            const totalPayment = emi + extra;
+            const principal = totalPayment - interest;
+
+            if (principal <= 0 && monthNum >= 180) {
+                // Never pays off, cap at 180
+                payoffMonth = 180;
+                paidOff = true;
+                break;
+            }
+
+            bal = Math.max(0, bal - principal);
+            if (bal <= 0) {
+                payoffMonth = monthNum;
+                paidOff = true;
+                break;
+            }
+        }
+        yearEndBalances.push(Math.max(0, bal));
+    }
+
+    if (!paidOff) payoffMonth = 180;
+
+    return {
+        yearEndBalances,
+        payoffMonth,
+        totalInterestPaid: baseInterest,
+        totalInterestWithExtra
+    };
+}
+
+function computeDebtFreeDate(loans, extraMonthly) {
+    const extra = extraMonthly || 0;
+    const activeLoans = (loans || []).filter(l => (l.outstanding || 0) > 0 && (l.emi || 0) > 0);
+
+    if (activeLoans.length === 0) {
+        return { debtFreeDate: null, monthsSaved: 0, interestSaved: 0, perLoanDetails: [] };
+    }
+
+    const perLoanDetails = activeLoans.map(loan => {
+        const baseline = computeForecastLoanAmortization(loan, 0);
+        const withExtra = extra > 0 ? computeForecastLoanAmortization(loan, extra) : baseline;
+        const now = new Date();
+        const payoffDate = new Date(now.getFullYear(), now.getMonth() + withExtra.payoffMonth, 1);
+        return {
+            label: loan.label || 'Loan',
+            originalPayoffMonth: baseline.payoffMonth,
+            newPayoffMonth: withExtra.payoffMonth,
+            monthsSaved: baseline.payoffMonth - withExtra.payoffMonth,
+            originalInterest: baseline.totalInterestPaid,
+            newInterest: withExtra.totalInterestWithExtra,
+            interestSaved: baseline.totalInterestPaid - withExtra.totalInterestWithExtra,
+            payoffDate
+        };
+    });
+
+    // Overall debt-free date = latest payoff among all loans
+    const latestPayoffMonth = Math.max(...perLoanDetails.map(d => d.newPayoffMonth));
+    const now = new Date();
+    const debtFreeDate = new Date(now.getFullYear(), now.getMonth() + latestPayoffMonth, 1);
+
+    // Months saved = original latest payoff - new latest payoff
+    const originalLatest = Math.max(...perLoanDetails.map(d => d.originalPayoffMonth));
+    const monthsSaved = originalLatest - latestPayoffMonth;
+
+    const interestSaved = perLoanDetails.reduce((sum, d) => sum + d.interestSaved, 0);
+
+    return { debtFreeDate, monthsSaved, interestSaved, perLoanDetails };
+}
+
+function computeNetWorthProjection() {
+    const assumptions = getForecastAssumptions();
+    const weightedReturn = computeWeightedReturnRate();
+    const currentInvestments = computeTotalInvestments();
+    const liquidSavings = userData.liquidSavings || 0;
+    const loans = getLoansForMember(currentProfile);
+
+    // Pre-compute amortization for each loan
+    const loanAmortizations = loans.map(l => computeForecastLoanAmortization(l, 0));
+
+    const projection = [];
+    let investments = currentInvestments;
+
+    for (let y = 0; y <= 15; y++) {
+        // Year 0 = current state
+        if (y > 0) {
+            investments = investments * (1 + weightedReturn);
+        }
+
+        // Sum loan outstanding at end of year y
+        // yearEndBalances[i] = end of year (i+1), so for year y we need index y-1
+        // For year 0, use current outstanding
+        let loanOutstanding = 0;
+        if (y === 0) {
+            loanOutstanding = loans.reduce((s, l) => s + (l.outstanding || 0), 0);
+        } else {
+            loanOutstanding = loanAmortizations.reduce((s, a) => s + (a.yearEndBalances[y - 1] || 0), 0);
+        }
+
+        const netWorth = investments + liquidSavings - loanOutstanding;
+        projection.push({ year: y, investments, loanOutstanding, liquidSavings, netWorth });
+    }
+
+    return projection;
+}
+
+function computeSavingsTrajectory() {
+    const assumptions = getForecastAssumptions();
+    const weightedReturn = computeWeightedReturnRate();
+    const baseIncome = computeMonthlyIncome() * 12;
+    const baseExpenses = computeMonthlyExpenses() * 12;
+    const loans = getLoansForMember(currentProfile);
+
+    // Pre-compute amortization for each loan to know when EMIs stop
+    const loanAmortizations = loans.map(l => ({
+        emi: l.emi || 0,
+        amort: computeForecastLoanAmortization(l, 0)
+    }));
+
+    const trajectory = [];
+    let cumulativeCorpus = computeTotalInvestments() + (userData.liquidSavings || 0);
+
+    for (let y = 0; y <= 15; y++) {
+        const income = baseIncome * Math.pow(1 + assumptions.incomeGrowth / 100, y);
+        const expenses = baseExpenses * Math.pow(1 + assumptions.expenseInflation / 100, y);
+
+        // Sum active EMIs for this year — EMI drops to 0 after loan payoff
+        let emis = 0;
+        for (const la of loanAmortizations) {
+            // If loan is paid off before this year, EMI = 0
+            const payoffYear = Math.ceil(la.amort.payoffMonth / 12);
+            if (y < payoffYear) {
+                emis += la.emi * 12;
+            }
+        }
+
+        const netSavings = income - expenses - emis;
+
+        if (y === 0) {
+            // Year 0: corpus is current investments + liquid savings (no compounding yet)
+            // cumulativeCorpus already set above
+        } else {
+            cumulativeCorpus = (cumulativeCorpus + netSavings) * (1 + weightedReturn);
+        }
+
+        trajectory.push({ year: y, income, expenses, emis, netSavings, cumulativeCorpus });
+    }
+
+    return trajectory;
+}
+
+// ========== GOAL GAP ANALYSIS ==========
+function computeGoalGaps(assumptions, savingsTrajectory) {
+    const goals = userData.profile.goals || [];
+    if (!goals.length || !savingsTrajectory || !savingsTrajectory.length) return [];
+
+    const age = userData.profile.age || 30;
+    const annualIncome = computeMonthlyIncome() * 12;
+    const expInflation = (assumptions.expenseInflation || 6) / 100;
+    const weightedReturn = computeWeightedReturnRate();
+
+    // Map goal labels to default target amounts and target years
+    const goalDefaults = {
+        'retirement':       { targetAmount: annualIncome * 25,  targetYear: Math.max(60 - age, 5) },
+        'child-education':  { targetAmount: annualIncome * 5,   targetYear: 18 },
+        'house':            { targetAmount: annualIncome * 8,   targetYear: 5 },
+        'car':              { targetAmount: annualIncome * 1,   targetYear: 3 },
+        'emergency':        { targetAmount: annualIncome * 0.5, targetYear: 1 },
+        'travel':           { targetAmount: annualIncome * 0.5, targetYear: 2 },
+        'wealth':           { targetAmount: annualIncome * 15,  targetYear: 15 },
+        'india-return':     { targetAmount: annualIncome * 10,  targetYear: 10 }
+    };
+
+    const goalLabels = {
+        'retirement': '🏖️ Retirement',
+        'child-education': '🎓 Child Education',
+        'house': '🏠 Buy House',
+        'car': '🚗 Buy Car',
+        'emergency': '🆘 Emergency Fund',
+        'travel': '✈️ Travel',
+        'wealth': '💎 Wealth Building',
+        'india-return': '🇮🇳 India Return'
+    };
+
+    const results = goals.map(goalKey => {
+        const def = goalDefaults[goalKey] || { targetAmount: annualIncome * 5, targetYear: 10 };
+        const targetYear = Math.min(def.targetYear, 15); // Cap at 15 years
+        const inflatedTarget = def.targetAmount * Math.pow(1 + expInflation, targetYear);
+
+        // Get projected corpus at target year from savings trajectory
+        const yearData = savingsTrajectory.find(t => t.year === targetYear);
+        const projectedCorpus = yearData ? yearData.cumulativeCorpus : 0;
+
+        const gap = inflatedTarget - projectedCorpus;
+
+        // Compute monthly SIP needed if gap > 0 using PMT formula
+        let monthlySIP = 0;
+        if (gap > 0) {
+            const monthsRemaining = targetYear * 12;
+            const monthlyRate = weightedReturn / 12;
+            if (monthlyRate > 0 && monthsRemaining > 0) {
+                monthlySIP = gap * monthlyRate / (Math.pow(1 + monthlyRate, monthsRemaining) - 1);
+            } else if (monthsRemaining > 0) {
+                monthlySIP = gap / monthsRemaining;
+            }
+        }
+
+        return {
+            key: goalKey,
+            label: goalLabels[goalKey] || goalKey,
+            targetAmount: inflatedTarget,
+            targetYear,
+            projectedCorpus,
+            gap,
+            monthlySIP
+        };
+    });
+
+    // Sort by gap size (largest first), cap at 5
+    return results.sort((a, b) => b.gap - a.gap).slice(0, 5);
+}
+
+// ========== INSURANCE ADEQUACY FORECAST ==========
+function computeInsuranceAdequacy(assumptions) {
+    const annualIncome = computeMonthlyIncome() * 12;
+    const incomeGrowth = (assumptions.incomeGrowth || 8) / 100;
+    const medInflation = (assumptions.medicalInflation || 10) / 100;
+    const dependents = (userData.profile.familyMembers || []).length;
+    const { termCover, healthCover } = computeInsuranceCoverage();
+    const years = [5, 10, 15];
+
+    const term = years.map(y => {
+        const recommended = annualIncome * 12 * Math.pow(1 + incomeGrowth, y);
+        return { year: y, recommended, current: termCover, gap: recommended - termCover };
+    });
+
+    const health = years.map(y => {
+        const recommended = (1000000 + 200000 * dependents) * Math.pow(1 + medInflation, y);
+        return { year: y, recommended, current: healthCover, gap: recommended - healthCover };
+    });
+
+    return { term, health };
+}
+
+// ========== RISK ENGINE ==========
+
+/**
+ * clamp(min, max, value) — bounds a value within [min, max]
+ * Formula: Math.max(min, Math.min(max, value))
+ * Used by computeStabilityScore for normalization
+ */
+function clamp(min, max, value) {
+    return Math.max(min, Math.min(max, value));
+}
+
+/**
+ * computeHouseholdNIM() → { nim, weightedYield, weightedCost, rag }
+ *
+ * Household Net Interest Margin: spread between what investments earn
+ * and what loans cost, adapted from banking NIM to household finance.
+ *
+ * Weighted_Yield = Σ(inv_i.value × returnRate_i) / Σ(inv_i.value)
+ *   - Equity instruments (mutualFunds, stocks) use getForecastAssumptions().equityReturn
+ *   - Debt instruments (fd, ppf) use getForecastAssumptions().debtReturn
+ *   - If no investments → yield = 0
+ *
+ * Weighted_Cost = Σ(loan_i.outstanding × loan_i.rate) / Σ(loan_i.outstanding)
+ *   - If no loans → cost = 0
+ *
+ * NIM = Weighted_Yield − Weighted_Cost (percentage points)
+ * RAG: green ≥ 2%, yellow ≥ 0% & < 2%, red < 0%
+ */
+function computeHouseholdNIM() {
+    return computeCache.get('householdNIM', () => {
+        const inv = getInvestmentsForMember(currentProfile);
+        const assumptions = getForecastAssumptions();
+        const equityReturn = assumptions.equityReturn || 0;
+        const debtReturn = assumptions.debtReturn || 0;
+
+        // Weighted Yield: Σ(value × rate) / Σ(value), equity types use equityReturn, debt types use debtReturn
+        const equityItems = (inv.mutualFunds || []).concat(inv.stocks || []);
+        const debtItems = (inv.fd || []).concat(inv.ppf || []);
+
+        let totalInvValue = 0;
+        let weightedReturnSum = 0;
+
+        for (const item of equityItems) {
+            const v = (item.value || 0);
+            totalInvValue += v;
+            weightedReturnSum += v * equityReturn; // equity instruments use equityReturn
+        }
+        for (const item of debtItems) {
+            const v = (item.value || 0);
+            totalInvValue += v;
+            weightedReturnSum += v * debtReturn; // debt instruments use debtReturn
+        }
+
+        // If no investments, weighted yield = 0
+        const weightedYield = totalInvValue > 0 ? weightedReturnSum / totalInvValue : 0;
+
+        // Weighted Cost: Σ(outstanding × rate) / Σ(outstanding)
+        const loans = getLoansForMember(currentProfile);
+        let totalOutstanding = 0;
+        let weightedCostSum = 0;
+
+        for (const loan of loans) {
+            const o = (loan.outstanding || 0);
+            const r = (loan.rate || 0);
+            totalOutstanding += o;
+            weightedCostSum += o * r; // each loan's cost contribution
+        }
+
+        // If no loans, weighted cost = 0
+        const weightedCost = totalOutstanding > 0 ? weightedCostSum / totalOutstanding : 0;
+
+        // NIM = Weighted_Yield − Weighted_Cost (percentage points)
+        const nim = weightedYield - weightedCost;
+
+        // RAG classification: green ≥ 2%, yellow ≥ 0% & < 2%, red < 0%
+        const rag = nim >= 2 ? 'green' : nim >= 0 ? 'yellow' : 'red';
+
+        return { nim, weightedYield, weightedCost, rag };
+    });
+}
+
+/**
+ * computeDSR() → { dsr, totalEmi, monthlyIncome, rag }
+ *
+ * Debt Service Ratio: percentage of gross monthly income consumed by loan EMIs.
+ * Used by banks to evaluate borrower capacity (typically ≤ 50% is acceptable).
+ *
+ * DSR = (totalEmi / monthlyIncome) × 100
+ *   - If income = 0 and EMIs exist → DSR = 100 (fully burdened)
+ *   - If income = 0 and no EMIs → DSR = 0 (no debt, no income)
+ *
+ * RAG: green ≤ 35%, yellow > 35% & ≤ 50%, red > 50%
+ */
+function computeDSR() {
+    return computeCache.get('dsr', () => {
+        const totalEmi = computeTotalEmi() || 0;
+        const monthlyIncome = computeMonthlyIncome() || 0;
+
+        // DSR = (totalEmi / monthlyIncome) × 100
+        // Guard: when income = 0, DSR = 100 if EMIs exist, 0 if no EMIs
+        let dsr;
+        if (monthlyIncome === 0) {
+            dsr = totalEmi > 0 ? 100 : 0;
+        } else {
+            dsr = (totalEmi / monthlyIncome) * 100;
+        }
+
+        // RAG classification: green ≤ 35%, yellow > 35% & ≤ 50%, red > 50%
+        const rag = dsr <= 35 ? 'green' : dsr <= 50 ? 'yellow' : 'red';
+
+        return { dsr, totalEmi, monthlyIncome, rag };
+    });
+}
+
+/**
+ * computeLCR() → { lcr, monthsCoverage, liquidSavings, monthlyExpenses, rag }
+ *
+ * Liquidity Coverage Ratio: liquid savings vs. 6-month expense benchmark.
+ * Measures emergency buffer adequacy — banks require ≥ 100% LCR.
+ *
+ * LCR = liquidSavings / (monthlyExpenses × 6)
+ * monthsCoverage = liquidSavings / (monthlyExpenses + totalEmi)
+ *   - If expenses+EMI = 0 and liquid > 0 → LCR = 1.0, monthsCoverage = Infinity (capped)
+ *   - If expenses+EMI = 0 and liquid = 0 → LCR = 0, monthsCoverage = 0
+ *
+ * RAG: green ≥ 1.0, yellow ≥ 0.5 & < 1.0, red < 0.5
+ */
+function computeLCR() {
+    return computeCache.get('lcr', () => {
+        const liquidSavings = (userData.liquidSavings || 0);
+        const monthlyExpenses = computeMonthlyExpenses() || 0;
+        const totalEmi = computeTotalEmi() || 0;
+
+        // LCR = liquidSavings / (monthlyExpenses × 6)
+        // Guard: when expenses = 0, LCR = 1.0 if liquid > 0, 0 if liquid = 0
+        let lcr;
+        const sixMonthExpenses = monthlyExpenses * 6;
+        if (sixMonthExpenses === 0) {
+            lcr = liquidSavings > 0 ? 1.0 : 0;
+        } else {
+            lcr = liquidSavings / sixMonthExpenses;
+        }
+
+        // monthsCoverage = liquidSavings / (monthlyExpenses + totalEmi)
+        // Guard: when expenses+EMI = 0, same logic as LCR
+        let monthsCoverage;
+        const monthlyBurn = monthlyExpenses + totalEmi;
+        if (monthlyBurn === 0) {
+            monthsCoverage = liquidSavings > 0 ? 1.0 : 0;
+        } else {
+            monthsCoverage = liquidSavings / monthlyBurn;
+        }
+
+        // RAG classification: green ≥ 1.0, yellow ≥ 0.5 & < 1.0, red < 0.5
+        const rag = lcr >= 1.0 ? 'green' : lcr >= 0.5 ? 'yellow' : 'red';
+
+        return { lcr, monthsCoverage, liquidSavings, monthlyExpenses, rag };
+    });
+}
+
+/**
+ * computeProtectionAdequacy() → { ratio, termAdequacy, healthAdequacy,
+ *                                  termCover, healthCover, termBenchmark,
+ *                                  healthBenchmark, dependentCount, rag }
+ *
+ * Protection Adequacy: insurance coverage vs. recommended benchmarks.
+ *
+ * termAdequacy = termCover / (monthlyIncome × 12 × 12)
+ *   - Benchmark: 12× annual income for term life cover
+ *   - If income = 0 → termAdequacy = 1.0 (no income to protect)
+ *
+ * healthBenchmark = (₹10,00,000 + ₹2,00,000 × dependentCount) × (1 + medicalInflation/100)^5
+ *   - Inflation-adjusted recommended health cover
+ *
+ * healthAdequacy = healthCover / healthBenchmark
+ * ratio = (termAdequacy + healthAdequacy) / 2
+ *
+ * RAG: green ≥ 0.8, yellow ≥ 0.5 & < 0.8, red < 0.5
+ */
+function computeProtectionAdequacy() {
+    return computeCache.get('protectionAdequacy', () => {
+        const coverage = computeInsuranceCoverage();
+        const termCover = (coverage.termCover || 0);
+        const healthCover = (coverage.healthCover || 0);
+        const monthlyIncome = computeMonthlyIncome() || 0;
+        const assumptions = getForecastAssumptions();
+        const medicalInflation = (assumptions.medicalInflation || 10); // default 10%
+        const dependentCount = (userData.profile?.familyMembers || []).length;
+
+        // termBenchmark = monthlyIncome × 12 months × 12 multiplier (12× annual income)
+        const termBenchmark = monthlyIncome * 12 * 12;
+
+        // termAdequacy = termCover / termBenchmark
+        // Guard: when income = 0, termAdequacy = 1.0 (no income to protect)
+        let termAdequacy;
+        if (monthlyIncome === 0) {
+            termAdequacy = 1.0;
+        } else {
+            termAdequacy = termCover / termBenchmark;
+        }
+
+        // healthBenchmark = (10,00,000 + 2,00,000 × dependentCount) × (1 + medicalInflation/100)^5
+        const healthBenchmark = (1000000 + 200000 * dependentCount) * Math.pow(1 + medicalInflation / 100, 5);
+
+        // healthAdequacy = healthCover / healthBenchmark
+        const healthAdequacy = healthBenchmark > 0 ? healthCover / healthBenchmark : 0;
+
+        // ratio = average of term and health adequacy
+        const ratio = (termAdequacy + healthAdequacy) / 2;
+
+        // RAG classification: green ≥ 0.8, yellow ≥ 0.5 & < 0.8, red < 0.5
+        const rag = ratio >= 0.8 ? 'green' : ratio >= 0.5 ? 'yellow' : 'red';
+
+        return { ratio, termAdequacy, healthAdequacy, termCover, healthCover, termBenchmark, healthBenchmark, dependentCount, rag };
+    });
+}
+
+/**
+ * computeStabilityScore() → { score, nimScore, dsrScore, lcrScore, protScore,
+ *                              topRisk, suggestion, rag }
+ *
+ * Financial Stability Score: composite weighted score (0–100) combining all four sub-metrics.
+ *
+ * Normalization (each to 0–100):
+ *   nimScore  = clamp(0, 100, 50 + NIM × 25)
+ *   dsrScore  = clamp(0, 100, 100 − DSR × 2)
+ *   lcrScore  = clamp(0, 100, LCR × 100)
+ *   protScore = clamp(0, 100, ratio × 100)
+ *
+ * Composite = round(dsrScore × 0.30 + lcrScore × 0.25 + nimScore × 0.20 + protScore × 0.25)
+ * topRisk = sub-metric with lowest normalized score
+ * suggestion = actionable string based on topRisk
+ *
+ * RAG: green 75–100, yellow 50–74, red 0–49
+ */
+function computeStabilityScore() {
+    return computeCache.get('stabilityScore', () => {
+        // Gather raw values from all four sub-metric functions
+        const nimData = computeHouseholdNIM();
+        const dsrData = computeDSR();
+        const lcrData = computeLCR();
+        const protData = computeProtectionAdequacy();
+
+        // Normalize each sub-metric to 0–100 scale
+        const nimScore = clamp(0, 100, 50 + (nimData.nim || 0) * 25);       // NIM of 2% → 100, NIM of -2% → 0
+        const dsrScore = clamp(0, 100, 100 - (dsrData.dsr || 0) * 2);       // DSR of 0% → 100, DSR of 50% → 0
+        const lcrScore = clamp(0, 100, (lcrData.lcr || 0) * 100);           // LCR of 1.0 → 100, LCR of 0 → 0
+        const protScore = clamp(0, 100, (protData.ratio || 0) * 100);       // ratio of 1.0 → 100, ratio of 0 → 0
+
+        // Composite stability score = weighted sum of normalized sub-scores
+        // Weights: DSR 30%, LCR 25%, NIM 20%, Protection 25%
+        const score = Math.round(dsrScore * 0.30 + lcrScore * 0.25 + nimScore * 0.20 + protScore * 0.25);
+
+        // Identify top risk: sub-metric with the lowest normalized score
+        const scores = { dsr: dsrScore, lcr: lcrScore, nim: nimScore, protection: protScore };
+        let topRisk = 'dsr';
+        let lowestScore = dsrScore;
+        for (const [key, val] of Object.entries(scores)) {
+            if (val < lowestScore) {
+                lowestScore = val;
+                topRisk = key;
+            }
+        }
+
+        // Actionable suggestion based on top risk area
+        const suggestions = {
+            dsr: 'Consider reducing EMI burden — prepay high-interest loans or avoid new debt.',
+            lcr: 'Build your emergency fund — target 6 months of expenses in liquid savings.',
+            nim: 'Your borrowing costs exceed investment returns — review your investment mix or refinance loans.',
+            protection: 'Your insurance cover is critically low — consider increasing term cover to 12× annual income.'
+        };
+        const suggestion = suggestions[topRisk] || '';
+
+        // RAG classification: green 75–100, yellow 50–74, red 0–49
+        const rag = score >= 75 ? 'green' : score >= 50 ? 'yellow' : 'red';
+
+        return { score, nimScore, dsrScore, lcrScore, protScore, topRisk, suggestion, rag };
+    });
+}
+
+// ========== FORECAST CARD UI ==========
+let forecastActiveTab = 'networth'; // 'networth', 'savings', or 'goals'
+
+function renderForecastCard() {
+    const container = $('forecast-card-container');
+    if (!container) return;
+
+    const assumptions = getForecastAssumptions();
+    const projection = computeNetWorthProjection();
+    const trajectory = computeSavingsTrajectory();
+    const goalGaps = computeGoalGaps(assumptions, trajectory);
+
+    container.innerHTML = `
+        <div class="card" style="margin-top:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+                <div class="card-title" style="margin-bottom:0;"><span class="icon">🔮</span> 15-Year Forecast</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <div style="display:flex; background:var(--bg); border-radius:8px; border:1px solid var(--border); overflow:hidden;">
+                        <button onclick="switchForecastTab('networth')" id="fc-tab-networth"
+                            style="padding:6px 14px; font-size:12px; font-weight:600; border:none; cursor:pointer; transition:all 0.2s;
+                            ${forecastActiveTab==='networth' ? 'background:var(--accent); color:#fff;' : 'background:transparent; color:var(--text3);'}">
+                            Net Worth
+                        </button>
+                        <button onclick="switchForecastTab('savings')" id="fc-tab-savings"
+                            style="padding:6px 14px; font-size:12px; font-weight:600; border:none; cursor:pointer; transition:all 0.2s;
+                            ${forecastActiveTab==='savings' ? 'background:var(--accent); color:#fff;' : 'background:transparent; color:var(--text3);'}">
+                            Savings Trajectory
+                        </button>
+                        <button onclick="switchForecastTab('goals')" id="fc-tab-goals"
+                            style="padding:6px 14px; font-size:12px; font-weight:600; border:none; cursor:pointer; transition:all 0.2s;
+                            ${forecastActiveTab==='goals' ? 'background:var(--accent); color:#fff;' : 'background:transparent; color:var(--text3);'}">
+                            Goal Gaps
+                        </button>
+                    </div>
+                    <button onclick="goToForecastAssumptions()" title="Edit forecast assumptions"
+                        style="padding:6px 10px; font-size:13px; background:var(--bg); border:1px solid var(--border); border-radius:8px; cursor:pointer; color:var(--text2); transition:all 0.2s;"
+                        onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                        ⚙️ Assumptions
+                    </button>
+                </div>
+            </div>
+            <div id="forecast-tab-content">
+                ${forecastActiveTab === 'networth' ? renderNetWorthChart(projection) : forecastActiveTab === 'savings' ? renderSavingsTrajectoryView(trajectory) : renderGoalGapsView(goalGaps)}
+            </div>
+        </div>
+    `;
+}
+
+window.switchForecastTab = function(tab) {
+    forecastActiveTab = tab;
+    renderForecastCard();
+};
+
+window.goToForecastAssumptions = function() {
+    document.querySelector('[data-page="settings"]').click();
+    setTimeout(() => {
+        const panel = $('forecast-assumptions-panel');
+        if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+};
+
+function renderNetWorthChart(projection) {
+    if (!projection || projection.length === 0) {
+        return '<div style="color:var(--text3); font-size:13px; padding:20px 0; text-align:center;">No data available for net worth projection.</div>';
+    }
+
+    // Check if all net worth values are zero (no investments, loans, or savings)
+    const allZero = projection.every(p => p.netWorth === 0 && p.investments === 0 && p.loanOutstanding === 0);
+    if (allZero) {
+        return `<div style="text-align:center; padding:24px 0;">
+            <div style="font-size:28px; margin-bottom:8px;">📊</div>
+            <div style="font-size:14px; font-weight:600; color:var(--text2); margin-bottom:6px;">Your net worth projection starts at ₹0</div>
+            <div style="font-size:12px; color:var(--text3); max-width:360px; margin:0 auto;">Add investments, savings, or loans in their respective tabs to see your 15-year net worth trajectory.</div>
+        </div>`;
+    }
+
+    const W = 700, H = 340, pad = { top: 30, right: 30, bottom: 50, left: 70 };
+    const chartW = W - pad.left - pad.right;
+    const chartH = H - pad.top - pad.bottom;
+
+    const values = projection.map(p => p.netWorth);
+    const minVal = Math.min(0, ...values);
+    const maxVal = Math.max(...values);
+    const range = maxVal - minVal || 1;
+    const yPad = range * 0.1;
+    const yMin = minVal - yPad;
+    const yMax = maxVal + yPad;
+
+    const x = (yr) => pad.left + (yr / 15) * chartW;
+    const y = (val) => pad.top + chartH - ((val - yMin) / (yMax - yMin)) * chartH;
+
+    // Build polyline points
+    const linePoints = projection.map(p => `${x(p.year).toFixed(1)},${y(p.netWorth).toFixed(1)}`).join(' ');
+
+    // Gradient fill area
+    const areaPoints = `${x(0).toFixed(1)},${y(yMin).toFixed(1)} ` + linePoints + ` ${x(15).toFixed(1)},${y(yMin).toFixed(1)}`;
+
+    // Y-axis labels (5 ticks)
+    const yTicks = [];
+    for (let i = 0; i <= 4; i++) {
+        const val = yMin + (yMax - yMin) * (i / 4);
+        yTicks.push({ val, cy: y(val) });
+    }
+
+    // Build tooltip data as JSON for inline handler
+    const tooltipData = projection.map(p => ({
+        yr: p.year,
+        inv: fl(p.investments),
+        loan: fl(p.loanOutstanding),
+        net: fl(p.netWorth)
+    }));
+
+    const uid = 'nwc_' + Date.now();
+
+    return `
+        <div style="position:relative;">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:10px;">
+                <span style="font-size:11px; color:var(--text3);">Projected Net Worth (₹)</span>
+                <span style="cursor:help; font-size:14px;" title="Net Worth = Investments × (1 + weighted return)^year + Liquid Savings − Loan Outstanding after amortization">ℹ️</span>
+            </div>
+            <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; max-height:360px;" role="img" aria-label="Net worth projection chart">
+                <defs>
+                    <linearGradient id="${uid}_grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.3"/>
+                        <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.02"/>
+                    </linearGradient>
+                </defs>
+
+                <!-- Grid lines -->
+                ${yTicks.map(t => `<line x1="${pad.left}" y1="${t.cy.toFixed(1)}" x2="${W - pad.right}" y2="${t.cy.toFixed(1)}" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="4,4"/>`).join('')}
+
+                <!-- Area fill -->
+                <polygon points="${areaPoints}" fill="url(#${uid}_grad)"/>
+
+                <!-- Line -->
+                <polyline points="${linePoints}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+                <!-- Data points -->
+                ${projection.map(p => `
+                    <circle cx="${x(p.year).toFixed(1)}" cy="${y(p.netWorth).toFixed(1)}" r="4" fill="var(--bg2)" stroke="var(--accent)" stroke-width="2"
+                        style="cursor:pointer; transition: r 0.15s;"
+                        onmouseover="this.setAttribute('r','7'); document.getElementById('${uid}_tip').style.display='block'; document.getElementById('${uid}_tip').innerHTML='Year ${p.year}: Investments: ${fl(p.investments).replace(/'/g, "\\'")} | Loans: ${fl(p.loanOutstanding).replace(/'/g, "\\'")} | Net: ${fl(p.netWorth).replace(/'/g, "\\'")}'; document.getElementById('${uid}_tip').style.left='${((p.year / 15) * 100).toFixed(0)}%';"
+                        ontouchstart="this.setAttribute('r','7'); document.getElementById('${uid}_tip').style.display='block'; document.getElementById('${uid}_tip').innerHTML='Year ${p.year}: Investments: ${fl(p.investments).replace(/'/g, "\\'")} | Loans: ${fl(p.loanOutstanding).replace(/'/g, "\\'")} | Net: ${fl(p.netWorth).replace(/'/g, "\\'")}'; document.getElementById('${uid}_tip').style.left='${((p.year / 15) * 100).toFixed(0)}%';"
+                        onmouseout="this.setAttribute('r','4'); document.getElementById('${uid}_tip').style.display='none';"
+                    />`).join('')}
+
+                <!-- X-axis labels -->
+                ${projection.filter(p => p.year % 3 === 0).map(p => `
+                    <text x="${x(p.year).toFixed(1)}" y="${H - 10}" text-anchor="middle" fill="var(--text3)" font-size="11" font-family="var(--mono)">Y${p.year}</text>
+                `).join('')}
+
+                <!-- Y-axis labels -->
+                ${yTicks.map(t => `
+                    <text x="${pad.left - 8}" y="${(t.cy + 4).toFixed(1)}" text-anchor="end" fill="var(--text3)" font-size="10" font-family="var(--mono)">${fl(t.val)}</text>
+                `).join('')}
+
+                <!-- Axes -->
+                <line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + chartH}" stroke="var(--border)" stroke-width="1"/>
+                <line x1="${pad.left}" y1="${pad.top + chartH}" x2="${W - pad.right}" y2="${pad.top + chartH}" stroke="var(--border)" stroke-width="1"/>
+            </svg>
+            <div id="${uid}_tip" style="display:none; position:absolute; top:-8px; transform:translateX(-50%); background:var(--bg3); border:1px solid var(--border2); border-radius:8px; padding:6px 12px; font-size:11px; color:var(--text); white-space:nowrap; pointer-events:none; z-index:10; font-family:var(--mono);"></div>
+        </div>
+    `;
+}
+
+function renderSavingsTrajectoryView(trajectory) {
+    if (!trajectory || trajectory.length === 0) {
+        return '<div style="color:var(--text3); font-size:13px; padding:20px 0; text-align:center;">No data available for savings trajectory.</div>';
+    }
+
+    // Check if income and expenses are both zero (no income/expense data set up)
+    const hasNoIncome = trajectory.every(t => t.income === 0);
+    if (hasNoIncome) {
+        return `<div style="text-align:center; padding:24px 0;">
+            <div style="font-size:28px; margin-bottom:8px;">💰</div>
+            <div style="font-size:14px; font-weight:600; color:var(--text2); margin-bottom:6px;">Savings trajectory starts at ₹0</div>
+            <div style="font-size:12px; color:var(--text3); max-width:360px; margin:0 auto;">Set up your income in the <a href="#" onclick="document.querySelector('[data-page=\\'income\\']').click(); return false;" style="color:var(--accent); text-decoration:underline;">Income tab</a> to see projected savings over 15 years.</div>
+        </div>`;
+    }
+
+    const maxCorpus = Math.max(...trajectory.map(t => t.cumulativeCorpus), 1);
+
+    const rows = trajectory.map(t => {
+        const pctFill = Math.max(0, Math.min(100, (t.cumulativeCorpus / maxCorpus) * 100));
+        const savingsColor = t.netSavings >= 0 ? 'var(--green)' : 'var(--red)';
+        const rowId = 'straj_row_' + t.year;
+
+        return `
+            <div style="border-bottom:1px solid var(--border); transition:background 0.15s;"
+                 onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'">
+                <div class="row-flex" style="cursor:pointer; padding:10px 0;" onclick="(function(){var el=document.getElementById('${rowId}'); el.style.display=el.style.display==='none'?'block':'none';})()">
+                    <div style="display:flex; align-items:center; gap:10px; min-width:60px;">
+                        <span style="font-size:12px; font-weight:700; color:var(--text); font-family:var(--mono); min-width:36px;">Y${t.year}</span>
+                        <span style="font-size:11px; color:var(--text3);">▸</span>
+                    </div>
+                    <div style="flex:1; display:flex; align-items:center; gap:12px;">
+                        <span style="font-size:12px; color:${savingsColor}; font-family:var(--mono); min-width:80px;">${fl(t.netSavings)}/yr</span>
+                        <div style="flex:1; max-width:200px;">
+                            <div style="height:6px; background:var(--bg); border-radius:3px; overflow:hidden;">
+                                <div style="height:100%; width:${pctFill.toFixed(1)}%; background:linear-gradient(90deg, var(--accent), var(--green)); border-radius:3px; transition:width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <span style="font-size:13px; font-weight:700; color:var(--text); font-family:var(--mono);">${fl(t.cumulativeCorpus)}</span>
+                </div>
+                <div id="${rowId}" style="display:none; padding:4px 0 12px 46px;">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px;">
+                        <div><span style="font-size:10px; color:var(--text3);">Income</span><div style="font-size:12px; color:var(--green); font-family:var(--mono);">${fl(t.income)}</div></div>
+                        <div><span style="font-size:10px; color:var(--text3);">Expenses</span><div style="font-size:12px; color:var(--red); font-family:var(--mono);">${fl(t.expenses)}</div></div>
+                        <div><span style="font-size:10px; color:var(--text3);">EMIs</span><div style="font-size:12px; color:var(--yellow); font-family:var(--mono);">${fl(t.emis)}</div></div>
+                        <div><span style="font-size:10px; color:var(--text3);">Net Savings</span><div style="font-size:12px; color:${savingsColor}; font-family:var(--mono);">${fl(t.netSavings)}</div></div>
+                        <div><span style="font-size:10px; color:var(--text3);">Cumulative Corpus</span><div style="font-size:13px; font-weight:700; color:var(--accent); font-family:var(--mono);">${fl(t.cumulativeCorpus)}</div></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-size:11px; color:var(--text3);">Year-by-year savings projection (click row to expand)</span>
+            </div>
+            <div style="font-size:11px; color:var(--text3); display:flex; justify-content:space-between; padding:0 0 6px 0; border-bottom:1px solid var(--border2);">
+                <span>Year</span>
+                <span style="margin-right:0;">Cumulative Corpus</span>
+            </div>
+            ${rows}
+        </div>
+    `;
+}
+
+function renderGoalGapsView(goalGaps) {
+    if (!goalGaps || goalGaps.length === 0) {
+        return '<div style="color:var(--text3); font-size:13px; padding:20px 0; text-align:center;">Add goals in Settings to see gap analysis.</div>';
+    }
+
+    const rows = goalGaps.map(g => {
+        const isSurplus = g.gap <= 0;
+        const gapPct = g.targetAmount > 0 ? Math.abs(g.gap) / g.targetAmount : 0;
+        let color, statusLabel;
+        if (isSurplus) {
+            color = 'var(--green)';
+            statusLabel = 'Surplus';
+        } else if (gapPct <= 0.2) {
+            color = 'var(--yellow)';
+            statusLabel = 'Gap';
+        } else {
+            color = 'var(--red)';
+            statusLabel = 'Gap';
+        }
+
+        return `
+            <div style="border-bottom:1px solid var(--border); padding:12px 0; transition:background 0.15s;"
+                 onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+                    <div style="min-width:140px;">
+                        <div style="font-size:13px; font-weight:700; color:var(--text);">${g.label}</div>
+                        <div style="font-size:11px; color:var(--text3); margin-top:2px;">Target: Year ${g.targetYear}</div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(3, auto); gap:16px; text-align:right;">
+                        <div>
+                            <div style="font-size:10px; color:var(--text3);">Target (Inflated)</div>
+                            <div style="font-size:12px; font-weight:600; color:var(--text); font-family:var(--mono);">${fl(g.targetAmount)}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:10px; color:var(--text3);">Projected Corpus</div>
+                            <div style="font-size:12px; font-weight:600; color:var(--accent); font-family:var(--mono);">${fl(g.projectedCorpus)}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:10px; color:var(--text3);">${statusLabel}</div>
+                            <div style="font-size:12px; font-weight:700; color:${color}; font-family:var(--mono);">${isSurplus ? '+' : '−'}${fl(Math.abs(g.gap))}</div>
+                        </div>
+                    </div>
+                </div>
+                ${g.gap > 0 ? `<div style="margin-top:8px; padding:6px 10px; background:var(--bg); border-radius:6px; border-left:3px solid ${color};">
+                    <span style="font-size:11px; color:var(--text2);">You need <strong style="color:${color}; font-family:var(--mono);">${fl(g.monthlySIP)}/month</strong> extra SIP to close this gap</span>
+                </div>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div>
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+                <span style="font-size:11px; color:var(--text3);">Goal gap analysis — inflation-adjusted targets vs projected corpus</span>
+                <span style="cursor:help; font-size:14px;" title="Gap = Inflation-adjusted target − Projected corpus at target year. SIP computed using PMT formula with your weighted return rate.">ℹ️</span>
+            </div>
+            <div style="font-size:10px; color:var(--text3); display:flex; gap:12px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--border2);">
+                <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:50%; background:var(--green); display:inline-block;"></span> On track</span>
+                <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:50%; background:var(--yellow); display:inline-block;"></span> Gap ≤ 20%</span>
+                <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:50%; background:var(--red); display:inline-block;"></span> Gap &gt; 20%</span>
+            </div>
+            ${rows}
+        </div>
+    `;
 }
 
 function computeHealthScore() {
@@ -4575,7 +5670,7 @@ function getTopActions(limit=5) {
     if(ir<1) {
         const annInc = computeMonthlyIncome()*12;
         const target = annInc*12;
-        const gap = target - (userData.termCover||0);
+        const gap = target - computeInsuranceCoverage().termCover;
         actions.push({ icon:'⚠️', priority:ir<0.5?5:3, text:`Increase term cover by ${fl(Math.max(0,gap))} to reach 12× annual income.` });
     }
     const sr = computeSavingsRate();
@@ -4593,6 +5688,136 @@ function getTopActions(limit=5) {
         actions.push({ icon:'📈', priority:2, text:`You have ${fl(computeMonthlySavings())} monthly surplus — start investing in MF/SIP.` });
     }
     return actions.sort((a,b)=>b.priority-a.priority).slice(0,limit);
+}
+
+// ========== RISK DASHBOARD UI ==========
+
+/**
+ * toggleRiskDetail(metricId) — toggles visibility of the expandable detail row
+ * Called via onclick on kpi-card elements
+ * metricId: 'nim' | 'dsr' | 'lcr' | 'prot'
+ */
+window.toggleRiskDetail = function(metricId) {
+    const el = $('risk-detail-' + metricId);
+    if (el) el.hidden = !el.hidden;
+};
+
+/**
+ * renderRiskDashboard() → HTML string
+ *
+ * Returns the complete Risk Dashboard card HTML.
+ * Called inside renderOverview() — output is concatenated into the page-overview template.
+ *
+ * Hero: score-ring-svg with RAG-colored stroke, stability score centered
+ * Below hero: top risk label + actionable suggestion
+ * Sub-metric grid: 4 × kpi-card rows (NIM, DSR, LCR, Protection) with RAG dots
+ * Expandable detail rows: formula, inputs, plain-language explanation
+ */
+function renderRiskDashboard() {
+    // Gather all risk data
+    const stability = computeStabilityScore();
+    const nimData   = computeHouseholdNIM();
+    const dsrData   = computeDSR();
+    const lcrData   = computeLCR();
+    const protData  = computeProtectionAdequacy();
+
+    // Score ring geometry (reuses existing score-ring-svg pattern)
+    const s     = stability.score || 0;
+    const r     = 52;
+    const circ  = 2 * Math.PI * r;
+    const dash  = circ - (s / 100) * circ;
+    const ragC  = stability.rag === 'green' ? 'var(--green)' : stability.rag === 'yellow' ? 'var(--yellow)' : 'var(--red)';
+
+    // RAG dot helper
+    const dot = (rag) => {
+        const c = rag === 'green' ? 'var(--green)' : rag === 'yellow' ? 'var(--yellow)' : 'var(--red)';
+        return `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${c}; flex-shrink:0;"></span>`;
+    };
+
+    // Top risk display name
+    const riskLabels = { dsr: 'Debt Service Ratio', lcr: 'Liquidity Coverage', nim: 'Net Interest Margin', protection: 'Protection Adequacy' };
+    const topRiskLabel = riskLabels[stability.topRisk] || stability.topRisk;
+
+    // Detail row style (shared)
+    const detailStyle = 'padding:12px 16px; margin:0 0 8px; background:rgba(26,34,53,0.5); border-radius:10px; border:1px solid var(--border2); font-size:12px; color:var(--text2); line-height:1.7;';
+
+    return `
+        <div class="card" style="margin-top:18px;">
+            <div class="card-title"><span class="icon">📊</span> Financial Risk Dashboard</div>
+
+            <!-- Hero: Stability Score Ring + Top Risk -->
+            <div style="display:flex; gap:24px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+                <div style="text-align:center; flex-shrink:0;">
+                    <div class="score-wrap">
+                        <svg class="score-ring-svg" viewBox="0 0 120 120">
+                            <circle class="score-ring-track" cx="60" cy="60" r="${r}"/>
+                            <circle class="score-ring-bg" cx="60" cy="60" r="${r}"/>
+                            <circle class="score-ring-fg" cx="60" cy="60" r="${r}"
+                                stroke="${ragC}"
+                                stroke-dasharray="${circ.toFixed(1)}"
+                                stroke-dashoffset="${dash.toFixed(1)}"/>
+                        </svg>
+                        <div class="score-center">
+                            <div class="score-num" style="color:${ragC}">${s}</div>
+                            <div class="score-lbl" style="color:${ragC}">Stability</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="flex:1; min-width:180px;">
+                    <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Top Risk Area</div>
+                    <div style="font-size:16px; font-weight:700; color:var(--text); margin-bottom:8px;">${topRiskLabel}</div>
+                    <div style="font-size:13px; color:var(--text2); line-height:1.5;">${stability.suggestion}</div>
+                </div>
+            </div>
+
+            <!-- Sub-metric grid: 4 × kpi-card -->
+            <div class="grid-4" style="margin-bottom:12px;">
+                <div class="kpi-card ${nimData.rag}" style="cursor:pointer;" onclick="toggleRiskDetail('nim')">
+                    <div class="kpi-label" style="display:flex; align-items:center; gap:6px;">${dot(nimData.rag)} Net Interest Margin</div>
+                    <div class="kpi-value" style="font-size:22px;">${(nimData.nim || 0).toFixed(1)}%</div>
+                    <div class="kpi-sub">Yield − Cost spread</div>
+                </div>
+                <div class="kpi-card ${dsrData.rag}" style="cursor:pointer;" onclick="toggleRiskDetail('dsr')">
+                    <div class="kpi-label" style="display:flex; align-items:center; gap:6px;">${dot(dsrData.rag)} Debt Service Ratio</div>
+                    <div class="kpi-value" style="font-size:22px;">${(dsrData.dsr || 0).toFixed(1)}%</div>
+                    <div class="kpi-sub">EMI as % of income</div>
+                </div>
+                <div class="kpi-card ${lcrData.rag}" style="cursor:pointer;" onclick="toggleRiskDetail('lcr')">
+                    <div class="kpi-label" style="display:flex; align-items:center; gap:6px;">${dot(lcrData.rag)} Liquidity Coverage</div>
+                    <div class="kpi-value" style="font-size:22px;">${(lcrData.monthsCoverage || 0).toFixed(1)} <span style="font-size:12px; font-weight:400;">months</span></div>
+                    <div class="kpi-sub">Emergency buffer</div>
+                </div>
+                <div class="kpi-card ${protData.rag}" style="cursor:pointer;" onclick="toggleRiskDetail('prot')">
+                    <div class="kpi-label" style="display:flex; align-items:center; gap:6px;">${dot(protData.rag)} Protection Adequacy</div>
+                    <div class="kpi-value" style="font-size:22px;">${((protData.ratio || 0) * 100).toFixed(0)}%</div>
+                    <div class="kpi-sub">Insurance vs benchmark</div>
+                </div>
+            </div>
+
+            <!-- Expandable detail rows (hidden by default) -->
+            <div id="risk-detail-nim" hidden style="${detailStyle}">
+                <div style="font-weight:600; color:var(--text); margin-bottom:4px;">NIM = Weighted Yield − Weighted Cost</div>
+                <div>Yield: ${(nimData.weightedYield || 0).toFixed(1)}% &nbsp;|&nbsp; Cost: ${(nimData.weightedCost || 0).toFixed(1)}% &nbsp;|&nbsp; NIM: ${(nimData.nim || 0).toFixed(1)}%</div>
+                <div style="margin-top:4px; color:var(--text3); font-style:italic;">${nimData.nim >= 2 ? 'Your investments earn well above your loan costs — your money is working for you.' : nimData.nim >= 0 ? 'Your investments barely cover your borrowing costs — consider optimising your mix.' : 'Your loans cost more than your investments earn — prioritise debt repayment or boost returns.'}</div>
+            </div>
+            <div id="risk-detail-dsr" hidden style="${detailStyle}">
+                <div style="font-weight:600; color:var(--text); margin-bottom:4px;">DSR = (Total EMI ÷ Monthly Income) × 100</div>
+                <div>EMI: ${fl(dsrData.totalEmi || 0)}/mo &nbsp;|&nbsp; Income: ${fl(dsrData.monthlyIncome || 0)}/mo &nbsp;|&nbsp; DSR: ${(dsrData.dsr || 0).toFixed(1)}%</div>
+                <div style="margin-top:4px; color:var(--text3); font-style:italic;">${dsrData.dsr <= 35 ? 'Your debt load is well within safe limits — banks consider this healthy.' : dsrData.dsr <= 50 ? 'Your EMIs consume a significant chunk of income — avoid taking on more debt.' : 'Over half your income goes to EMIs — this is a red flag by banking standards.'}</div>
+            </div>
+            <div id="risk-detail-lcr" hidden style="${detailStyle}">
+                <div style="font-weight:600; color:var(--text); margin-bottom:4px;">LCR = Liquid Savings ÷ (Monthly Expenses × 6)</div>
+                <div>Liquid Savings: ${fl(lcrData.liquidSavings || 0)} &nbsp;|&nbsp; Monthly Expenses: ${fl(lcrData.monthlyExpenses || 0)}/mo &nbsp;|&nbsp; Coverage: ${(lcrData.monthsCoverage || 0).toFixed(1)} months</div>
+                <div style="margin-top:4px; color:var(--text3); font-style:italic;">${lcrData.lcr >= 1 ? 'You have 6+ months of expenses covered — solid emergency buffer.' : lcrData.lcr >= 0.5 ? 'You have 3–6 months covered — keep building your emergency fund.' : 'Less than 3 months of expenses covered — building a liquid buffer should be a priority.'}</div>
+            </div>
+            <div id="risk-detail-prot" hidden style="${detailStyle}">
+                <div style="font-weight:600; color:var(--text); margin-bottom:4px;">Protection = Average(Term Adequacy, Health Adequacy)</div>
+                <div>Term Cover: ${fl(protData.termCover || 0)} (benchmark: ${fl(protData.termBenchmark || 0)}) &nbsp;|&nbsp; Health Cover: ${fl(protData.healthCover || 0)} (benchmark: ${fl(protData.healthBenchmark || 0)})</div>
+                <div>Term Adequacy: ${((protData.termAdequacy || 0) * 100).toFixed(0)}% &nbsp;|&nbsp; Health Adequacy: ${((protData.healthAdequacy || 0) * 100).toFixed(0)}% &nbsp;|&nbsp; Dependents: ${protData.dependentCount || 0}</div>
+                <div style="margin-top:4px; color:var(--text3); font-style:italic;">${protData.ratio >= 0.8 ? 'Your insurance coverage meets recommended benchmarks — well protected.' : protData.ratio >= 0.5 ? 'Partial coverage — consider increasing term or health insurance to close the gap.' : 'Significant insurance gap — increasing coverage should be a top priority for your family\'s safety net.'}</div>
+            </div>
+        </div>
+    `;
 }
 
 // ========== LOAN AMORTIZATION & PAYOFF CALCULATOR ==========
@@ -5498,7 +6723,7 @@ async function renderAutopilot() {
         const monthlyExpenses = computeMonthlyExpenses();
         const monthlySavings = Math.max(monthlyIncome - monthlyExpenses, 0);
         const currentInvestments = computeTotalInvestments();
-        const totalLoans = (userData.loans || []).reduce((sum, loan) => sum + (loan.outstanding || 0), 0);
+        const totalLoans = getLoansForMember(currentProfile).reduce((sum, loan) => sum + (loan.outstanding || 0), 0);
         
         // Inflation rates
         const generalInflation = 0.08; // 8% annual
@@ -5518,7 +6743,7 @@ async function renderAutopilot() {
         const recommendedSIP = Math.max(optimalSIP, minSIP);
         
         // Calculate term insurance need (10-15x annual income)
-        const currentTermCover = userData.profile.termCover || 0;
+        const currentTermCover = computeInsuranceCoverage().termCover;
         const recommendedTermCover = monthlyIncome * 12 * 12; // 12x annual income
         const insuranceGap = Math.max(recommendedTermCover - currentTermCover, 0);
         
@@ -5612,7 +6837,7 @@ async function renderAutopilot() {
         
         // Priority 2: High-interest debt payoff
         if (totalLoans > 0) {
-            const highInterestLoans = (userData.loans || []).filter(l => (l.rate || 0) > 10);
+            const highInterestLoans = getLoansForMember(currentProfile).filter(l => (l.rate || 0) > 10);
             if (highInterestLoans.length > 0) {
                 const totalHighInterest = highInterestLoans.reduce((sum, l) => sum + (l.outstanding || 0), 0);
                 const avgRate = highInterestLoans.reduce((sum, l) => sum + (l.rate || 0), 0) / highInterestLoans.length;
@@ -6280,6 +7505,203 @@ async function renderFamily() {
     }
 }
 
+// ========== PER-MEMBER DATA MIGRATION ==========
+function migrateToPerMember() {
+    let migrated = false;
+
+    // Migrate flat investments → byMember.self
+    if (!userData.profile._investmentMigrationV1 &&
+        userData.investments && !userData.investments.byMember) {
+        const flat = { ...userData.investments };
+        // Only migrate if there's actual flat data (mutualFunds, stocks, etc.)
+        if (flat.mutualFunds || flat.stocks || flat.fd || flat.ppf) {
+            userData.investments = {
+                byMember: {
+                    self: {
+                        mutualFunds: flat.mutualFunds || [],
+                        stocks:      flat.stocks      || [],
+                        fd:          flat.fd           || [],
+                        ppf:         flat.ppf          || []
+                    }
+                }
+            };
+        } else {
+            userData.investments = { byMember: { self: { mutualFunds:[], stocks:[], fd:[], ppf:[] } } };
+        }
+        userData.profile._investmentMigrationV1 = true;
+        migrated = true;
+        console.log('✅ Migrated investments to per-member structure');
+    }
+
+    // Migrate flat loans array → byMember.self
+    if (!userData.profile._loanMigrationV1 &&
+        Array.isArray(userData.loans)) {
+        const flatLoans = [...userData.loans];
+        userData.loans = { byMember: { self: flatLoans } };
+        userData.profile._loanMigrationV1 = true;
+        migrated = true;
+        console.log('✅ Migrated loans to per-member structure');
+    }
+
+    // Migrate flat insurance → byMember.self
+    if (!userData.profile._insuranceMigrationV1 &&
+        userData.insurance && !userData.insurance.byMember) {
+        const flat = { ...userData.insurance };
+        if (flat.term || flat.health || flat.vehicle || flat.life || flat.home) {
+            userData.insurance = {
+                byMember: {
+                    self: {
+                        term:    flat.term    || [],
+                        health:  flat.health  || [],
+                        vehicle: flat.vehicle || [],
+                        life:    flat.life    || [],
+                        home:    flat.home    || []
+                    }
+                }
+            };
+        } else {
+            userData.insurance = { byMember: { self: { term:[], health:[], vehicle:[], life:[], home:[] } } };
+        }
+        userData.profile._insuranceMigrationV1 = true;
+        migrated = true;
+        console.log('✅ Migrated insurance to per-member structure');
+    }
+
+    if (migrated) {
+        debounceSave();
+        console.log('✅ Per-member migration complete, save queued');
+    }
+}
+
+// ========== PER-MEMBER DATA ACCESSORS ==========
+
+// Default empty structures
+const _emptyInvestments = () => ({ mutualFunds:[], stocks:[], fd:[], ppf:[] });
+const _emptyInsurance   = () => ({ term:[], health:[], vehicle:[], life:[], home:[] });
+
+// --- READ ACCESSORS ---
+
+function getInvestmentsForMember(memberId) {
+    const byMember = userData.investments?.byMember || {};
+    if (memberId !== 'all') {
+        return byMember[memberId] || _emptyInvestments();
+    }
+    // Merge all members
+    const merged = _emptyInvestments();
+    for (const mid of Object.keys(byMember)) {
+        const m = byMember[mid];
+        for (const cat of ['mutualFunds','stocks','fd','ppf']) {
+            if (Array.isArray(m[cat])) {
+                merged[cat] = merged[cat].concat(m[cat]);
+            }
+        }
+    }
+    return merged;
+}
+
+function getLoansForMember(memberId) {
+    const byMember = userData.loans?.byMember || {};
+    if (memberId !== 'all') {
+        return byMember[memberId] || [];
+    }
+    // Merge all members
+    let merged = [];
+    for (const mid of Object.keys(byMember)) {
+        if (Array.isArray(byMember[mid])) {
+            merged = merged.concat(byMember[mid]);
+        }
+    }
+    return merged;
+}
+
+function getInsuranceForMember(memberId) {
+    const byMember = userData.insurance?.byMember || {};
+    if (memberId !== 'all') {
+        // Own policies
+        const own = byMember[memberId] || _emptyInsurance();
+        const result = {
+            term:    [...(own.term    || [])],
+            health:  [...(own.health  || [])],
+            vehicle: [...(own.vehicle || [])],
+            life:    [...(own.life    || [])],
+            home:    [...(own.home    || [])]
+        };
+        // Cross-reference Family Floater policies from other members
+        for (const otherMid of Object.keys(byMember)) {
+            if (otherMid === memberId) continue;
+            const otherHealth = byMember[otherMid]?.health || [];
+            for (const policy of otherHealth) {
+                if (policy.policyType === 'family_floater' &&
+                    Array.isArray(policy.coveredMembers) &&
+                    policy.coveredMembers.includes(memberId)) {
+                    const holderName = getMemberName(otherMid);
+                    result.health.push({
+                        ...policy,
+                        _crossReferenced: true,
+                        _policyholderMemberId: otherMid,
+                        _policyholderName: holderName
+                    });
+                }
+            }
+        }
+        return result;
+    }
+    // "all" view — merge all members, de-duplicate Family Floater policies
+    const merged = _emptyInsurance();
+    const seenFloaterIds = new Set();
+    for (const mid of Object.keys(byMember)) {
+        const m = byMember[mid] || {};
+        for (const cat of ['term','health','vehicle','life','home']) {
+            const arr = m[cat] || [];
+            for (const policy of arr) {
+                if (policy.policyType === 'family_floater' && policy.id) {
+                    if (seenFloaterIds.has(policy.id)) continue;
+                    seenFloaterIds.add(policy.id);
+                }
+                merged[cat].push(policy);
+            }
+        }
+    }
+    return merged;
+}
+
+// --- WRITE ACCESSORS (mutable references) ---
+
+function getMemberInvestments(memberId) {
+    if (!userData.investments) userData.investments = { byMember: {} };
+    if (!userData.investments.byMember) userData.investments.byMember = {};
+    if (!userData.investments.byMember[memberId]) {
+        userData.investments.byMember[memberId] = _emptyInvestments();
+    }
+    return userData.investments.byMember[memberId];
+}
+
+function getMemberLoans(memberId) {
+    if (!userData.loans) userData.loans = { byMember: {} };
+    if (!userData.loans.byMember) userData.loans.byMember = {};
+    if (!userData.loans.byMember[memberId]) {
+        userData.loans.byMember[memberId] = [];
+    }
+    return userData.loans.byMember[memberId];
+}
+
+function getMemberInsurance(memberId) {
+    if (!userData.insurance) userData.insurance = { byMember: {} };
+    if (!userData.insurance.byMember) userData.insurance.byMember = {};
+    if (!userData.insurance.byMember[memberId]) {
+        userData.insurance.byMember[memberId] = _emptyInsurance();
+    }
+    return userData.insurance.byMember[memberId];
+}
+
+// --- MEMBER INITIALIZATION ---
+
+function ensureMemberDataStructure(memberId) {
+    getMemberInvestments(memberId);
+    getMemberLoans(memberId);
+    getMemberInsurance(memberId);
+}
+
 // ========== SUPABASE DATA ==========
 async function loadUserData(email) {
     console.log('loadUserData called for:', email);
@@ -6465,10 +7887,20 @@ async function loadUserData(email) {
         userData.profile._familyMigrationV1 = true;
     }
 
-    userData.investments = userData.investments || { mutualFunds:[], stocks:[], fd:[], ppf:[] };
-    if(!Array.isArray(userData.insurance.term))    userData.insurance.term    = [];
-    if(!Array.isArray(userData.insurance.health))  userData.insurance.health  = [];
-    if(!Array.isArray(userData.insurance.vehicle)) userData.insurance.vehicle = [];
+    // ── Per-member data migration (investments, loans, insurance) ──
+    migrateToPerMember();
+
+    userData.investments = userData.investments || { byMember: { self: { mutualFunds:[], stocks:[], fd:[], ppf:[] } } };
+    // Ensure byMember structure exists even for fresh users
+    if (!userData.investments.byMember) {
+        userData.investments.byMember = { self: { mutualFunds:[], stocks:[], fd:[], ppf:[] } };
+    }
+    if (!userData.loans.byMember) {
+        userData.loans = { byMember: { self: [] } };
+    }
+    if (!userData.insurance.byMember) {
+        userData.insurance = { byMember: { self: { term:[], health:[], vehicle:[], life:[], home:[] } } };
+    }
 
     if(userData.schemes.length > 0) {
         const seen = new Set();
@@ -7590,7 +9022,7 @@ function renderOverview() {
 
     const alertHtml = [
         ['🏦 Emergency Fund', alerts.liquidity, `${pct(Math.min(1,computeEmergencyRatio()))} of 6-month target`],
-        ['🛡️ Term Insurance',  alerts.protection, `Cover: ${fl(userData.termCover||0)}`],
+        ['🛡️ Term Insurance',  alerts.protection, `Cover: ${fl(computeInsuranceCoverage().termCover)}`],
         ['📈 Savings Rate',    alerts.growth,     `${pct(Math.max(0,computeSavingsRate()))} of income`],
         ['💳 Debt Ratio',      alerts.debt,       `${pct(computeDebtRatio())} of income`],
         ['🏛️ Gov. Schemes',    alerts.schemes,    (userData.schemes||[]).length>0?`${userData.schemes.length} enrolled`:'None enrolled']
@@ -7720,7 +9152,7 @@ function renderOverview() {
             </div>
         </div>
 
-        ${(userData.loans||[]).length > 0 ? `
+        ${getLoansForMember(currentProfile).length > 0 ? `
         <div class="card">
             <div class="card-title"><span class="icon">💳</span> Loan Summary</div>
             <div class="grid-3">
@@ -7729,6 +9161,12 @@ function renderOverview() {
                 <div><div style="font-size:11px; color:var(--text3); margin-bottom:4px;">Debt-to-Income</div><div class="${computeDebtRatio()>0.4?'gradient-red':computeDebtRatio()>0.25?'gradient-yellow':'gradient-green'}" style="font-family:var(--mono); font-size:18px; font-weight:800;" data-value="${computeDebtRatio()*100}">${pct(computeDebtRatio())}</div></div>
             </div>
         </div>` : ''}
+
+        <!-- Forecast Card Section -->
+        <div id="forecast-card-container"></div>
+
+        <!-- Risk Dashboard Section -->
+        ${renderRiskDashboard()}
 
         <!-- AI Financial Dashboard Section -->
         <div id="ai-dashboard-section">
@@ -7807,6 +9245,9 @@ function renderOverview() {
             };
             requestAnimationFrame(animate);
         });
+
+        // Render Forecast Card
+        renderForecastCard();
 
         // Fetch AI Financial Dashboard data
         fetchAIDashboard();
@@ -7995,7 +9436,7 @@ function renderExpenses() {
             <div class="kpi-card ${computeTotalEmi()>0?'yellow':'green'}">
                 <div class="kpi-label">EMI Load</div>
                 <div class="kpi-value">${fl(computeTotalEmi())}</div>
-                <div class="kpi-sub">From ${(userData.loans||[]).length} loan(s)</div>
+                <div class="kpi-sub">From ${getLoansForMember(currentProfile).length} loan(s)</div>
             </div>
         </div>
         ${memberKpiHtml ? `<div class="grid-4" style="margin-bottom:18px;">${memberKpiHtml}</div>` : ''}
@@ -8073,26 +9514,66 @@ function updateMonthSummary() {
 
 // ========== INVESTMENTS PAGE (with Zerodha integration) ==========
 async function renderInvestments() {
-    const inv   = userData.investments || { mutualFunds:[], stocks:[], fd:[], ppf:[] };
+    const isAll = currentProfile === 'all';
+    const inv = getInvestmentsForMember(currentProfile);
+    const members = userData.profile.familyMembers || [{ id:'self', name: userData.profile.name||'Me', role:'self' }];
+    const canEdit = !isAll && editMode;
 
     // ── Fetch Zerodha holdings first so we can merge into totals ──
     let zerodhaHoldings = [];
     let zerodhaStatus = 'not_connected'; // not_connected | expired | connected | error
-    try {
-        const holdingsRes = await fetch('/api/integrations/zerodha/holdings', {
-            headers: { 'X-User-Id': currentUserEmail }
+    // Track per-member statuses for "all" view
+    let zerodhaStatusByMember = {};
+
+    if (isAll) {
+        // "All" view: fetch holdings for each family member individually
+        const fetchPromises = members.map(async (m) => {
+            try {
+                const res = await fetch('/api/integrations/zerodha/holdings', {
+                    headers: { 'X-User-Id': currentUserEmail, 'X-Member-Id': m.id }
+                });
+                if (res.ok) {
+                    const holdings = await res.json();
+                    zerodhaStatusByMember[m.id] = 'connected';
+                    return holdings.map(h => ({ ...h, _memberId: m.id, _memberName: m.name }));
+                } else if (res.status === 404) {
+                    zerodhaStatusByMember[m.id] = 'not_connected';
+                } else if (res.status === 401) {
+                    zerodhaStatusByMember[m.id] = 'expired';
+                } else {
+                    zerodhaStatusByMember[m.id] = 'error';
+                }
+            } catch (e) {
+                console.error(`Failed to fetch Zerodha holdings for ${m.name}`, e);
+                zerodhaStatusByMember[m.id] = 'error';
+            }
+            return [];
         });
-        console.log('Zerodha holdings API status:', holdingsRes.status);
-        if (holdingsRes.status === 404) zerodhaStatus = 'not_connected';
-        else if (holdingsRes.status === 401) zerodhaStatus = 'expired';
-        else if (holdingsRes.ok) {
-            zerodhaHoldings = await holdingsRes.json();
-            zerodhaStatus = 'connected';
-            console.log('Zerodha holdings:', zerodhaHoldings.length);
-        } else zerodhaStatus = 'error';
-    } catch (e) {
-        console.error('Failed to fetch Zerodha holdings', e);
-        zerodhaStatus = 'error';
+        const allResults = await Promise.all(fetchPromises);
+        zerodhaHoldings = allResults.flat();
+        // Set overall status based on whether any member is connected
+        const statuses = Object.values(zerodhaStatusByMember);
+        if (statuses.includes('connected')) zerodhaStatus = 'connected';
+        else if (statuses.every(s => s === 'not_connected')) zerodhaStatus = 'not_connected';
+        else zerodhaStatus = 'not_connected';
+    } else {
+        // Single member view: fetch for the specific member
+        try {
+            const holdingsRes = await fetch('/api/integrations/zerodha/holdings', {
+                headers: { 'X-User-Id': currentUserEmail, 'X-Member-Id': currentProfile }
+            });
+            console.log('Zerodha holdings API status:', holdingsRes.status);
+            if (holdingsRes.status === 404) zerodhaStatus = 'not_connected';
+            else if (holdingsRes.status === 401) zerodhaStatus = 'expired';
+            else if (holdingsRes.ok) {
+                zerodhaHoldings = await holdingsRes.json();
+                zerodhaStatus = 'connected';
+                console.log('Zerodha holdings:', zerodhaHoldings.length);
+            } else zerodhaStatus = 'error';
+        } catch (e) {
+            console.error('Failed to fetch Zerodha holdings', e);
+            zerodhaStatus = 'error';
+        }
     }
     console.log('Final zerodhaStatus:', zerodhaStatus);
 
@@ -8131,39 +9612,104 @@ async function renderInvestments() {
         </div>
     `).join('');
 
+    // Build investment cards — grouped by member in "all" view, flat in member view
     const cardsHtml = categories.map(cat => {
-        const items  = inv[cat.key] || [];
         // Get Zerodha items for this category
         const zItems = cat.key === 'stocks' ? zStocks : cat.key === 'mutualFunds' ? zMFs : [];
 
-        const rowsHtml = items.map((item,i)=>`
-            <div class="row-flex">
-                ${editMode
-                    ? `<input class="edit-input-text" value="${item.name}" onchange="updateInvestment('${cat.key}',${i},'name',this.value)" style="max-width:200px;">
-                       <div style="display:flex;gap:6px;align-items:center;">
-                           <input class="edit-input" type="number" value="${item.value||0}" onchange="updateInvestment('${cat.key}',${i},'value',this.value)">
-                           <button class="del-btn" onclick="deleteInvestment('${cat.key}',${i})">🗑</button>
-                       </div>`
-                    : `<span class="row-label">${item.name}</span>
-                       <div style="display:flex; align-items:center; gap:8px;">
-                           ${total>0 ? `<span style="font-size:10px; color:var(--text3);">${(item.value/total*100).toFixed(0)}%</span>` : ''}
-                           <span class="row-value">${fl(item.value||0)}</span>
-                       </div>`}
-            </div>
-        `).join('');
-
-        // Zerodha rows (read-only, with P&L)
-        const zRowsHtml = zItems.map(h => {
-            const val = h.quantity * h.current_price;
-            const pnlColor = (h.pnl||0) >= 0 ? 'var(--green)' : '#ef4444';
-            return `<div class="row-flex">
-                <span class="row-label">${h.fund_name} <span style="font-size:9px;color:var(--accent);background:rgba(99,102,241,0.15);padding:1px 5px;border-radius:4px;">Zerodha</span></span>
-                <div style="text-align:right;">
-                    <span class="row-value">${fl(val)}</span>
-                    <div style="font-size:10px;color:${pnlColor};">${(h.pnl||0)>=0?'+':''}${fl(h.pnl||0)} P&L</div>
+        let rowsHtml = '';
+        if (isAll && members.length > 1) {
+            // "All" view: group items by member with visual labels
+            const byMember = userData.investments?.byMember || {};
+            members.forEach(m => {
+                const memberInv = byMember[m.id] || {};
+                const memberItems = memberInv[cat.key] || [];
+                if (memberItems.length === 0) return;
+                const memberTotal = memberItems.reduce((s,f) => s + (f.value||0), 0);
+                const icon = m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : m.role==='kid' ? '👶' : '👤';
+                rowsHtml += `<div style="margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding-bottom:4px; border-bottom:1px solid var(--border);">
+                        <span style="font-size:11px; font-weight:700; color:var(--accent2);">${icon} ${m.name}</span>
+                        <span style="font-size:11px; font-family:var(--mono); color:var(--text2);">${fl(memberTotal)}</span>
+                    </div>`;
+                memberItems.forEach(item => {
+                    rowsHtml += `<div class="row-flex">
+                        <span class="row-label">${item.name}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            ${total>0 ? `<span style="font-size:10px; color:var(--text3);">${(item.value/total*100).toFixed(0)}%</span>` : ''}
+                            <span class="row-value">${fl(item.value||0)}</span>
+                        </div>
+                    </div>`;
+                });
+                rowsHtml += `</div>`;
+            });
+        } else {
+            // Single member view: flat list with edit capability
+            const items = inv[cat.key] || [];
+            rowsHtml = items.map((item,i) => `
+                <div class="row-flex">
+                    ${canEdit
+                        ? `<input class="edit-input-text" value="${item.name}" onchange="updateInvestment('${cat.key}',${i},'name',this.value)" style="max-width:200px;">
+                           <div style="display:flex;gap:6px;align-items:center;">
+                               <input class="edit-input" type="number" value="${item.value||0}" onchange="updateInvestment('${cat.key}',${i},'value',this.value)">
+                               <button class="del-btn" onclick="deleteInvestment('${cat.key}',${i})">🗑</button>
+                           </div>`
+                        : `<span class="row-label">${item.name}</span>
+                           <div style="display:flex; align-items:center; gap:8px;">
+                               ${total>0 ? `<span style="font-size:10px; color:var(--text3);">${(item.value/total*100).toFixed(0)}%</span>` : ''}
+                               <span class="row-value">${fl(item.value||0)}</span>
+                           </div>`}
                 </div>
-            </div>`;
-        }).join('');
+            `).join('');
+        }
+
+        // Zerodha rows (read-only, with P&L) — grouped by member in "all" view
+        let zRowsHtml = '';
+        if (isAll && members.length > 1) {
+            // Group Zerodha items by member
+            const zByMember = {};
+            zItems.forEach(h => {
+                const mid = h._memberId || 'self';
+                if (!zByMember[mid]) zByMember[mid] = [];
+                zByMember[mid].push(h);
+            });
+            Object.keys(zByMember).forEach(mid => {
+                const mItems = zByMember[mid];
+                const m = members.find(mm => mm.id === mid);
+                const mName = m ? m.name : mid;
+                const mIcon = m ? (m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : m.role==='kid' ? '👶' : '👤') : '👤';
+                const memberZTotal = mItems.reduce((s,h) => s + (h.quantity * h.current_price), 0);
+                zRowsHtml += `<div style="margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding-bottom:4px; border-bottom:1px solid var(--border);">
+                        <span style="font-size:11px; font-weight:700; color:var(--accent2);">${mIcon} ${mName} <span style="font-size:9px;color:var(--accent);background:rgba(99,102,241,0.15);padding:1px 5px;border-radius:4px;">Zerodha</span></span>
+                        <span style="font-size:11px; font-family:var(--mono); color:var(--text2);">${fl(memberZTotal)}</span>
+                    </div>`;
+                mItems.forEach(h => {
+                    const val = h.quantity * h.current_price;
+                    const pnlColor = (h.pnl||0) >= 0 ? 'var(--green)' : '#ef4444';
+                    zRowsHtml += `<div class="row-flex">
+                        <span class="row-label">${h.fund_name}</span>
+                        <div style="text-align:right;">
+                            <span class="row-value">${fl(val)}</span>
+                            <div style="font-size:10px;color:${pnlColor};">${(h.pnl||0)>=0?'+':''}${fl(h.pnl||0)} P&L</div>
+                        </div>
+                    </div>`;
+                });
+                zRowsHtml += `</div>`;
+            });
+        } else {
+            zRowsHtml = zItems.map(h => {
+                const val = h.quantity * h.current_price;
+                const pnlColor = (h.pnl||0) >= 0 ? 'var(--green)' : '#ef4444';
+                return `<div class="row-flex">
+                    <span class="row-label">${h.fund_name} <span style="font-size:9px;color:var(--accent);background:rgba(99,102,241,0.15);padding:1px 5px;border-radius:4px;">Zerodha</span></span>
+                    <div style="text-align:right;">
+                        <span class="row-value">${fl(val)}</span>
+                        <div style="font-size:10px;color:${pnlColor};">${(h.pnl||0)>=0?'+':''}${fl(h.pnl||0)} P&L</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
 
         const allRows = rowsHtml + zRowsHtml;
 
@@ -8174,7 +9720,7 @@ async function renderInvestments() {
                     <span style="margin-left:auto; font-family:var(--mono); color:${cat.color};">${fl(cat.total)}</span>
                 </div>
                 ${allRows || `<p style="color:var(--text3); font-size:12px; padding:8px 0;">None added yet.</p>`}
-                ${editMode ? `<button class="add-btn" onclick="addInvestment('${cat.key}')">➕ Add ${cat.label}</button>` : ''}
+                ${canEdit ? `<button class="add-btn" onclick="addInvestment('${cat.key}')">➕ Add ${cat.label}</button>` : ''}
             </div>
         `;
     }).join('');
@@ -8185,34 +9731,84 @@ async function renderInvestments() {
                          diversified>=3  ? '✅ Well-diversified across multiple asset classes.' :
                          '💡 Good start — adding more asset classes improves risk balance.';
 
+    // Member label for header
+    const memberName = getMemberName(currentProfile);
+    const memberLabel = isAll ? '👨‍👩‍👧‍👦 All Members' : `👤 ${memberName}`;
+
     // ===== Zerodha connect/status bar =====
     let zerodhaBar = '';
-    if (zerodhaStatus === 'not_connected' || zerodhaStatus === 'error') {
-        zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;background:linear-gradient(135deg, rgba(59,126,255,0.05), rgba(167,139,250,0.05)); border-color:var(--accent);">
-            <div class="card-title"><i class="fas fa-link"></i> Auto-Import from Zerodha</div>
-            <p style="color:var(--text2); margin-bottom:12px; font-size:13px; line-height:1.6;">Connect your Zerodha account to automatically import stocks & mutual funds with live P&L tracking.</p>
-            <button class="primary-btn" onclick="connectZerodha()"><i class="fas fa-plug"></i> ${t('connectZerodha')} →</button>
-        </div>`;
-    } else if (zerodhaStatus === 'expired') {
-        zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;background:rgba(245,158,11,0.05);border-color:var(--yellow);">
-            <p style="color:var(--yellow);margin-bottom:8px;font-size:13px;">⚠️ Zerodha session expired (tokens reset daily at 6 AM IST)</p>
-            <button class="primary-btn" onclick="connectZerodha()"><i class="fas fa-sync"></i> Reconnect Zerodha →</button>
-        </div>`;
-    } else if (zerodhaStatus === 'connected' && zerodhaHoldings.length) {
-        zerodhaBar = `<div style="text-align:right;margin-bottom:12px;font-size:11px;color:var(--text3);">
-            <i class="fas fa-check-circle" style="color:var(--green);"></i> Zerodha connected · ${zerodhaHoldings.length} holdings synced
-        </div>`;
-    } else if (zerodhaStatus === 'connected' && zerodhaHoldings.length === 0) {
-        zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;">
-            <p style="color:var(--text3);margin-bottom:8px;font-size:13px;">✅ Zerodha connected, but no holdings found. Make sure you have stocks or mutual funds in your Zerodha account.</p>
-            <button class="secondary-btn" onclick="renderInvestments()"><i class="fas fa-sync"></i> Refresh</button>
-        </div>`;
+    if (isAll) {
+        // "All" view: show per-member Zerodha connection summary
+        const connectedMembers = members.filter(m => zerodhaStatusByMember[m.id] === 'connected');
+        const expiredMembers = members.filter(m => zerodhaStatusByMember[m.id] === 'expired');
+        const notConnectedMembers = members.filter(m => !zerodhaStatusByMember[m.id] || zerodhaStatusByMember[m.id] === 'not_connected' || zerodhaStatusByMember[m.id] === 'error');
+
+        let memberStatusRows = members.map(m => {
+            const st = zerodhaStatusByMember[m.id] || 'not_connected';
+            const icon = m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : m.role==='kid' ? '👶' : m.role==='father'||m.role==='mother' ? '👴' : '👤';
+            if (st === 'connected') {
+                const memberHoldings = zerodhaHoldings.filter(h => h._memberId === m.id);
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                    <span style="font-size:12px;">${icon} ${m.name}</span>
+                    <span style="font-size:11px;color:var(--green);"><i class="fas fa-check-circle"></i> Connected · ${memberHoldings.length} holdings</span>
+                </div>`;
+            } else if (st === 'expired') {
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                    <span style="font-size:12px;">${icon} ${m.name}</span>
+                    <span style="font-size:11px;color:var(--yellow);">⚠️ Expired</span>
+                </div>`;
+            } else {
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                    <span style="font-size:12px;">${icon} ${m.name}</span>
+                    <span style="font-size:11px;color:var(--text3);">Not connected</span>
+                </div>`;
+            }
+        }).join('');
+
+        if (connectedMembers.length > 0 || expiredMembers.length > 0) {
+            zerodhaBar = `<div class="card" style="margin-bottom:18px;">
+                <div class="card-title"><i class="fas fa-link"></i> Zerodha Connections</div>
+                ${memberStatusRows}
+                <p style="font-size:11px;color:var(--text3);margin-top:8px;">Select a member to connect/disconnect their Zerodha account.</p>
+            </div>`;
+        }
+    } else {
+        // Single member view: show connect/disconnect for this specific member
+        const memberName2 = getMemberName(currentProfile);
+        if (zerodhaStatus === 'not_connected' || zerodhaStatus === 'error') {
+            zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;background:linear-gradient(135deg, rgba(59,126,255,0.05), rgba(167,139,250,0.05)); border-color:var(--accent);">
+                <div class="card-title"><i class="fas fa-link"></i> Auto-Import from Zerodha</div>
+                <p style="color:var(--text2); margin-bottom:12px; font-size:13px; line-height:1.6;">Connect ${memberName2}'s Zerodha account to automatically import stocks & mutual funds with live P&L tracking.</p>
+                <button class="primary-btn" onclick="connectZerodha('${currentProfile}')"><i class="fas fa-plug"></i> ${t('connectZerodha')} →</button>
+            </div>`;
+        } else if (zerodhaStatus === 'expired') {
+            zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;background:rgba(245,158,11,0.05);border-color:var(--yellow);">
+                <p style="color:var(--yellow);margin-bottom:8px;font-size:13px;">⚠️ ${memberName2}'s Zerodha session expired (tokens reset daily at 6 AM IST)</p>
+                <button class="primary-btn" onclick="connectZerodha('${currentProfile}')"><i class="fas fa-sync"></i> Reconnect Zerodha →</button>
+            </div>`;
+        } else if (zerodhaStatus === 'connected' && zerodhaHoldings.length) {
+            zerodhaBar = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:11px;color:var(--text3);">
+                <span><i class="fas fa-check-circle" style="color:var(--green);"></i> ${memberName2}'s Zerodha connected · ${zerodhaHoldings.length} holdings synced</span>
+                <button class="secondary-btn" style="font-size:10px;padding:3px 10px;" onclick="disconnectZerodha('${currentProfile}')"><i class="fas fa-unlink"></i> ${t('disconnectZerodha')}</button>
+            </div>`;
+        } else if (zerodhaStatus === 'connected' && zerodhaHoldings.length === 0) {
+            zerodhaBar = `<div class="card" style="text-align:center;margin-bottom:18px;">
+                <p style="color:var(--text3);margin-bottom:8px;font-size:13px;">✅ ${memberName2}'s Zerodha connected, but no holdings found.</p>
+                <div style="display:flex;gap:8px;justify-content:center;">
+                    <button class="secondary-btn" onclick="renderInvestments()"><i class="fas fa-sync"></i> Refresh</button>
+                    <button class="secondary-btn" style="color:var(--red);" onclick="disconnectZerodha('${currentProfile}')"><i class="fas fa-unlink"></i> ${t('disconnectZerodha')}</button>
+                </div>
+            </div>`;
+        }
     }
 
     sh('page-investments', `
+        ${isAll ? `<div style="margin-bottom:12px; font-size:12px; color:var(--text3); display:flex; align-items:center; gap:6px;">
+            <i class="fas fa-eye"></i> Combined read-only view — select a member to edit
+        </div>` : ''}
         <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card green">
-                <div class="kpi-label">Portfolio Total</div>
+                <div class="kpi-label">${isAll ? 'Family' : memberName+"'s"} Portfolio</div>
                 <div class="kpi-value">${fl(total)}</div>
                 <div class="kpi-sub">${diversified} asset class(es)</div>
             </div>
@@ -8244,14 +9840,23 @@ async function renderInvestments() {
 }
 
 window.updateInvestment = (cat, i, field, val) => {
-    if(!userData.investments[cat]) userData.investments[cat]=[];
-    userData.investments[cat][i][field] = field==='value' ? num(val) : val;
+    if (currentProfile === 'all') return; // read-only in "all" view
+    const memberInv = getMemberInvestments(currentProfile);
+    if(!memberInv[cat]) memberInv[cat]=[];
+    memberInv[cat][i][field] = field==='value' ? num(val) : val;
     debounceSave(); renderInvestments();
 };
-window.deleteInvestment = (cat, i) => { userData.investments[cat].splice(i,1); debounceSave(); renderInvestments(); };
+window.deleteInvestment = (cat, i) => {
+    if (currentProfile === 'all') return;
+    const memberInv = getMemberInvestments(currentProfile);
+    memberInv[cat].splice(i,1);
+    debounceSave(); renderInvestments();
+};
 window.addInvestment = cat => {
-    if(!userData.investments[cat]) userData.investments[cat]=[];
-    userData.investments[cat].push({ id:'inv-'+Date.now(), name:'New Entry', value:0 });
+    if (currentProfile === 'all') return;
+    const memberInv = getMemberInvestments(currentProfile);
+    if(!memberInv[cat]) memberInv[cat]=[];
+    memberInv[cat].push({ id:'inv-'+Date.now(), name:'New Entry', value:0 });
     debounceSave(); renderInvestments();
 };
 
@@ -8830,7 +10435,7 @@ async function fetchAIDashboard() {
         const income = computeMonthlyIncome();
         const expenses = computeMonthlyExpenses();
         const totalEmi = computeTotalEmi();
-        const loans = (userData.loans || []).filter(l => (l.outstanding || 0) > 0);
+        const loans = getLoansForMember(currentProfile).filter(l => (l.outstanding || 0) > 0);
 
         const profile = {
             income,
@@ -8839,11 +10444,11 @@ async function fetchAIDashboard() {
             total_debt_outstanding: computeTotalLoanOutstanding(),
             liquid_assets: userData.liquidSavings || userData.emergencyFund || 0,
             total_assets: computeTotalInvestments() + (userData.liquidSavings || userData.emergencyFund || 0),
-            term_cover: userData.termCover || 0,
-            health_cover: (userData.insurance?.health || []).reduce((s, p) => s + (p.cover || p.sum_insured || 0), 0),
+            term_cover: computeInsuranceCoverage().termCover,
+            health_cover: computeInsuranceCoverage().healthCover,
             dependents: (userData.profile.familyMembers || []).length,
             sip_monthly: (() => {
-                const inv = userData.investments || {};
+                const inv = getInvestmentsForMember(currentProfile);
                 const mfSips = (inv.mutualFunds || []).filter(f => f.sip || f.monthly).reduce((s, f) => s + (f.monthly || f.sip || 0), 0);
                 return mfSips;
             })(),
@@ -9011,9 +10616,106 @@ function renderAIDashboardWidgets() {
     `;
 }
 
+// ========== LOAN FREEDOM CARD ==========
+function renderLoanFreedomCard() {
+    const loans = getLoansForMember(currentProfile);
+    const activeLoans = loans.filter(l => (l.outstanding || 0) > 0 && (l.emi || 0) > 0);
+
+    if (activeLoans.length === 0) {
+        return `<div class="card" style="background:linear-gradient(135deg, rgba(16,185,129,0.08), rgba(59,126,255,0.05)); border-color:var(--green);">
+            <div class="card-title"><span class="icon">🏆</span> Loan Freedom</div>
+            <div style="text-align:center; padding:20px 0;">
+                <div style="font-size:32px; margin-bottom:8px;">🎉</div>
+                <div style="font-size:18px; font-weight:700; color:var(--green);">You're debt-free!</div>
+                <div style="font-size:13px; color:var(--text3); margin-top:6px;">No active loans — keep up the great work.</div>
+            </div>
+        </div>`;
+    }
+
+    const baseline = computeDebtFreeDate(activeLoans, 0);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const fmtDate = d => d ? months[d.getMonth()] + ' ' + d.getFullYear() : '—';
+
+    // Build per-loan detail rows
+    const perLoanRows = baseline.perLoanDetails.map(d =>
+        `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px;">
+            <span style="color:var(--text2);">${d.label}</span>
+            <span class="mono" style="color:var(--text);">${fmtDate(d.payoffDate)}</span>
+        </div>`
+    ).join('');
+
+    return `<div class="card" id="loan-freedom-card" style="background:linear-gradient(135deg, rgba(59,126,255,0.05), rgba(167,139,250,0.05)); border-color:var(--accent);">
+        <div class="card-title"><span class="icon">🏆</span> Loan Freedom
+            <span style="margin-left:auto; cursor:help; font-size:13px;" title="Months saved = original tenure − new tenure (with extra payment applied equally to all loans)">ℹ️</span>
+        </div>
+        <div style="text-align:center; margin-bottom:16px;">
+            <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px;">Debt-free by</div>
+            <div style="font-size:24px; font-weight:800; color:var(--accent); font-family:var(--mono);" id="lf-debt-free-date">${fmtDate(baseline.debtFreeDate)}</div>
+        </div>
+        <div style="margin-bottom:16px;">
+            <label style="font-size:12px; color:var(--text2); display:block; margin-bottom:6px;">What if I pay extra/month?</label>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <input type="range" id="lf-slider" min="0" max="50000" step="1000" value="0"
+                    style="flex:1; accent-color:var(--accent);"
+                    oninput="updateLoanFreedomSlider(this.value)">
+                <span class="mono" style="font-size:14px; font-weight:700; min-width:90px; text-align:right;" id="lf-slider-val">₹0</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text3); margin-top:2px;">
+                <span>₹0</span><span>₹50,000</span>
+            </div>
+        </div>
+        <div id="lf-savings-info" style="display:none; text-align:center; padding:10px; background:var(--bg3); border-radius:var(--radius-sm); margin-bottom:14px;">
+        </div>
+        <div id="lf-per-loan" style="margin-bottom:8px;">
+            ${perLoanRows}
+        </div>
+    </div>`;
+}
+
+window.updateLoanFreedomSlider = function(val) {
+    const extra = parseInt(val) || 0;
+    const sliderVal = document.getElementById('lf-slider-val');
+    const savingsInfo = document.getElementById('lf-savings-info');
+    const dateEl = document.getElementById('lf-debt-free-date');
+    const perLoanEl = document.getElementById('lf-per-loan');
+    if (sliderVal) sliderVal.textContent = '₹' + fl(extra);
+
+    const loans = getLoansForMember(currentProfile);
+    const activeLoans = loans.filter(l => (l.outstanding || 0) > 0 && (l.emi || 0) > 0);
+    const result = computeDebtFreeDate(activeLoans, extra);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const fmtDate = d => d ? months[d.getMonth()] + ' ' + d.getFullYear() : '—';
+
+    if (dateEl) dateEl.textContent = result.debtFreeDate ? fmtDate(result.debtFreeDate) : '—';
+
+    if (savingsInfo) {
+        if (extra > 0 && result.interestSaved > 0) {
+            savingsInfo.style.display = 'block';
+            savingsInfo.innerHTML = `
+                <div style="font-size:13px; color:var(--green); font-weight:700;">You save ₹${fl(Math.round(result.interestSaved))} in interest</div>
+                <div style="font-size:11px; color:var(--text3); margin-top:4px;">${result.monthsSaved} month${result.monthsSaved !== 1 ? 's' : ''} earlier freedom</div>
+            `;
+        } else {
+            savingsInfo.style.display = 'none';
+        }
+    }
+
+    if (perLoanEl) {
+        perLoanEl.innerHTML = result.perLoanDetails.map(d =>
+            `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px;">
+                <span style="color:var(--text2);">${d.label}</span>
+                <span class="mono" style="color:var(--text);">${fmtDate(d.payoffDate)}${d.monthsSaved > 0 ? ` <span style="color:var(--green); font-size:10px;">(−${d.monthsSaved}mo)</span>` : ''}</span>
+            </div>`
+        ).join('');
+    }
+};
+
 // ========== LOANS PAGE ==========
 function renderLoans() {
-    const loans    = userData.loans || [];
+    const isAll = currentProfile === 'all';
+    const loans    = getLoansForMember(currentProfile);
+    const members = userData.profile.familyMembers || [{ id:'self', name: userData.profile.name||'Me', role:'self' }];
+    const canEdit = !isAll && editMode;
     const totalOut = computeTotalLoanOutstanding();
     const totalEmi = computeTotalEmi();
     const dr       = computeDebtRatio();
@@ -9027,7 +10729,68 @@ function renderLoans() {
         dr > 0.4 ? `⚠️ Your EMI load (${pct(dr)}) exceeds the safe 40% threshold. Prioritise repaying the highest-rate loan${highestRate>0?' ('+highestRate+'% p.a.)':''}.` :
         `💡 EMI load is within safe limits (${pct(dr)}). Consider prepaying high-interest loans to reduce total interest paid.`;
 
-    const tableHtml = loans.length ? `
+    let tableHtml = '';
+    if (loans.length) {
+        let tbodyHtml = '';
+        if (isAll && members.length > 1) {
+            // "All" view: group loans by member with visual labels (read-only)
+            const byMember = userData.loans?.byMember || {};
+            members.forEach(m => {
+                const memberLoans = byMember[m.id] || [];
+                if (memberLoans.length === 0) return;
+                const icon = m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : m.role==='kid' ? '👶' : '👤';
+                tbodyHtml += `<tr><td colspan="6" style="background:var(--bg3); font-size:11px; font-weight:700; color:var(--accent2); padding:8px 12px; border-bottom:2px solid var(--border);">${icon} ${m.name}</td></tr>`;
+                memberLoans.forEach(l => {
+                    tbodyHtml += `<tr>
+                        <td>
+                            <div>${l.label||'—'}</div>
+                            ${l.lender?`<div style="font-size:10px;color:var(--text3);">${l.lender}</div>`:''}
+                            ${l.interestType?`<span class="badge badge-blue" style="margin-top:3px;">${l.interestType}</span>`:''}
+                        </td>
+                        <td class="mono">${fl(l.outstanding||0)}</td>
+                        <td class="mono">${fl(l.emi||0)}</td>
+                        <td class="mono">${l.rate||0}%</td>
+                        <td>${l.tenure || (l.tenureMonths ? l.tenureMonths+' mo' : '—')}</td>
+                        <td></td>
+                    </tr>`;
+                });
+            });
+        } else {
+            // Single member view: editable rows
+            loans.forEach((l,i) => {
+                tbodyHtml += `<tr>
+                    ${canEdit ? `
+                        <td><input class="edit-input-text" value="${l.label||''}" onchange="updateLoan(${i},'label',this.value)" style="width:140px;"></td>
+                        <td><input class="edit-input" type="number" value="${l.outstanding||0}" onchange="updateLoan(${i},'outstanding',this.value)" style="width:100px;"></td>
+                        <td><input class="edit-input" type="number" value="${l.emi||0}" onchange="updateLoan(${i},'emi',this.value)" style="width:90px;"></td>
+                        <td><input class="edit-input" type="number" value="${l.rate||0}" onchange="updateLoan(${i},'rate',this.value)" style="width:70px;"></td>
+                        <td><input class="edit-input" type="number" value="${l.tenureMonths||0}" onchange="updateLoan(${i},'tenureMonths',this.value)" style="width:70px;" placeholder="mo"></td>
+                        <td><button class="del-btn" onclick="deleteLoan(${i})" title="Delete loan">🗑</button></td>
+                    ` : `
+                        <td>
+                            <div>${l.label||'—'}</div>
+                            ${l.lender?`<div style="font-size:10px;color:var(--text3);">${l.lender}</div>`:''}
+                            ${l.interestType?`<span class="badge badge-blue" style="margin-top:3px;">${l.interestType}</span>`:''}
+                        </td>
+                        <td class="mono">${fl(l.outstanding||0)}</td>
+                        <td class="mono">${fl(l.emi||0)}</td>
+                        <td class="mono">${l.rate||0}%</td>
+                        <td>${l.tenure || (l.tenureMonths ? l.tenureMonths+' mo' : '—')}</td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="snap-btn" style="padding: 4px 10px; font-size: 11px;" onclick="event.stopPropagation(); toggleDropdown(${i})">⋮ More</button>
+                                <div class="dropdown-content" id="dropdown-${i}">
+                                    <a onclick="event.stopPropagation(); showLoanDetails(${i}); closeAllDropdowns();"><i class="fas fa-info-circle"></i> View Details</a>
+                                    <a onclick="event.stopPropagation(); showLoanScenarios(${i}); closeAllDropdowns();"><i class="fas fa-calculator"></i> Payoff Scenarios</a>
+                                    <a onclick="event.stopPropagation(); editLoan(${i}); closeAllDropdowns();"><i class="fas fa-edit"></i> Edit Loan</a>
+                                </div>
+                            </div>
+                        </td>
+                    `}
+                </tr>`;
+            });
+        }
+        tableHtml = `
         <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
             <table class="data-table" style="width: 100%; margin-bottom: 0;">
                 <thead><tr>
@@ -9036,53 +10799,21 @@ function renderLoans() {
                     <th style="min-width: 90px;">EMI / Mo</th>
                     <th style="min-width: 70px;">Rate %</th>
                     <th style="min-width: 80px;">Tenure</th>
-                    ${editMode?'<th style="min-width: 100px;">Actions</th>':'<th style="min-width: 80px;">More</th>'}
+                    ${canEdit?'<th style="min-width: 100px;">Actions</th>':(!isAll?'<th style="min-width: 80px;">More</th>':'<th></th>')}
                 </tr></thead>
-                <tbody>
-                ${loans.map((l,i)=>`
-                    <tr>
-                        ${editMode ? `
-                            <td><input class="edit-input-text" value="${l.label||''}" onchange="updateLoan(${i},'label',this.value)" style="width:140px;"></td>
-                            <td><input class="edit-input" type="number" value="${l.outstanding||0}" onchange="updateLoan(${i},'outstanding',this.value)" style="width:100px;"></td>
-                            <td><input class="edit-input" type="number" value="${l.emi||0}" onchange="updateLoan(${i},'emi',this.value)" style="width:90px;"></td>
-                            <td><input class="edit-input" type="number" value="${l.rate||0}" onchange="updateLoan(${i},'rate',this.value)" style="width:70px;"></td>
-                            <td><input class="edit-input" type="number" value="${l.tenureMonths||0}" onchange="updateLoan(${i},'tenureMonths',this.value)" style="width:70px;" placeholder="mo"></td>
-                            <td><button class="del-btn" onclick="deleteLoan(${i})" title="Delete loan">🗑</button></td>
-                        ` : `
-                            <td>
-                                <div>${l.label||'—'}</div>
-                                ${l.lender?`<div style="font-size:10px;color:var(--text3);">${l.lender}</div>`:''}
-                                ${l.interestType?`<span class="badge badge-blue" style="margin-top:3px;">${l.interestType}</span>`:''}
-                            </td>
-                            <td class="mono">${fl(l.outstanding||0)}</td>
-                            <td class="mono">${fl(l.emi||0)}</td>
-                            <td class="mono">${l.rate||0}%</td>
-                            <td>${l.tenure || (l.tenureMonths ? l.tenureMonths+' mo' : '—')}</td>
-                            <td>
-                                <div class="dropdown">
-                                    <button class="snap-btn" style="padding: 4px 10px; font-size: 11px;" onclick="event.stopPropagation(); toggleDropdown(${i})">⋮ More</button>
-                                    <div class="dropdown-content" id="dropdown-${i}">
-                                        <a onclick="event.stopPropagation(); showLoanDetails(${i}); closeAllDropdowns();"><i class="fas fa-info-circle"></i> View Details</a>
-                                        <a onclick="event.stopPropagation(); showLoanScenarios(${i}); closeAllDropdowns();"><i class="fas fa-calculator"></i> Payoff Scenarios</a>
-                                        <a onclick="event.stopPropagation(); editLoan(${i}); closeAllDropdowns();"><i class="fas fa-edit"></i> Edit Loan</a>
-                                    </div>
-                                </div>
-                            </td>
-                        `}
-                    </tr>
-                `).join('')}
-                </tbody>
+                <tbody>${tbodyHtml}</tbody>
             </table>
         </div>
         <div style="font-size: 11px; color: var(--text3); margin-top: 12px; text-align: center; padding: 8px; background: var(--bg3); border-radius: var(--radius-sm);">
             💡 Click "More" to view full loan details, sanctioned amount, remaining tenure, and payoff scenarios
         </div>
-        ${editMode ? `<button class="add-btn" onclick="addLoan()" style="margin-top: 12px;">➕ Add Loan</button>` : ''}
-    ` : `
-        ${editMode
+        ${canEdit ? `<button class="add-btn" onclick="addLoan()" style="margin-top: 12px;">➕ Add Loan</button>` : ''}
+        `;
+    } else {
+        tableHtml = canEdit
             ? `<p style="color:var(--text3); font-size:13px; padding-bottom:12px;">No loans added.</p><button class="add-btn" onclick="addLoan()">➕ Add Loan</button>`
-            : emptyStateInline('No loans recorded','✅ Great — or add your loans using the Edit button.')}
-    `;
+            : emptyStateInline('No loans recorded','✅ Great — or add your loans using the Edit button.');
+    }
 
     // Per-loan detail cards (interest/principal paid breakdown)
     const detailCards = loans.length && !editMode ? loans.map(l => {
@@ -9135,10 +10866,16 @@ function renderLoans() {
         `;
     }).join('') : '';
 
+    const memberName = getMemberName(currentProfile);
+
     sh('page-loans', `
+        ${isAll ? `<div style="margin-bottom:12px; font-size:12px; color:var(--text3); display:flex; align-items:center; gap:6px;">
+            <i class="fas fa-eye"></i> Combined read-only view — select a member to edit
+        </div>` : ''}
+        ${renderLoanFreedomCard()}
         <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card red">
-                <div class="kpi-label">Total Outstanding</div>
+                <div class="kpi-label">${isAll ? 'Family' : memberName+"'s"} Outstanding</div>
                 <div class="kpi-value">${fl(totalOut)}</div>
                 <div class="kpi-sub">${loans.length} loan(s)</div>
             </div>
@@ -9160,8 +10897,8 @@ function renderLoans() {
             </div>` : ''}
         </div>
 
-        <!-- Upload & Add buttons -->
-        <div class="card">
+        <!-- Upload & Add buttons (hidden in "all" view) -->
+        ${!isAll ? `<div class="card">
             <div class="card-title"><span class="icon">📄</span> Upload Loan Statement</div>
             <p style="font-size:12px; color:var(--text2); margin-bottom:12px; line-height:1.5;">
                 Upload your loan statement PDF (from bank/NBFC) and AI will auto-extract all loan details — outstanding, EMI, interest rate, tenure, principal/interest paid, and more.
@@ -9175,7 +10912,7 @@ function renderLoans() {
                 <button class="snap-btn" onclick="showAddLoanModal()"><i class="fas fa-plus"></i> Add Manually</button>
             </div>
             <div id="loan-pdf-status" style="margin-top:10px; font-size:12px;"></div>
-        </div>
+        </div>` : ''}
 
         <!-- Active Loans Table - Scrollable -->
         <div class="card">
@@ -9210,13 +10947,21 @@ function renderLoans() {
 }
 
 window.updateLoan = (i, field, val) => {
-    if(!userData.loans[i]) return;
-    userData.loans[i][field] = ['outstanding','emi','rate','principal','tenureMonths','paidMonths','totalInterestPaid','totalPrincipalPaid','processingFee'].includes(field) ? num(val) : val;
+    if (currentProfile === 'all') return; // read-only in "all" view
+    const loans = getMemberLoans(currentProfile);
+    if(!loans[i]) return;
+    loans[i][field] = ['outstanding','emi','rate','principal','tenureMonths','paidMonths','totalInterestPaid','totalPrincipalPaid','processingFee'].includes(field) ? num(val) : val;
     debounceSave(); renderLoans();
 };
-window.deleteLoan = i => { userData.loans.splice(i,1); debounceSave(); renderLoans(); };
+window.deleteLoan = i => {
+    if (currentProfile === 'all') return;
+    const loans = getMemberLoans(currentProfile);
+    loans.splice(i,1); debounceSave(); renderLoans();
+};
 window.addLoan = () => {
-    userData.loans.push({ id:'loan-'+Date.now(), label:'New Loan', outstanding:0, emi:0, rate:0, tenure:'', principal:0, tenureMonths:0, paidMonths:0 });
+    if (currentProfile === 'all') return;
+    const loans = getMemberLoans(currentProfile);
+    loans.push({ id:'loan-'+Date.now(), label:'New Loan', outstanding:0, emi:0, rate:0, tenure:'', principal:0, tenureMonths:0, paidMonths:0 });
     debounceSave(); renderLoans();
 };
 
@@ -9247,7 +10992,8 @@ document.addEventListener('click', (e) => {
 
 // ── Loan Dropdown Actions ──
 window.showLoanDetails = (i) => {
-    const loan = userData.loans[i];
+    const loans = getLoansForMember(currentProfile);
+    const loan = loans[i];
     if (!loan) return;
     
     const income = computeMonthlyIncome();
@@ -9273,7 +11019,8 @@ window.showLoanDetails = (i) => {
 };
 
 window.showLoanScenarios = (i) => {
-    const loan = userData.loans[i];
+    const loans = getLoansForMember(currentProfile);
+    const loan = loans[i];
     if (!loan) return;
     
     // Scroll to the scenarios section for this loan
@@ -9291,6 +11038,7 @@ window.editLoan = (i) => {
 
 // ── Loan PDF Upload Handler ──
 window.handleLoanPdfUpload = async (input) => {
+    if (currentProfile === 'all') return;
     const file = input.files[0];
     if(!file) return;
     const statusEl = document.getElementById('loan-pdf-status');
@@ -9427,7 +11175,8 @@ window.handleLoanPdfUpload = async (input) => {
         }
         const loan = await res.json();
 
-        userData.loans.push({
+        const memberLoans = getMemberLoans(currentProfile);
+        memberLoans.push({
             id: 'loan-' + Date.now(),
             label: loan.label || file.name.replace(/\.(pdf|png|jpg|jpeg|xlsx|xls)$/i, ''),
             lender: loan.lender || '',
@@ -9464,6 +11213,7 @@ window.handleLoanPdfUpload = async (input) => {
 
 // ── Manual Add Loan Modal ──
 window.showAddLoanModal = () => {
+    if (currentProfile === 'all') return;
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.id = 'loan-add-modal';
@@ -9521,7 +11271,8 @@ window.saveLoanModal = () => {
     if(!label) { alert('Please enter a loan name.'); return; }
     const tenureMonths = num(document.getElementById('lm-tenure').value);
     const remainingMonths = num(document.getElementById('lm-remaining').value);
-    userData.loans.push({
+    const memberLoans = getMemberLoans(currentProfile);
+    memberLoans.push({
         id: 'loan-' + Date.now(),
         label,
         loanType: document.getElementById('lm-type').value || 'other',
@@ -9558,7 +11309,7 @@ window.getLoanAdvice = async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                loans: userData.loans || [],
+                loans: getLoansForMember(currentProfile) || [],
                 monthlyIncome: computeMonthlyIncome(),
                 monthlyExpenses: computeMonthlyExpenses(),
                 monthlySavings: computeMonthlySavings(),
@@ -9675,12 +11426,91 @@ async function hashPolicyNumber(text) {
 let insDetailView = null; // null = list view, policyId = detail view
 let insClaimsCache = {};
 
+// ========== INSURANCE ADEQUACY FORECAST CARD ==========
+function renderInsuranceAdequacyCard() {
+    const assumptions = getForecastAssumptions();
+    const adequacy = computeInsuranceAdequacy(assumptions);
+    const annualIncome = computeMonthlyIncome() * 12;
+
+    // Check if user has any insurance policies at all
+    const ins = getInsuranceForMember(currentProfile);
+    const totalPolicies = ['term','health','vehicle','life','home'].reduce((s, cat) => s + (ins[cat] || []).length, 0);
+
+    if (totalPolicies === 0) {
+        return `<div class="card" style="margin-bottom:18px;">
+            <div class="card-title"><span class="icon">🔮</span> Insurance Adequacy Forecast</div>
+            <div style="text-align:center; padding:20px 0;">
+                <div style="font-size:28px; margin-bottom:8px;">🛡️</div>
+                <div style="font-size:14px; font-weight:600; color:var(--text2); margin-bottom:6px;">No insurance policies found</div>
+                <div style="font-size:12px; color:var(--text3); max-width:360px; margin:0 auto;">Add insurance policies to see adequacy forecast.</div>
+            </div>
+        </div>`;
+    }
+
+    const renderRows = (items) => items.map(d => {
+        const isAdequate = d.current >= d.recommended;
+        const rowColor = isAdequate ? 'rgba(16,185,129,0.08)' : 'rgba(244,73,92,0.08)';
+        const gapColor = isAdequate ? 'var(--green)' : 'var(--red)';
+        const gapLabel = isAdequate ? 'Surplus' : 'Gap';
+        return `<tr style="background:${rowColor};">
+            <td style="padding:8px 10px; font-size:13px; font-weight:600; color:var(--text);">Year ${d.year}</td>
+            <td style="padding:8px 10px; font-size:13px; font-family:var(--mono); color:var(--text);">${fl(Math.round(d.recommended))}</td>
+            <td style="padding:8px 10px; font-size:13px; font-family:var(--mono); color:var(--text);">${fl(d.current)}</td>
+            <td style="padding:8px 10px; font-size:13px; font-family:var(--mono); color:${gapColor}; font-weight:700;">
+                ${isAdequate ? '✅' : '⚠️'} ${fl(Math.abs(Math.round(d.gap)))} ${gapLabel}
+            </td>
+        </tr>`;
+    }).join('');
+
+    const tableStyle = 'width:100%; border-collapse:collapse; border-radius:8px; overflow:hidden;';
+    const thStyle = 'padding:8px 10px; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text3); text-align:left; border-bottom:2px solid var(--border);';
+
+    return `<div class="card" style="margin-bottom:18px; background:linear-gradient(135deg, rgba(59,126,255,0.04), rgba(167,139,250,0.04)); border-color:var(--accent);">
+        <div class="card-title"><span class="icon">🔮</span> Insurance Adequacy Forecast</div>
+        <div style="font-size:12px; color:var(--text3); margin-bottom:16px;">Will your current cover be enough in 5, 10, and 15 years?</div>
+
+        <div style="margin-bottom:18px;">
+            <div style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">🛡️ Term Life Cover</div>
+            <div style="overflow-x:auto;">
+                <table style="${tableStyle}">
+                    <thead><tr>
+                        <th style="${thStyle}">Year</th>
+                        <th style="${thStyle}">Recommended</th>
+                        <th style="${thStyle}">Current</th>
+                        <th style="${thStyle}">Gap / Surplus</th>
+                    </tr></thead>
+                    <tbody>${renderRows(adequacy.term)}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                <span style="font-size:13px; font-weight:700; color:var(--text);">🏥 Health Cover</span>
+                <span style="cursor:help; font-size:12px;" title="Medical inflation assumed at 10% p.a. — healthcare costs double roughly every 7 years.">ℹ️</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="${tableStyle}">
+                    <thead><tr>
+                        <th style="${thStyle}">Year</th>
+                        <th style="${thStyle}">Recommended</th>
+                        <th style="${thStyle}">Current</th>
+                        <th style="${thStyle}">Gap / Surplus</th>
+                    </tr></thead>
+                    <tbody>${renderRows(adequacy.health)}</tbody>
+                </table>
+            </div>
+        </div>
+    </div>`;
+}
+
 function renderInsurance() {
     if (insDetailView) { renderInsuranceDetail(insDetailView); return; }
-    if (!userData.insurance) userData.insurance = {};
-    const ins = userData.insurance;
+    if (!userData.insurance) userData.insurance = { byMember: {} };
+    const ins = getInsuranceForMember(currentProfile);
     const members = userData.profile.familyMembers || [{ id:'self', name: userData.profile.name||'Me', role:'self' }];
     const isAll = currentProfile === 'all';
+    const canEdit = !isAll && editMode;
     
     const categories = [
         { key:'term',    label:'Term Insurance',    icon:'🛡️', color:'var(--green)' },
@@ -9691,63 +11521,138 @@ function renderInsurance() {
     ];
 
     const cardsHtml = categories.map(cat=>{
-        const allItems = ins[cat.key] || [];
-        const items = isAll ? allItems : allItems.filter(item => (item.member || 'self') === currentProfile);
+        const items = ins[cat.key] || [];
         const catCover = items.reduce((s,f)=>s+(f.cover||0),0);
         
-        const rowsHtml = items.map((item,i)=>{
-            const globalIdx = allItems.indexOf(item);
-            const memberName = getMemberName(item.member || 'self');
-            const daysToRenewal = item.renewal_date ? Math.ceil((new Date(item.renewal_date) - new Date()) / 86400000) : null;
-            const renewalBadge = daysToRenewal !== null && daysToRenewal <= 30 && daysToRenewal > 0
-                ? `<span style="background:var(--red-dim);color:var(--red);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;">⚠️ RENEW IN ${daysToRenewal}d</span>`
-                : daysToRenewal !== null && daysToRenewal <= 0
-                ? `<span style="background:var(--red-dim);color:var(--red);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;">EXPIRED</span>`
-                : '';
-            const utilizationPct = item.sum_insured && item.utilization?.amount_used_till_date
-                ? Math.min(100, (item.utilization.amount_used_till_date / item.sum_insured * 100)).toFixed(0)
-                : null;
-
-            return `
-            <div class="row-flex" style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
-                ${editMode ? `
-                    <input class="edit-input-text" value="${item.label||''}" onchange="updateInsurance('${cat.key}',${globalIdx},'label',this.value)" style="max-width:180px;">
-                    <div style="display:flex;gap:6px;align-items:center;">
-                        <input class="edit-input" type="number" value="${item.cover||0}" placeholder="Cover" onchange="updateInsurance('${cat.key}',${globalIdx},'cover',this.value)" style="width:110px;">
-                        <input class="edit-input" type="number" value="${item.premium||0}" placeholder="Premium/yr" onchange="updateInsurance('${cat.key}',${globalIdx},'premium',this.value)" style="width:100px;">
-                        <button class="del-btn" onclick="deleteInsurance('${cat.key}',${globalIdx})" title="Delete"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                ` : `
-                    <div style="flex:1; cursor:pointer;" onclick="viewInsuranceDetail('${cat.key}',${globalIdx})">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span class="row-label" style="font-size:13px;">${item.label||'—'}</span>
-                            ${renewalBadge}
+        let rowsHtml = '';
+        if (isAll && members.length > 1) {
+            // "All" view: group policies by member with visual labels (read-only)
+            const byMember = userData.insurance?.byMember || {};
+            const seenFloaterIds = new Set();
+            members.forEach(m => {
+                const memberPolicies = (byMember[m.id] || {})[cat.key] || [];
+                if (memberPolicies.length === 0) return;
+                const icon = m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : m.role==='kid' ? '👶' : '👤';
+                rowsHtml += `<div style="background:var(--bg3); font-size:11px; font-weight:700; color:var(--accent2); padding:8px 12px; border-bottom:2px solid var(--border);">${icon} ${m.name}</div>`;
+                memberPolicies.forEach(item => {
+                    // De-duplicate Family Floater policies in "all" view
+                    if (item.policyType === 'family_floater' && item.id) {
+                        if (seenFloaterIds.has(item.id)) return;
+                        seenFloaterIds.add(item.id);
+                    }
+                    const daysToRenewal = item.renewal_date ? Math.ceil((new Date(item.renewal_date) - new Date()) / 86400000) : null;
+                    const renewalBadge = daysToRenewal !== null && daysToRenewal <= 30 && daysToRenewal > 0
+                        ? `<span style="background:var(--red-dim);color:var(--red);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;">⚠️ RENEW IN ${daysToRenewal}d</span>`
+                        : daysToRenewal !== null && daysToRenewal <= 0
+                        ? `<span style="background:var(--red-dim);color:var(--red);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;">EXPIRED</span>`
+                        : '';
+                    const coveredMembersLabel = (item.policyType === 'family_floater' && Array.isArray(item.coveredMembers) && item.coveredMembers.length > 0)
+                        ? `<div style="font-size:10px;color:var(--purple);margin-top:2px;">👥 Family Floater · Covers: ${item.coveredMembers.map(mid => getMemberName(mid)).join(', ')}</div>`
+                        : '';
+                    rowsHtml += `
+                    <div class="row-flex" style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <div style="flex:1;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span class="row-label" style="font-size:13px;">${item.label||'—'}</span>
+                                ${renewalBadge}
+                            </div>
+                            <div style="font-size:10px;color:var(--text3);">
+                                ${item.insurer||''} ${item.policyNo ? '· #'+item.policyNo.slice(-4)+'***' : ''}
+                                ${item.renewal_date ? '· Renew: '+item.renewal_date : (item.expiry ? '· Exp: '+item.expiry : '')}
+                            </div>
+                            ${coveredMembersLabel}
                         </div>
-                        ${isAll ? `<div style="font-size:10px;color:var(--accent2);">${memberName}</div>` : ''}
-                        <div style="font-size:10px;color:var(--text3);">
-                            ${item.insurer||''} ${item.policyNo ? '· #'+item.policyNo.slice(-4)+'***' : ''}
-                            ${item.renewal_date ? '· Renew: '+item.renewal_date : (item.expiry ? '· Exp: '+item.expiry : '')}
-                        </div>
-                        ${item.members && item.members.length > 0 ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">👥 ${item.members.length} member${item.members.length>1?'s':''}: ${item.members.map(m=>m.name||m.relationship).join(', ')}</div>` : ''}
-                    </div>
-                    <div style="text-align:right; flex-shrink:0; display:flex; align-items:center; gap:8px;">
-                        <div>
+                        <div style="text-align:right; flex-shrink:0;">
                             <div class="row-value" style="font-size:14px;">${fl(item.cover||item.sum_insured||0)}</div>
                             <div style="font-size:10px; color:var(--text3);">₹${(item.premium||item.premium_amount||0).toLocaleString('en-IN')}/${item.premium_frequency||'yr'}</div>
-                            ${utilizationPct !== null ? `
-                                <div style="margin-top:4px;">
-                                    <div style="width:60px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;display:inline-block;vertical-align:middle;">
-                                        <div style="width:${utilizationPct}%;height:100%;border-radius:2px;background:${utilizationPct>70?'var(--red)':utilizationPct>40?'var(--yellow)':'var(--green)'};"></div>
-                                    </div>
-                                    <span style="font-size:9px;color:var(--text3);margin-left:4px;">${utilizationPct}% used</span>
-                                </div>
-                            ` : ''}
                         </div>
-                        <button class="del-btn" onclick="event.stopPropagation();if(confirm('Delete this policy?'))deleteInsurance('${cat.key}',${globalIdx})" title="Delete" style="opacity:0.5;font-size:12px;padding:4px 6px;"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                `}
-            </div>
-        `}).join('');
+                    </div>`;
+                });
+            });
+        } else {
+            // Single member view: show own policies (editable) + cross-referenced Family Floater (read-only)
+            rowsHtml = items.map((item,i)=>{
+                const isCrossRef = item._crossReferenced === true;
+                const daysToRenewal = item.renewal_date ? Math.ceil((new Date(item.renewal_date) - new Date()) / 86400000) : null;
+                const renewalBadge = daysToRenewal !== null && daysToRenewal <= 30 && daysToRenewal > 0
+                    ? `<span style="background:var(--red-dim);color:var(--red);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;">⚠️ RENEW IN ${daysToRenewal}d</span>`
+                    : daysToRenewal !== null && daysToRenewal <= 0
+                    ? `<span style="background:var(--red-dim);color:var(--red);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;">EXPIRED</span>`
+                    : '';
+                const utilizationPct = item.sum_insured && item.utilization?.amount_used_till_date
+                    ? Math.min(100, (item.utilization.amount_used_till_date / item.sum_insured * 100)).toFixed(0)
+                    : null;
+                const crossRefLabel = isCrossRef
+                    ? `<div style="font-size:10px;color:var(--purple);margin-top:2px;">🔗 Covered under ${item._policyholderName}'s Family Floater</div>`
+                    : '';
+                const coveredMembersLabel = (!isCrossRef && item.policyType === 'family_floater' && Array.isArray(item.coveredMembers) && item.coveredMembers.length > 0)
+                    ? `<div style="font-size:10px;color:var(--purple);margin-top:2px;">👥 Family Floater · Covers: ${item.coveredMembers.map(mid => getMemberName(mid)).join(', ')}</div>`
+                    : '';
+
+                // Cross-referenced policies are always read-only
+                if (isCrossRef) {
+                    return `
+                    <div class="row-flex" style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04); opacity:0.85;">
+                        <div style="flex:1;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span class="row-label" style="font-size:13px;">${item.label||'—'}</span>
+                                ${renewalBadge}
+                            </div>
+                            ${crossRefLabel}
+                            <div style="font-size:10px;color:var(--text3);">
+                                ${item.insurer||''} ${item.policyNo ? '· #'+item.policyNo.slice(-4)+'***' : ''}
+                                ${item.renewal_date ? '· Renew: '+item.renewal_date : (item.expiry ? '· Exp: '+item.expiry : '')}
+                            </div>
+                        </div>
+                        <div style="text-align:right; flex-shrink:0;">
+                            <div class="row-value" style="font-size:14px;">${fl(item.cover||item.sum_insured||0)}</div>
+                            <div style="font-size:10px; color:var(--text3);">₹${(item.premium||item.premium_amount||0).toLocaleString('en-IN')}/${item.premium_frequency||'yr'}</div>
+                        </div>
+                    </div>`;
+                }
+
+                // Own policies — editable in edit mode
+                return `
+                <div class="row-flex" style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
+                    ${canEdit ? `
+                        <input class="edit-input-text" value="${item.label||''}" onchange="updateInsurance('${cat.key}',${i},'label',this.value)" style="max-width:180px;">
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <input class="edit-input" type="number" value="${item.cover||0}" placeholder="Cover" onchange="updateInsurance('${cat.key}',${i},'cover',this.value)" style="width:110px;">
+                            <input class="edit-input" type="number" value="${item.premium||0}" placeholder="Premium/yr" onchange="updateInsurance('${cat.key}',${i},'premium',this.value)" style="width:100px;">
+                            <button class="del-btn" onclick="deleteInsurance('${cat.key}',${i})" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    ` : `
+                        <div style="flex:1; cursor:pointer;" onclick="viewInsuranceDetail('${cat.key}',${i})">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span class="row-label" style="font-size:13px;">${item.label||'—'}</span>
+                                ${renewalBadge}
+                            </div>
+                            <div style="font-size:10px;color:var(--text3);">
+                                ${item.insurer||''} ${item.policyNo ? '· #'+item.policyNo.slice(-4)+'***' : ''}
+                                ${item.renewal_date ? '· Renew: '+item.renewal_date : (item.expiry ? '· Exp: '+item.expiry : '')}
+                            </div>
+                            ${coveredMembersLabel}
+                            ${item.members && item.members.length > 0 ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">👥 ${item.members.length} member${item.members.length>1?'s':''}: ${item.members.map(m=>m.name||m.relationship).join(', ')}</div>` : ''}
+                        </div>
+                        <div style="text-align:right; flex-shrink:0; display:flex; align-items:center; gap:8px;">
+                            <div>
+                                <div class="row-value" style="font-size:14px;">${fl(item.cover||item.sum_insured||0)}</div>
+                                <div style="font-size:10px; color:var(--text3);">₹${(item.premium||item.premium_amount||0).toLocaleString('en-IN')}/${item.premium_frequency||'yr'}</div>
+                                ${utilizationPct !== null ? `
+                                    <div style="margin-top:4px;">
+                                        <div style="width:60px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;display:inline-block;vertical-align:middle;">
+                                            <div style="width:${utilizationPct}%;height:100%;border-radius:2px;background:${utilizationPct>70?'var(--red)':utilizationPct>40?'var(--yellow)':'var(--green)'};"></div>
+                                        </div>
+                                        <span style="font-size:9px;color:var(--text3);margin-left:4px;">${utilizationPct}% used</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <button class="del-btn" onclick="event.stopPropagation();if(confirm('Delete this policy?'))deleteInsurance('${cat.key}',${i})" title="Delete" style="opacity:0.5;font-size:12px;padding:4px 6px;"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    `}
+                </div>
+            `}).join('');
+        }
         return `
             <div class="card">
                 <div class="card-title">
@@ -9755,35 +11660,33 @@ function renderInsurance() {
                     <span style="margin-left:auto; font-family:var(--mono); font-size:13px;">${fl(catCover)}</span>
                 </div>
                 ${rowsHtml || `<p style="color:var(--text3); font-size:12px; padding:8px 0;">No policies added.</p>`}
-                <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+                ${!isAll ? `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
                     <button class="add-btn" onclick="showAddInsuranceModal('${cat.key}')" style="flex:1;">➕ Add Manually</button>
                     <input type="file" id="ins-pdf-${cat.key}" accept=".pdf" style="display:none;" onchange="handleInsurancePdfUpload(this,'${cat.key}')">
                     <button class="add-btn" onclick="document.getElementById('ins-pdf-${cat.key}').click()" style="flex:1;">📄 Upload PDF</button>
                 </div>
-                <div id="ins-pdf-status-${cat.key}" style="margin-top:6px;font-size:11px;color:var(--text3);"></div>
+                <div id="ins-pdf-status-${cat.key}" style="margin-top:6px;font-size:11px;color:var(--text3);"></div>` : ''}
             </div>
         `;
     }).join('');
 
-    // Calculate totals
+    // Calculate totals — use the accessor data (already filtered/merged)
     const allTermLife = [...(ins.term||[]),...(ins.life||[])];
-    const filteredTermLife = isAll ? allTermLife : allTermLife.filter(p => (p.member || 'self') === currentProfile);
+    // Exclude cross-referenced policies from coverage totals to avoid double-counting
+    const filteredTermLife = allTermLife.filter(p => !p._crossReferenced);
     const totalTermCover  = filteredTermLife.reduce((s,f)=>s+(f.cover||0),0);
     
     const allHealth = ins.health || [];
-    const filteredHealth = isAll ? allHealth : allHealth.filter(p => (p.member || 'self') === currentProfile);
+    const filteredHealth = allHealth.filter(p => !p._crossReferenced);
     const totalHealthCover = filteredHealth.reduce((s,f)=>s+(f.cover||f.sum_insured||0),0);
     
-    const allPolicies = categories.flatMap(c => {
-        const catItems = ins[c.key]||[];
-        return isAll ? catItems : catItems.filter(p => (p.member || 'self') === currentProfile);
-    });
+    const allPolicies = categories.flatMap(c => (ins[c.key]||[]).filter(p => !p._crossReferenced));
     const totalPremium = allPolicies.reduce((s,f)=>s+(f.premium||f.premium_amount||0),0);
     
     const annInc          = computeMonthlyIncome()*12;
     const recommended     = annInc*12;
     const gap             = Math.max(0, recommended - totalTermCover);
-    userData.termCover    = [...(ins.term||[]),...(ins.life||[])].reduce((s,f)=>s+(f.cover||0),0);
+    userData.termCover    = filteredTermLife.reduce((s,f)=>s+(f.cover||0),0);
 
     // Health insurance adequacy
     const dependents = (userData.profile.familyMembers || []).length;
@@ -9791,7 +11694,7 @@ function renderInsurance() {
     const healthGap = Math.max(0, recommendedHealth - totalHealthCover);
     userData.healthCover = totalHealthCover;
 
-    // Renewal alerts
+    // Renewal alerts (exclude cross-referenced to avoid duplicate alerts)
     const renewalAlerts = allPolicies.filter(p => {
         const d = p.renewal_date || p.expiry;
         if (!d) return false;
@@ -9799,8 +11702,8 @@ function renderInsurance() {
         return days > 0 && days <= 30;
     });
 
-    // Total utilization
-    const totalUtilized = allHealth.reduce((s, p) => s + (p.utilization?.amount_used_till_date || 0), 0);
+    // Total utilization (exclude cross-referenced to avoid double-counting)
+    const totalUtilized = filteredHealth.reduce((s, p) => s + (p.utilization?.amount_used_till_date || 0), 0);
     const totalAvailable = totalHealthCover - totalUtilized;
 
     const irPct = computeInsuranceRatio();
@@ -9818,6 +11721,9 @@ function renderInsurance() {
         : `⚠️ Health coverage gap of ${fl(healthGap)}. Recommended: ₹${(recommendedHealth/100000).toFixed(0)}L for your family.`;
 
     sh('page-insurance', `
+        ${isAll ? `<div style="margin-bottom:12px; font-size:12px; color:var(--text3); display:flex; align-items:center; gap:6px;">
+            <i class="fas fa-eye"></i> Combined read-only view — select a member to edit
+        </div>` : ''}
         ${renewalAlerts.length > 0 ? `
         <div class="card" style="background:linear-gradient(135deg, var(--red-dim), rgba(244,73,92,0.05)); border-color:var(--red); margin-bottom:18px;">
             <div style="display:flex;align-items:center;gap:10px;">
@@ -9828,6 +11734,8 @@ function renderInsurance() {
                 </div>
             </div>
         </div>` : ''}
+
+        ${renderInsuranceAdequacyCard()}
 
         <div class="grid-4" style="margin-bottom:18px;">
             <div class="kpi-card ${irPct<0.5?'red':irPct<1?'yellow':'green'}">
@@ -9843,11 +11751,7 @@ function renderInsurance() {
             <div class="kpi-card">
                 <div class="kpi-label">${memberLabel} Total Policies</div>
                 <div class="kpi-value">${allPolicies.length}</div>
-                <div class="kpi-sub">across ${categories.filter(c=>{
-                    const catItems = ins[c.key]||[];
-                    const filtered = isAll ? catItems : catItems.filter(p => (p.member || 'self') === currentProfile);
-                    return filtered.length > 0;
-                }).length} categories</div>
+                <div class="kpi-sub">across ${categories.filter(c=> (ins[c.key]||[]).filter(p => !p._crossReferenced).length > 0).length} categories</div>
             </div>
             <div class="kpi-card yellow">
                 <div class="kpi-label">${memberLabel} Total Premium</div>
@@ -9896,6 +11800,22 @@ function renderInsurance() {
                 <div style="display:grid;gap:10px;">
                     <input id="ins-m-label" class="ainp" placeholder="Policy name (e.g. HDFC Ergo Optima Secure)">
                     <input id="ins-m-insurer" class="ainp" placeholder="Insurer (e.g. HDFC ERGO, Star Health)">
+                    <!-- Policy Type: only visible for health category -->
+                    <div id="ins-m-policytype-wrap" style="display:none;">
+                        <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Policy Type</label>
+                        <select id="ins-m-policytype" class="ainp" style="width:100%;" onchange="onInsPolicyTypeChange()">
+                            <option value="individual">Individual</option>
+                            <option value="family_floater">Family Floater</option>
+                        </select>
+                    </div>
+                    <!-- Coverage Group: only visible when Family Floater selected -->
+                    <div id="ins-m-coveragegroup-wrap" style="display:none;">
+                        <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Coverage Group</label>
+                        <select id="ins-m-coveragegroup" class="ainp" style="width:100%;" onchange="onInsCoverageGroupChange()">
+                            <option value="nuclear">Self + Spouse + Kids</option>
+                            <option value="parents">Parents</option>
+                        </select>
+                    </div>
                     <input id="ins-m-policyno" class="ainp" placeholder="Policy number (stored hashed — never saved in plain text)">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                         <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;">Sum Insured (₹)</label><input id="ins-m-cover" class="ainp" type="number" placeholder="e.g. 1000000"></div>
@@ -9929,30 +11849,78 @@ function renderInsurance() {
 }
 
 window.updateInsurance = (cat, i, field, val) => {
-    userData.insurance[cat][i][field] = ['cover','premium','sum_insured','premium_amount','deductible'].includes(field) ? num(val) : val;
-    userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
-    userData.healthCover = (userData.insurance.health||[]).reduce((s,f)=>s+(f.cover||f.sum_insured||0),0);
+    if (currentProfile === 'all') return; // read-only in "all" view
+    const memberIns = getMemberInsurance(currentProfile);
+    const policy = memberIns[cat]?.[i];
+    if (!policy || policy._crossReferenced) return; // don't edit cross-referenced Family Floater policies
+    policy[field] = ['cover','premium','sum_insured','premium_amount','deductible'].includes(field) ? num(val) : val;
     debounceSave(); renderInsurance();
 };
 window.deleteInsurance = (cat, i) => {
-    userData.insurance[cat].splice(i,1);
-    userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
-    userData.healthCover = (userData.insurance.health||[]).reduce((s,f)=>s+(f.cover||f.sum_insured||0),0);
+    if (currentProfile === 'all') return; // read-only in "all" view
+    const memberIns = getMemberInsurance(currentProfile);
+    const policy = memberIns[cat]?.[i];
+    if (!policy || policy._crossReferenced) return; // don't delete cross-referenced Family Floater policies
+    memberIns[cat].splice(i,1);
     debounceSave(); renderInsurance();
 };
 window.addInsurance = cat => {
-    if(!userData.insurance[cat]) userData.insurance[cat]=[];
-    userData.insurance[cat].push({ id:'ins-'+Date.now(), label:'New Policy', cover:0, premium:0 });
+    if (currentProfile === 'all') return; // read-only in "all" view
+    const memberIns = getMemberInsurance(currentProfile);
+    if(!memberIns[cat]) memberIns[cat]=[];
+    memberIns[cat].push({ id:'ins-'+Date.now(), label:'New Policy', cover:0, premium:0 });
     debounceSave(); renderInsurance();
 };
 
 window.showAddInsuranceModal = (cat) => {
     const m = document.getElementById('ins-modal');
-    if(m) { m.style.display='flex'; document.getElementById('ins-m-cat').value=cat; }
+    if(m) {
+        m.style.display='flex';
+        document.getElementById('ins-m-cat').value=cat;
+        // Show Policy Type dropdown only for health category
+        const ptWrap = document.getElementById('ins-m-policytype-wrap');
+        const cgWrap = document.getElementById('ins-m-coveragegroup-wrap');
+        if(ptWrap) ptWrap.style.display = (cat === 'health') ? 'block' : 'none';
+        if(cgWrap) cgWrap.style.display = 'none';
+        // Reset dropdowns
+        const ptSel = document.getElementById('ins-m-policytype');
+        const cgSel = document.getElementById('ins-m-coveragegroup');
+        if(ptSel) ptSel.value = 'individual';
+        if(cgSel) cgSel.value = 'nuclear';
+    }
 };
 window.closeInsModal = () => {
     const m = document.getElementById('ins-modal');
     if(m) m.style.display='none';
+};
+// Policy Type change handler — show/hide Coverage Group
+window.onInsPolicyTypeChange = () => {
+    const pt = document.getElementById('ins-m-policytype')?.value;
+    const cgWrap = document.getElementById('ins-m-coveragegroup-wrap');
+    if(cgWrap) cgWrap.style.display = (pt === 'family_floater') ? 'block' : 'none';
+    if(pt !== 'family_floater') {
+        // Clear auto-populated members when switching back to individual
+        const membersEl = document.getElementById('ins-m-members');
+        if(membersEl && membersEl.dataset.autoFilled === 'true') { membersEl.value = ''; membersEl.dataset.autoFilled = ''; }
+    } else {
+        onInsCoverageGroupChange(); // auto-populate members for current group
+    }
+};
+// Coverage Group change handler — auto-populate members
+window.onInsCoverageGroupChange = () => {
+    const group = document.getElementById('ins-m-coveragegroup')?.value;
+    const fm = userData.profile.familyMembers || [];
+    let filtered = [];
+    if(group === 'nuclear') {
+        filtered = fm.filter(m => ['self','spouse','kid'].includes(m.role));
+    } else if(group === 'parents') {
+        filtered = fm.filter(m => ['father','mother'].includes(m.role));
+    }
+    const membersEl = document.getElementById('ins-m-members');
+    if(membersEl) {
+        membersEl.value = filtered.map(m => m.name).join(', ');
+        membersEl.dataset.autoFilled = 'true';
+    }
 };
 window.saveInsModal = async () => {
     const cat        = document.getElementById('ins-m-cat').value;
@@ -9972,8 +11940,23 @@ window.saveInsModal = async () => {
     const exclusions = document.getElementById('ins-m-exclusions')?.value || '';
     const locator    = document.getElementById('ins-m-locator')?.value || '';
 
+    // Read Family Floater fields (health category only)
+    const policyType    = (cat === 'health') ? (document.getElementById('ins-m-policytype')?.value || 'individual') : 'individual';
+    const coverageGroup = (cat === 'health' && policyType === 'family_floater') ? (document.getElementById('ins-m-coveragegroup')?.value || 'nuclear') : '';
+    let coveredMembers  = [];
+    if(cat === 'health' && policyType === 'family_floater') {
+        const fm = userData.profile.familyMembers || [];
+        if(coverageGroup === 'nuclear') {
+            coveredMembers = fm.filter(m => ['self','spouse','kid'].includes(m.role)).map(m => m.id);
+        } else if(coverageGroup === 'parents') {
+            coveredMembers = fm.filter(m => ['father','mother'].includes(m.role)).map(m => m.id);
+        }
+    }
+
     if(!label) { showToast('Please enter a policy name.', 'red'); return; }
-    if(!userData.insurance[cat]) userData.insurance[cat]=[];
+    if (currentProfile === 'all') { showToast('Select a member to add policies.', 'red'); return; }
+    const memberIns = getMemberInsurance(currentProfile);
+    if(!memberIns[cat]) memberIns[cat]=[];
 
     // Hash policy number if provided
     let policyHash = '';
@@ -9984,7 +11967,7 @@ window.saveInsModal = async () => {
     // Parse members
     const members = membersStr ? membersStr.split(',').map(n => ({ name: n.trim(), relationship: '' })) : [];
 
-    userData.insurance[cat].push({ 
+    memberIns[cat].push({ 
         id: 'ins-'+Date.now(), 
         label, insurer,
         policyNo: policyNo ? '****' + policyNo.slice(-4) : '', // Only store last 4 digits
@@ -10002,11 +11985,11 @@ window.saveInsModal = async () => {
         waiting_periods: { notes: waiting },
         exclusions: { notes: exclusions },
         network_hospitals: { locator_link: locator },
-        member: currentProfile === 'all' ? 'self' : currentProfile,
-        source: 'user_input'
+        source: 'user_input',
+        // Family Floater fields (health category only)
+        ...(cat === 'health' ? { policyType } : {}),
+        ...(cat === 'health' && policyType === 'family_floater' ? { coverageGroup, coveredMembers } : {})
     });
-    userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
-    userData.healthCover = (userData.insurance.health||[]).reduce((s,f)=>s+(f.cover||f.sum_insured||0),0);
     debounceSave();
     closeInsModal();
     renderInsurance();
@@ -10015,7 +11998,9 @@ window.saveInsModal = async () => {
 
 // Insurance Detail View
 window.viewInsuranceDetail = (cat, idx) => {
-    const item = userData.insurance[cat]?.[idx];
+    if (currentProfile === 'all') return; // no detail view in "all" mode
+    const memberIns = getInsuranceForMember(currentProfile);
+    const item = memberIns[cat]?.[idx];
     if (!item) return;
     insDetailView = { cat, idx };
     renderInsurance();
@@ -10023,8 +12008,10 @@ window.viewInsuranceDetail = (cat, idx) => {
 
 function renderInsuranceDetail(view) {
     const { cat, idx } = view;
-    const item = userData.insurance[cat]?.[idx];
+    const memberIns = getInsuranceForMember(currentProfile);
+    const item = memberIns[cat]?.[idx];
     if (!item) { insDetailView = null; renderInsurance(); return; }
+    const isCrossRef = item._crossReferenced === true;
 
     const members = item.members || [];
     const waiting = item.waiting_periods || {};
@@ -10058,10 +12045,26 @@ function renderInsuranceDetail(view) {
             <button class="snap-btn" onclick="insDetailView=null;renderInsurance();">
                 <i class="fas fa-arrow-left"></i> Back to Policies
             </button>
+            ${isCrossRef ? `
+            <div style="font-size:12px;color:var(--purple);display:flex;align-items:center;gap:6px;">
+                🔗 Covered under ${item._policyholderName}'s Family Floater (read-only)
+            </div>
+            ` : `
             <button class="snap-btn" style="background:rgba(255,59,48,0.1);color:var(--red);border-color:rgba(255,59,48,0.2);" onclick="if(confirm('Delete this policy?')){deleteInsurance('${cat}',${idx});insDetailView=null;}">
                 <i class="fas fa-trash-alt"></i> Delete Policy
             </button>
+            `}
         </div>
+
+        ${isCrossRef ? `<div class="card" style="background:linear-gradient(135deg, rgba(168,85,247,0.05), rgba(168,85,247,0.02)); border-color:var(--purple); margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:20px;">🔗</span>
+                <div>
+                    <div style="font-size:13px;font-weight:700;color:var(--purple);">Covered under ${item._policyholderName}'s Family Floater</div>
+                    <div style="font-size:11px;color:var(--text3);margin-top:2px;">This policy is managed by ${item._policyholderName}. Switch to their profile to edit.</div>
+                </div>
+            </div>
+        </div>` : ''}
 
         <div class="card" style="position:relative;overflow:hidden;">
             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--purple));"></div>
@@ -10073,6 +12076,7 @@ function renderInsuranceDetail(view) {
                         ${badge(item.status || 'active', item.status === 'active' ? 'green' : 'red')}
                         ${badge(cat, 'blue')}
                         ${item.premium_frequency ? badge(item.premium_frequency, 'purple') : ''}
+                        ${item.policyType === 'family_floater' ? badge('Family Floater', 'purple') : ''}
                     </div>
                 </div>
                 <div style="text-align:right;">
@@ -10121,11 +12125,11 @@ function renderInsuranceDetail(view) {
             <div class="card">
                 <div class="card-title"><span class="icon">📄</span> Documents</div>
                 ${item.documents?.policy_pdf_url ? `<a href="${item.documents.policy_pdf_url}" target="_blank" class="snap-btn" style="display:inline-flex;margin-bottom:8px;"><i class="fas fa-file-pdf"></i> View Policy PDF</a>` : '<p style="color:var(--text3);font-size:12px;">No PDF attached.</p>'}
-                <div style="margin-top:8px;">
+                ${!isCrossRef ? `<div style="margin-top:8px;">
                     <input type="file" id="ins-reupload-${cat}-${idx}" accept=".pdf" style="display:none;" onchange="reuploadInsurancePdf(this,'${cat}',${idx})">
                     <button class="add-btn" onclick="document.getElementById('ins-reupload-${cat}-${idx}').click()" style="width:100%;">📄 Re-upload / Replace PDF</button>
                     <div id="ins-reupload-status-${cat}-${idx}" style="margin-top:6px;font-size:11px;color:var(--text3);"></div>
-                </div>
+                </div>` : ''}
             </div>
         </div>
 
@@ -10133,7 +12137,7 @@ function renderInsuranceDetail(view) {
             <div class="card">
                 <div class="card-title"><span class="icon">👥</span> Covered Members (${members.length})</div>
                 ${membersHtml}
-                ${editMode ? `<button class="add-btn" onclick="addInsuranceMember('${cat}',${idx})" style="margin-top:8px;">➕ Add Member</button>` : ''}
+                ${editMode && !isCrossRef ? `<button class="add-btn" onclick="addInsuranceMember('${cat}',${idx})" style="margin-top:8px;">➕ Add Member</button>` : ''}
             </div>
             <div class="card">
                 <div class="card-title"><span class="icon">⏳</span> Waiting Periods</div>
@@ -10172,7 +12176,7 @@ function renderInsuranceDetail(view) {
                     <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--green);">${fl(available)}</div>
                 </div>
             </div>
-            ${editMode ? `
+            ${editMode && !isCrossRef ? `
             <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;margin-top:12px;">
                 <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Update Utilization</div>
                 <div style="display:flex;gap:8px;">
@@ -10185,22 +12189,28 @@ function renderInsuranceDetail(view) {
 }
 
 window.updateInsUtilization = (cat, idx) => {
+    if (currentProfile === 'all') return;
     const amount = num(document.getElementById('ins-util-amount')?.value || 0);
-    if (!userData.insurance[cat]?.[idx]) return;
-    if (!userData.insurance[cat][idx].utilization) userData.insurance[cat][idx].utilization = {};
-    userData.insurance[cat][idx].utilization.amount_used_till_date = amount;
+    const memberIns = getMemberInsurance(currentProfile);
+    if (!memberIns[cat]?.[idx]) return;
+    if (memberIns[cat][idx]._crossReferenced) return;
+    if (!memberIns[cat][idx].utilization) memberIns[cat][idx].utilization = {};
+    memberIns[cat][idx].utilization.amount_used_till_date = amount;
     debounceSave();
     renderInsurance();
     showToast('✅ Utilization updated', 'green');
 };
 
 window.addInsuranceMember = (cat, idx) => {
+    if (currentProfile === 'all') return;
     const name = prompt('Member name:');
     if (!name) return;
     const rel = prompt('Relationship (self/spouse/child/parent):') || '';
-    if (!userData.insurance[cat]?.[idx]) return;
-    if (!userData.insurance[cat][idx].members) userData.insurance[cat][idx].members = [];
-    userData.insurance[cat][idx].members.push({ name, relationship: rel, dob: '', gender: '' });
+    const memberIns = getMemberInsurance(currentProfile);
+    if (!memberIns[cat]?.[idx]) return;
+    if (memberIns[cat][idx]._crossReferenced) return;
+    if (!memberIns[cat][idx].members) memberIns[cat][idx].members = [];
+    memberIns[cat][idx].members.push({ name, relationship: rel, dob: '', gender: '' });
     debounceSave();
     renderInsurance();
 };
@@ -10253,8 +12263,11 @@ window.reuploadInsurancePdf = async (input, cat, idx) => {
         console.log('📄 Insurance PDF re-upload API response:', JSON.stringify(policy, null, 2));
 
         // Update existing policy entry — merge new fields on top
-        const existing = userData.insurance[cat]?.[idx];
+        if (currentProfile === 'all') { if (statusEl) statusEl.innerHTML = '❌ Select a member to edit.'; return; }
+        const memberIns = getMemberInsurance(currentProfile);
+        const existing = memberIns[cat]?.[idx];
         if (!existing) { if (statusEl) statusEl.innerHTML = '❌ Policy not found.'; return; }
+        if (existing._crossReferenced) { if (statusEl) statusEl.innerHTML = '❌ Cannot edit cross-referenced policy.'; return; }
 
         const coverAmt = policy.cover || policy.sumInsured || policy.sum_insured || existing.cover || 0;
         const premiumAmt = policy.premium || policy.premium_amount || existing.premium || 0;
@@ -10263,7 +12276,6 @@ window.reuploadInsurancePdf = async (input, cat, idx) => {
         Object.assign(existing, {
             ...policy,
             id: existing.id,
-            member: existing.member,
             label: policy.label && policy.label !== 'Insurance Policy' ? policy.label : existing.label,
             insurer: policy.insurer && policy.insurer !== 'Unknown' ? policy.insurer : existing.insurer,
             policyNo: policy.policyNo || existing.policyNo,
@@ -10347,7 +12359,8 @@ window.handleInsurancePdfUpload = async (input, forceCat) => {
 
         // Use the forced category from the button, fallback to AI detection
         const cat = forceCat || policy.policyType || 'health';
-        if (!userData.insurance[cat]) userData.insurance[cat] = [];
+        const memberIns = getMemberInsurance(currentProfile === 'all' ? 'self' : currentProfile);
+        if (!memberIns[cat]) memberIns[cat] = [];
 
         // Build comprehensive policy object — spread ALL API fields, then normalize field names for the detail view
         const coverAmt = policy.cover || policy.sumInsured || policy.sum_insured || 0;
@@ -10383,12 +12396,35 @@ window.handleInsurancePdfUpload = async (input, forceCat) => {
             exclusions: policy.exclusions || {},
             utilization: policy.utilization || { amount_used_till_date: 0 },
             network_hospitals: policy.network_hospitals || {},
-            // Member assignment
-            member: currentProfile === 'all' ? 'self' : currentProfile
+            source: 'pdf_upload'
         };
 
-        userData.insurance[cat].push(policyObj);
-        userData.termCover = [...(userData.insurance.term||[]),...(userData.insurance.life||[])].reduce((s,f)=>s+(f.cover||0),0);
+        // Auto-detect Family Floater from AI extraction (health category)
+        if(cat === 'health') {
+            const isFloater = policy.policyType === 'family_floater' 
+                || (policy.members && policy.members.length > 1)
+                || /family\s*floater/i.test(policy.label || '')
+                || /family\s*floater/i.test(policy.additionalDetails || '');
+            if(isFloater) {
+                policyObj.policyType = 'family_floater';
+                // Determine coverage group from member names/roles
+                const fm = userData.profile.familyMembers || [];
+                const memberNames = (policy.members || []).map(m => (m.name || '').toLowerCase());
+                const hasParent = memberNames.some(n => fm.some(f => (f.role === 'father' || f.role === 'mother') && f.name.toLowerCase() === n));
+                const group = hasParent ? 'parents' : 'nuclear';
+                policyObj.coverageGroup = policy.coverageGroup || group;
+                // Build coveredMembers array
+                if(policyObj.coverageGroup === 'nuclear') {
+                    policyObj.coveredMembers = fm.filter(m => ['self','spouse','kid'].includes(m.role)).map(m => m.id);
+                } else {
+                    policyObj.coveredMembers = fm.filter(m => ['father','mother'].includes(m.role)).map(m => m.id);
+                }
+            } else {
+                policyObj.policyType = policy.policyType || 'individual';
+            }
+        }
+
+        memberIns[cat].push(policyObj);
         debounceSave();
         if (statusEl) statusEl.innerHTML = `✅ Added: ${policyObj.label} (${policyObj.insurer || cat}) — ${fl(coverAmt)} cover`;
         renderInsurance();
@@ -11601,6 +13637,34 @@ function renderSettings() {
                     <p style="font-size:11px; color:var(--text3); margin-top:4px;">💡 Term cover is auto-synced from the Insurance page when policies are added.</p>
                 </div>
             </div>
+            <div class="card" style="margin-top:0;">
+                <div class="card-title"><span class="icon">🔗</span> Zerodha Connections</div>
+                <div id="zerodha-connections-list" style="border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden;">
+                    <div style="padding:16px; text-align:center; color:var(--text3); font-size:12px;">
+                        ⏳ Loading connection statuses…
+                    </div>
+                </div>
+                <p style="font-size:11px; color:var(--text3); margin-top:8px;">💡 Connect each family member's Zerodha account to auto-import their portfolio holdings.</p>
+            </div>
+            <div class="card" style="margin-top:0;" id="forecast-assumptions-panel">
+                <div class="card-title"><span class="icon">📈</span> Forecast Assumptions</div>
+                ${(() => {
+                    const fa = getForecastAssumptions();
+                    const fields = [
+                        { key: 'equityReturn', label: 'Equity Return %', hint: 'Nifty 50 15-year CAGR is ~12% — adjust for your equity mix' },
+                        { key: 'debtReturn', label: 'Debt Return %', hint: 'FD/PPF/debt fund average — currently ~7% pre-tax' },
+                        { key: 'incomeGrowth', label: 'Income Growth %', hint: 'Average annual salary increment for salaried professionals' },
+                        { key: 'expenseInflation', label: 'Expense Inflation %', hint: 'India CPI inflation averages ~6% over the last decade' },
+                        { key: 'medicalInflation', label: 'Medical Inflation %', hint: 'Healthcare costs rise ~10% p.a. — costs double every 7 years' }
+                    ];
+                    return fields.map(f => `
+                        <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">${f.label}</label>
+                        <input id="fa-${f.key}" type="number" class="ainp" value="${fa[f.key]}" min="0" max="30" step="0.5" onchange="updateForecastAssumption('${f.key}', this.value)">
+                        <p style="font-size:11px; color:var(--text3); margin-top:2px; margin-bottom:6px;">💡 ${f.hint}</p>
+                    `).join('');
+                })()}
+                <button class="secondary-btn" onclick="resetForecastAssumptions()" style="margin-top:10px;">🔄 Reset to defaults</button>
+            </div>
             <button class="primary-btn" onclick="saveProfile()" style="margin-top:4px;">💾 Save Profile</button>
         `);
 
@@ -11609,8 +13673,50 @@ function renderSettings() {
             document.querySelectorAll('#page-settings .risk-option').forEach(r=>r.classList.remove('selected'));
             this.classList.add('selected');
         }));
+
+        // Async load Zerodha connection statuses for all family members
+        loadZerodhaConnectionStatuses().then(statusMap => {
+            renderZerodhaConnectionRows(statusMap);
+        }).catch(err => {
+            console.error('Failed to load Zerodha statuses:', err);
+            const container = document.getElementById('zerodha-connections-list');
+            if (container) container.innerHTML = '<div style="padding:12px; font-size:12px; color:var(--red, #ef4444);">Failed to load connection statuses. Please refresh.</div>';
+        });
     });
 }
+
+// Re-render all forecast views that are currently visible in the DOM
+function refreshForecastViews() {
+    // Re-render the forecast card on Overview tab if its container exists
+    if ($('forecast-card-container')) renderForecastCard();
+    // For Loans and Insurance tabs, their forecast cards are rendered inline
+    // during renderLoans()/renderInsurance(). If the user is currently on those
+    // tabs, re-render the whole page to pick up new assumptions.
+    const activePage = document.querySelector('.page.active-page')?.id?.replace('page-', '');
+    if (activePage === 'loans') renderLoans();
+    if (activePage === 'insurance') renderInsurance();
+}
+
+window.updateForecastAssumption = (key, value) => {
+    if (!userData.profile.forecastAssumptions) userData.profile.forecastAssumptions = {};
+    userData.profile.forecastAssumptions[key] = parseFloat(value) || 0;
+    debounceSave(); // Also invalidates computeCache
+    // Re-render all visible forecast views with updated assumptions
+    refreshForecastViews();
+};
+
+window.resetForecastAssumptions = () => {
+    userData.profile.forecastAssumptions = { ...getDefaultAssumptions() };
+    debounceSave(); // Also invalidates computeCache
+    const defaults = getDefaultAssumptions();
+    Object.keys(defaults).forEach(key => {
+        const el = $('fa-' + key);
+        if (el) el.value = defaults[key];
+    });
+    // Re-render all visible forecast views with reset assumptions
+    refreshForecastViews();
+    showToast('Forecast assumptions reset to defaults');
+};
 
 window.addSettingsKidField = () => {
     const wrap = $('s-kids-wrap');

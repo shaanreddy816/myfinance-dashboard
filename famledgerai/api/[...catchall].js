@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
   res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || 'https://famledgerai.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-User-Id');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-User-Id, X-Member-Id');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -50,6 +50,7 @@ export default async function handler(req, res) {
   if (path === 'integrations/zerodha/holdings')      return handleZerodhaHoldings(req, res);
   if (path === 'integrations/zerodha/mf-holdings')   return handleZerodhaHoldings(req, res);
   if (path === 'integrations/zerodha/mf-sips')       return handleZerodhaMfSips(req, res);
+  if (path === 'integrations/zerodha/disconnect')     return handleZerodhaDisconnect(req, res);
   if (path === 'whatsapp/send')                      return handleWhatsAppSend(req, res);
   if (path === 'whatsapp/test')                      return handleWhatsAppTest(req, res);
   if (path === 'whatsapp/reminders')                 return handleWhatsAppReminders(req, res);
@@ -1453,8 +1454,9 @@ Rules:
  */
 async function handleZerodhaCallback(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  const { request_token, user_email } = req.query;
+  const { request_token, user_email, member_id } = req.query;
   const userEmail = user_email || req.query.state;  // fallback to state for safety
+  const memberId  = member_id || 'self';             // backward compat: default to 'self'
   console.log('Zerodha callback query:', JSON.stringify(req.query));
   const apiKey    = process.env.KITE_API_KEY;
   const apiSecret = process.env.KITE_API_SECRET;
@@ -1478,17 +1480,19 @@ async function handleZerodhaCallback(req, res) {
     if (data.status === 'success') {
       const accessToken = data.data.access_token;
 
-      // Delete existing row first, then insert (avoids onConflict issues)
+      // Delete existing row for this user+provider+member, then insert
       await supabase.from('integrations')
         .delete()
         .eq('user_id', userEmail)
-        .eq('provider', 'zerodha');
+        .eq('provider', 'zerodha')
+        .eq('member_id', memberId);
 
       const { error } = await supabase
         .from('integrations')
         .insert({
           user_id: userEmail,
           provider: 'zerodha',
+          member_id: memberId,
           access_token: accessToken,
           updated_at: new Date().toISOString()
         });
@@ -1507,9 +1511,11 @@ async function handleZerodhaCallback(req, res) {
   }
 }
 
+
 async function handleZerodhaHoldings(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  const userId = req.headers['x-user-id'];
+  const userId   = req.headers['x-user-id'];
+  const memberId = req.headers['x-member-id'] || 'self';  // backward compat
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
@@ -1518,6 +1524,7 @@ async function handleZerodhaHoldings(req, res) {
       .select('*')
       .eq('user_id', userId)
       .eq('provider', 'zerodha')
+      .eq('member_id', memberId)
       .maybeSingle();
 
     if (!integration) return res.status(404).json({ error: 'Zerodha not connected' });
@@ -1538,9 +1545,9 @@ async function handleZerodhaHoldings(req, res) {
 
     // If token is expired/invalid, tell frontend to re-auth
     if (equityData.error_type === 'TokenException' || mfData.error_type === 'TokenException') {
-      // Clear stale token
+      // Clear stale token for this specific member
       await supabase.from('integrations').delete()
-        .eq('user_id', userId).eq('provider', 'zerodha').catch(() => {});
+        .eq('user_id', userId).eq('provider', 'zerodha').eq('member_id', memberId).catch(() => {});
       return res.status(401).json({ error: 'Zerodha session expired. Please reconnect.', needsReauth: true });
     }
 
@@ -1587,7 +1594,8 @@ async function handleZerodhaHoldings(req, res) {
 
 async function handleZerodhaMfSips(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  const userId = req.headers['x-user-id'];
+  const userId   = req.headers['x-user-id'];
+  const memberId = req.headers['x-member-id'] || 'self';  // backward compat
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
@@ -1596,6 +1604,7 @@ async function handleZerodhaMfSips(req, res) {
       .select('*')
       .eq('user_id', userId)
       .eq('provider', 'zerodha')
+      .eq('member_id', memberId)
       .maybeSingle();
 
     if (!integration) return res.status(404).json({ error: 'Zerodha not connected' });
@@ -1620,6 +1629,34 @@ async function handleZerodhaMfSips(req, res) {
     return res.status(200).json(sips);
   } catch (error) {
     console.error('SIPs fetch error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// ─── ZERODHA DISCONNECT ────────────────────────────────────────────────────────
+
+async function handleZerodhaDisconnect(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const userId   = req.headers['x-user-id'];
+  const memberId = req.headers['x-member-id'] || 'self';
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const { error } = await supabase
+      .from('integrations')
+      .delete()
+      .eq('user_id', userId)
+      .eq('provider', 'zerodha')
+      .eq('member_id', memberId);
+
+    if (error) {
+      console.error('Failed to disconnect Zerodha:', JSON.stringify(error));
+      return res.status(500).json({ error: 'Failed to disconnect: ' + error.message });
+    }
+
+    return res.status(200).json({ success: true, message: 'Zerodha disconnected' });
+  } catch (error) {
+    console.error('Disconnect error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
