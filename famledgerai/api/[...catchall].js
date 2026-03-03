@@ -135,6 +135,18 @@ async function resolveUserId(userIdOrEmail) {
   }
 
   // It's an email – look up the UUID
+  // Phase 1.6: Check user_profiles first (normalized schema)
+  const { data: profileData, error: profileError } = await supabase
+    .from('user_profiles')
+    .select('auth_uid')
+    .eq('email', userIdOrEmail)
+    .maybeSingle();
+
+  if (!profileError && profileData) {
+    return profileData.auth_uid;
+  }
+
+  // Fallback to legacy user_data table
   const { data, error } = await supabase
     .from('user_data')
     .select('id')
@@ -147,6 +159,115 @@ async function resolveUserId(userIdOrEmail) {
   }
 
   return data?.id || null;
+}
+
+/**
+ * loadNormalizedUserData(authUid)
+ * Phase 1.6: Load user data from normalized tables
+ * Returns userData-compatible object for AI prompt context
+ */
+async function loadNormalizedUserData(authUid) {
+  try {
+    // 1. Get user_profiles → household_id
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('auth_uid', authUid)
+      .maybeSingle();
+
+    if (profileError || !profile) {
+      console.warn('loadNormalizedUserData: profile not found for', authUid);
+      return null;
+    }
+
+    const hhId = profile.household_id;
+
+    // 2. Parallel fetch all financial tables
+    const [
+      { data: members },
+      { data: incomes },
+      { data: expenses },
+      { data: investments },
+      { data: loans },
+      { data: insurance },
+      { data: assumptions }
+    ] = await Promise.all([
+      supabase.from('household_members').select('*').eq('household_id', hhId),
+      supabase.from('incomes').select('*').eq('household_id', hhId),
+      supabase.from('expenses').select('*').eq('household_id', hhId),
+      supabase.from('investments').select('*').eq('household_id', hhId),
+      supabase.from('loans').select('*').eq('household_id', hhId),
+      supabase.from('insurance_policies').select('*').eq('household_id', hhId),
+      supabase.from('forecast_assumptions').select('*').eq('household_id', hhId).maybeSingle()
+    ]);
+
+    // 3. Reconstruct userData-compatible shape for AI prompt context
+    // Aggregate incomes
+    const totalIncome = (incomes || []).reduce((sum, inc) => sum + (inc.amount || 0), 0);
+    
+    // Aggregate expenses
+    const totalExpenses = (expenses || []).reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    
+    // Aggregate investments
+    const totalInvestments = (investments || []).reduce((sum, inv) => sum + (inv.value || 0), 0);
+    
+    // Aggregate loans
+    const totalLoans = (loans || []).reduce((sum, loan) => sum + (loan.outstanding || 0), 0);
+    const totalEmi = (loans || []).reduce((sum, loan) => sum + (loan.emi || 0), 0);
+    
+    // Aggregate insurance
+    const totalCover = (insurance || []).filter(p => p.type === 'term')
+      .reduce((sum, p) => sum + (p.cover_amount || 0), 0);
+
+    return {
+      profile: {
+        ...profile,
+        age: profile.age || 30,
+        occupation: profile.occupation || 'Professional',
+        familyMembers: members || []
+      },
+      income: {
+        husband: totalIncome,
+        wife: 0,
+        rental: 0,
+        rentalActive: false
+      },
+      expenses: {
+        monthly: [],
+        periodic: [],
+        byMember: {},
+        byMonth: {}
+      },
+      investments: {
+        mutualFunds: investments?.filter(i => i.type === 'mutual_fund') || [],
+        stocks: investments?.filter(i => i.type === 'stock') || [],
+        fd: investments?.filter(i => i.type === 'fd') || [],
+        ppf: investments?.filter(i => i.type === 'ppf') || []
+      },
+      loans: loans || [],
+      insurance: {
+        term: insurance?.filter(p => p.type === 'term') || [],
+        health: insurance?.filter(p => p.type === 'health') || [],
+        vehicle: insurance?.filter(p => p.type === 'vehicle') || []
+      },
+      schemes: [],
+      bankAccounts: [],
+      liquidSavings: 0,
+      termCover: totalCover,
+      // Computed metrics for AI
+      _computed: {
+        totalIncome,
+        totalExpenses,
+        totalInvestments,
+        totalLoans,
+        totalEmi,
+        totalCover
+      }
+    };
+  } catch (err) {
+    console.error('loadNormalizedUserData error:', err);
+    return null;
+  }
 }
 
 async function safeQuery(query) {

@@ -2762,6 +2762,11 @@ let currentLang = 'en';
 let saveTimer = null;
 let currentUserEmail = '';
 
+// ========== HOUSEHOLD CONTEXT (Phase 1.6: Normalized Schema) ==========
+let householdId = null;
+let memberId = null;     // current user's member_id
+let memberMap = {};       // { memberId: { name, role } } — loaded once
+
 // ========== RECURRING EXPENSES DATA MODELS ==========
 
 /**
@@ -8193,9 +8198,498 @@ function ensureMemberDataStructure(memberId) {
     getMemberInsurance(memberId);
 }
 
+// ========== DATA ACCESS LAYER (DAL) — Phase 1.6: Normalized Schema ==========
+
+/**
+ * bootstrapHousehold(householdName, memberName)
+ * Called once during first login (no user_profiles row exists).
+ * Calls the SECURITY DEFINER function create_household_for_new_user().
+ * Returns { household_id, member_id, profile_id }.
+ */
+async function bootstrapHousehold(householdName, memberName) {
+    try {
+        console.log('🏠 Bootstrapping household:', householdName, 'for member:', memberName);
+        const { data, error } = await sb.rpc('create_household_for_new_user', {
+            household_name: householdName,
+            member_name: memberName
+        });
+        
+        if (error) {
+            console.error('❌ Bootstrap error:', error);
+            throw error;
+        }
+        
+        console.log('✅ Household bootstrapped:', data);
+        return data;
+    } catch (err) {
+        console.error('❌ bootstrapHousehold failed:', err);
+        throw err;
+    }
+}
+
+/**
+ * loadHouseholdContext()
+ * Called on every login after auth. Loads user_profiles for current auth.uid(),
+ * sets householdId, memberId, memberMap.
+ * If no profile exists → triggers bootstrapHousehold().
+ */
+async function loadHouseholdContext() {
+    try {
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) {
+            console.warn('⚠️ No authenticated user');
+            return;
+        }
+        
+        console.log('🔍 Loading household context for auth user:', user.id);
+        
+        // Query user_profiles for current auth.uid()
+        const { data: profile, error: profileError } = await sb
+            .from('user_profiles')
+            .select('*')
+            .eq('auth_uid', user.id)
+            .maybeSingle();
+        
+        if (profileError) {
+            console.error('❌ Error loading user profile:', profileError);
+            throw profileError;
+        }
+        
+        // If no profile exists, bootstrap a new household
+        if (!profile) {
+            console.log('📝 No profile found, bootstrapping new household...');
+            const userName = user.user_metadata?.name || 
+                           `${user.user_metadata?.firstName || ''} ${user.user_metadata?.lastName || ''}`.trim() ||
+                           user.email?.split('@')[0] || 'User';
+            const householdName = `${userName}'s Family`;
+            
+            const bootstrapResult = await bootstrapHousehold(householdName, userName);
+            householdId = bootstrapResult.household_id;
+            memberId = bootstrapResult.member_id;
+            
+            // Load household members into memberMap
+            await loadMemberMap();
+            return;
+        }
+        
+        // Profile exists, set context
+        householdId = profile.household_id;
+        memberId = profile.member_id;
+        console.log('✅ Household context loaded:', { householdId, memberId });
+        
+        // Load household members into memberMap
+        await loadMemberMap();
+        
+    } catch (err) {
+        console.error('❌ loadHouseholdContext failed:', err);
+        throw err;
+    }
+}
+
+/**
+ * loadMemberMap()
+ * Helper to load household_members into memberMap
+ */
+async function loadMemberMap() {
+    if (!householdId) {
+        console.warn('⚠️ Cannot load memberMap: householdId is null');
+        return;
+    }
+    
+    try {
+        const { data: members, error } = await sb
+            .from('household_members')
+            .select('*')
+            .eq('household_id', householdId);
+        
+        if (error) {
+            console.error('❌ Error loading household members:', error);
+            throw error;
+        }
+        
+        memberMap = {};
+        members.forEach(m => {
+            memberMap[m.id] = {
+                name: m.name,
+                role: m.role,
+                date_of_birth: m.date_of_birth
+            };
+        });
+        
+        console.log('✅ Member map loaded:', Object.keys(memberMap).length, 'members');
+    } catch (err) {
+        console.error('❌ loadMemberMap failed:', err);
+        throw err;
+    }
+}
+
+/**
+ * getLegacyMemberId(memberUuid)
+ * Maps UUID → legacy ID using memberMap
+ */
+function getLegacyMemberId(memberUuid) {
+    if (!memberUuid) return 'self';
+    const member = memberMap[memberUuid];
+    if (!member) return 'self';
+    
+    const role = member.role;
+    if (role === 'self') return 'self';
+    if (role === 'spouse') return 'spouse';
+    if (role === 'kid') return 'kid-' + member.name.toLowerCase().replace(/\s+/g, '-');
+    return 'other-' + member.name.toLowerCase().replace(/\s+/g, '-');
+}
+
+/**
+ * getMemberUuid(legacyId)
+ * Maps legacy ID → UUID using memberMap
+ */
+function getMemberUuid(legacyId) {
+    if (!legacyId || legacyId === 'self') {
+        // Find the 'self' member
+        for (const [uuid, member] of Object.entries(memberMap)) {
+            if (member.role === 'self') return uuid;
+        }
+        return memberId; // fallback to current user's memberId
+    }
+    
+    if (legacyId === 'spouse') {
+        for (const [uuid, member] of Object.entries(memberMap)) {
+            if (member.role === 'spouse') return uuid;
+        }
+        return null;
+    }
+    
+    // For kids and others, match by name pattern
+    if (legacyId.startsWith('kid-')) {
+        const kidName = legacyId.substring(4).replace(/-/g, ' ');
+        for (const [uuid, member] of Object.entries(memberMap)) {
+            if (member.role === 'kid' && member.name.toLowerCase().includes(kidName)) {
+                return uuid;
+            }
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * reconstructUserData(profile, members, incomes, expenses, investments, loans, insurance, assumptions)
+ * Reconstructs the legacy userData shape from normalized rows
+ */
+function reconstructUserData(profile, members, incomes, expenses, investments, loans, insurance, assumptions) {
+    console.log('🔄 Reconstructing userData from normalized tables...');
+    
+    // Build memberMap with legacy IDs
+    const legacyMembers = members.map(m => {
+        const legacyId = getLegacyMemberId(m.id);
+        return {
+            id: legacyId,
+            name: m.name,
+            role: m.role,
+            _normalizedId: m.id  // preserve UUID for writes
+        };
+    });
+    
+    // Reconstruct income
+    const reconstructedIncome = {
+        husband: 0,
+        wife: 0,
+        rental: 0,
+        rentalActive: false,
+        business: 0,
+        other: 0
+    };
+    
+    incomes.forEach(inc => {
+        const legacyId = getLegacyMemberId(inc.member_id);
+        if (inc.type === 'salary' && legacyId === 'self') {
+            reconstructedIncome.husband = inc.amount || 0;
+        } else if (inc.type === 'salary' && legacyId === 'spouse') {
+            reconstructedIncome.wife = inc.amount || 0;
+        } else if (inc.type === 'rental') {
+            reconstructedIncome.rental = inc.amount || 0;
+            reconstructedIncome.rentalActive = inc.is_active || false;
+        } else if (inc.type === 'business') {
+            reconstructedIncome.business = inc.amount || 0;
+        } else if (inc.type === 'other') {
+            reconstructedIncome.other = inc.amount || 0;
+        }
+    });
+    
+    // Reconstruct expenses (byMonth.byMember structure)
+    const reconstructedExpenses = {
+        monthly: [],
+        periodic: [],
+        byMember: {},
+        byMonth: {}
+    };
+    
+    expenses.forEach(exp => {
+        const legacyId = getLegacyMemberId(exp.member_id);
+        const month = exp.month;
+        
+        if (!reconstructedExpenses.byMonth[month]) {
+            reconstructedExpenses.byMonth[month] = { byMember: {} };
+        }
+        if (!reconstructedExpenses.byMonth[month].byMember[legacyId]) {
+            reconstructedExpenses.byMonth[month].byMember[legacyId] = [];
+        }
+        
+        reconstructedExpenses.byMonth[month].byMember[legacyId].push({
+            id: exp.id,
+            label: exp.label || exp.category,
+            v: exp.amount,
+            c: exp.category,
+            isRecurring: exp.is_recurring,
+            frequency: exp.frequency,
+            _normalizedId: exp.id
+        });
+    });
+    
+    // Reconstruct investments (byMember structure)
+    const reconstructedInvestments = { byMember: {} };
+    
+    investments.forEach(inv => {
+        const legacyId = getLegacyMemberId(inv.member_id);
+        if (!reconstructedInvestments.byMember[legacyId]) {
+            reconstructedInvestments.byMember[legacyId] = {
+                mutualFunds: [],
+                stocks: [],
+                fd: [],
+                ppf: []
+            };
+        }
+        
+        const bucket = inv.type === 'mutual_fund' ? 'mutualFunds' :
+                       inv.type === 'stock' ? 'stocks' :
+                       inv.type === 'fd' ? 'fd' : 'ppf';
+        
+        reconstructedInvestments.byMember[legacyId][bucket].push({
+            id: inv.id,
+            name: inv.name,
+            value: inv.value || 0,
+            units: inv.units,
+            nav: inv.nav,
+            rate: inv.rate,
+            purchaseDate: inv.purchase_date,
+            maturityDate: inv.maturity_date,
+            sipAmount: inv.sip_amount,
+            ...(inv.meta || {}),
+            _normalizedId: inv.id
+        });
+    });
+    
+    // Reconstruct loans (byMember structure)
+    const reconstructedLoans = { byMember: {} };
+    
+    loans.forEach(loan => {
+        const legacyId = getLegacyMemberId(loan.member_id);
+        if (!reconstructedLoans.byMember[legacyId]) {
+            reconstructedLoans.byMember[legacyId] = [];
+        }
+        
+        reconstructedLoans.byMember[legacyId].push({
+            id: loan.id,
+            label: loan.lender || loan.type,
+            type: loan.type,
+            outstanding: loan.outstanding || 0,
+            emi: loan.emi || 0,
+            rate: loan.rate || 0,
+            principal: loan.principal,
+            tenureMonths: loan.tenure_months,
+            startDate: loan.start_date,
+            endDate: loan.end_date,
+            ...(loan.meta || {}),
+            _normalizedId: loan.id
+        });
+    });
+    
+    // Reconstruct insurance (byMember structure)
+    const reconstructedInsurance = { byMember: {} };
+    
+    insurance.forEach(policy => {
+        const legacyId = getLegacyMemberId(policy.member_id);
+        if (!reconstructedInsurance.byMember[legacyId]) {
+            reconstructedInsurance.byMember[legacyId] = {
+                term: [],
+                health: [],
+                vehicle: [],
+                life: [],
+                home: []
+            };
+        }
+        
+        const bucket = policy.type;
+        if (!reconstructedInsurance.byMember[legacyId][bucket]) {
+            reconstructedInsurance.byMember[legacyId][bucket] = [];
+        }
+        
+        reconstructedInsurance.byMember[legacyId][bucket].push({
+            id: policy.id,
+            provider: policy.provider,
+            policyNumber: policy.policy_number,
+            coverAmount: policy.cover_amount || 0,
+            premium: policy.premium || 0,
+            premiumFrequency: policy.premium_frequency,
+            startDate: policy.start_date,
+            endDate: policy.end_date,
+            ...(policy.meta || {}),
+            _normalizedId: policy.id
+        });
+    });
+    
+    // Reconstruct forecast assumptions
+    const reconstructedAssumptions = assumptions ? {
+        incomeGrowth: (assumptions.salary_growth || 0.08) * 100,
+        expenseInflation: (assumptions.expense_growth || 0.06) * 100,
+        equityReturn: (assumptions.equity_return || 0.12) * 100,
+        debtReturn: (assumptions.debt_return || 0.07) * 100,
+        medicalInflation: (assumptions.meta?.medicalInflation || 10),
+        retirementAge: assumptions.retirement_age || 60,
+        lifeExpectancy: assumptions.life_expectancy || 85
+    } : {};
+    
+    // Calculate liquidSavings and termCover
+    const liquidSavings = incomes
+        .filter(inc => inc.type === 'liquid_savings')
+        .reduce((sum, inc) => sum + (inc.amount || 0), 0);
+    
+    const termCover = insurance
+        .filter(p => p.type === 'term')
+        .reduce((sum, p) => sum + (p.cover_amount || 0), 0);
+    
+    return {
+        profile: {
+            ...(profile || {}),
+            familyMembers: legacyMembers,
+            forecastAssumptions: reconstructedAssumptions,
+            liquidSavings,
+            termCover
+        },
+        income: reconstructedIncome,
+        expenses: reconstructedExpenses,
+        investments: reconstructedInvestments,
+        loans: reconstructedLoans,
+        insurance: reconstructedInsurance,
+        schemes: [],       // not migrated yet
+        bankAccounts: [],  // not migrated yet
+        liquidSavings,
+        termCover
+    };
+}
+
+/**
+ * loadHouseholdData()
+ * Replaces loadUserData(email). Loads all tables for the current household
+ * in parallel and reconstructs the userData shape for backward compatibility.
+ */
+async function loadHouseholdData() {
+    if (!householdId) {
+        console.error('❌ Cannot load household data: householdId is null');
+        return;
+    }
+    
+    try {
+        console.log('📊 Loading household data for household:', householdId);
+        
+        // During Phase 2 (dual-write), profile data is still in user_data
+        // Load profile from user_data first
+        const { data: legacyData, error: legacyError } = await sb
+            .from('user_data')
+            .select('profile')
+            .eq('email', currentUserEmail)
+            .maybeSingle();
+        
+        if (legacyError) {
+            console.warn('⚠️ Could not load legacy profile data:', legacyError);
+        }
+        
+        // For NEW users, legacyData will be null - that's expected
+        if (!legacyData) {
+            console.log('📝 No legacy data found (new user) - will use empty profile');
+        }
+        
+        // Query all normalized tables in parallel
+        const [
+            { data: profileData, error: profileError },
+            { data: membersData, error: membersError },
+            { data: incomesData, error: incomesError },
+            { data: expensesData, error: expensesError },
+            { data: investmentsData, error: investmentsError },
+            { data: loansData, error: loansError },
+            { data: insuranceData, error: insuranceError },
+            { data: assumptionsData, error: assumptionsError }
+        ] = await Promise.all([
+            sb.from('user_profiles').select('*').eq('household_id', householdId).eq('auth_uid', (await sb.auth.getUser()).data.user.id).maybeSingle(),
+            sb.from('household_members').select('*').eq('household_id', householdId),
+            sb.from('incomes').select('*').eq('household_id', householdId),
+            sb.from('expenses').select('*').eq('household_id', householdId),
+            sb.from('investments').select('*').eq('household_id', householdId),
+            sb.from('loans').select('*').eq('household_id', householdId),
+            sb.from('insurance_policies').select('*').eq('household_id', householdId),
+            sb.from('forecast_assumptions').select('*').eq('household_id', householdId).maybeSingle()
+        ]);
+        
+        // Check for errors
+        if (profileError) throw profileError;
+        if (membersError) throw membersError;
+        if (incomesError) throw incomesError;
+        if (expensesError) throw expensesError;
+        if (investmentsError) throw investmentsError;
+        if (loansError) throw loansError;
+        if (insuranceError) throw insuranceError;
+        if (assumptionsError) throw assumptionsError;
+        
+        console.log('✅ Loaded normalized data:', {
+            profile: !!profileData,
+            members: membersData?.length || 0,
+            incomes: incomesData?.length || 0,
+            expenses: expensesData?.length || 0,
+            investments: investmentsData?.length || 0,
+            loans: loansData?.length || 0,
+            insurance: insuranceData?.length || 0,
+            assumptions: !!assumptionsData
+        });
+        
+        // Use legacy profile data if available (Phase 2 dual-write)
+        const profileToUse = legacyData?.profile || profileData || {};
+        
+        // Reconstruct userData shape
+        userData = reconstructUserData(
+            profileToUse,
+            membersData || [],
+            incomesData || [],
+            expensesData || [],
+            investmentsData || [],
+            loansData || [],
+            insuranceData || [],
+            assumptionsData
+        );
+        
+        // Invalidate compute cache
+        computeCache.invalidate();
+        
+        console.log('✅ userData reconstructed from normalized tables');
+        
+    } catch (err) {
+        console.error('❌ loadHouseholdData failed:', err);
+        throw err;
+    }
+}
+
 // ========== SUPABASE DATA ==========
 async function loadUserData(email) {
     console.log('loadUserData called for:', email);
+    
+    // Phase 1.6: Check if householdId is set (normalized path)
+    if (householdId) {
+        console.log('🔄 Using normalized tables (householdId:', householdId, ')');
+        await loadHouseholdData();
+        return;
+    }
+    
+    // Legacy path: load from user_data table
+    console.log('📦 Using legacy user_data table');
     const { data, error } = await sb.from('user_data').select('*').eq('email', email).maybeSingle();
     if(error) { console.error('Load error:', error); return; }
     
@@ -8413,6 +8907,13 @@ async function loadUserData(email) {
 async function saveUserData(email) {
     if(!email) return;
     console.log('saveUserData called for:', email, '| profile.name:', userData.profile?.name, '| profile.age:', userData.profile?.age);
+    
+    // Phase 1.6: Defensive check - if householdId is null, log warning and skip normalized table writes
+    if (!householdId) {
+        console.warn('⚠️ householdId is null, skipping normalized table writes (legacy path only)');
+    }
+    
+    // Legacy write to user_data table
     const { error } = await sb.from('user_data').upsert({
         email,
         profile:     { ...userData.profile, liquidSavings: userData.liquidSavings, termCover: userData.termCover },
@@ -8425,12 +8926,441 @@ async function saveUserData(email) {
         bank_accounts: userData.bankAccounts || []
     }, { onConflict: 'email' });
     if(error) console.error('Save error:', error);
+    
+    // Phase 1.6: Dual-write to normalized tables
+    if (householdId) {
+        await saveNormalizedData();
+    }
 }
 
 function debounceSave() {
     clearTimeout(saveTimer);
     computeCache.invalidate(); // Invalidate cache when data changes
     saveTimer = setTimeout(() => { if(currentUserEmail) saveUserData(currentUserEmail); }, 600);
+}
+
+/**
+ * saveTable(tableName, rows, options)
+ * Generic upsert for a single normalized table.
+ * Automatically sets household_id on each row.
+ * During dual-write phase, also calls legacy saveUserData().
+ */
+async function saveTable(tableName, rows, options = {}) {
+    if (!householdId) {
+        console.warn('⚠️ Cannot save to normalized tables: householdId is null');
+        return { data: null, error: new Error('householdId is null') };
+    }
+    
+    if (!rows || rows.length === 0) {
+        return { data: [], error: null };
+    }
+    
+    try {
+        // Inject household_id and convert legacy member IDs to UUIDs
+        const processedRows = rows.map(row => {
+            const processed = { ...row, household_id: householdId };
+            
+            // Convert legacy member ID to UUID if present
+            if (row.memberId && !row.member_id) {
+                processed.member_id = getMemberUuid(row.memberId);
+                delete processed.memberId;
+            }
+            
+            return processed;
+        });
+        
+        console.log(`💾 Saving to ${tableName}:`, processedRows.length, 'rows');
+        
+        const { data, error } = await sb
+            .from(tableName)
+            .upsert(processedRows, { onConflict: 'id' });
+        
+        if (error) {
+            console.error(`❌ Error saving to ${tableName}:`, error);
+            handleSupabaseError(error, `saveTable(${tableName})`);
+            return { data: null, error };
+        }
+        
+        console.log(`✅ Saved to ${tableName}`);
+        return { data, error: null };
+        
+    } catch (err) {
+        console.error(`❌ saveTable(${tableName}) failed:`, err);
+        return { data: null, error: err };
+    }
+}
+
+/**
+ * deleteRow(tableName, rowId)
+ * Deletes a single row by UUID. RLS enforces household scope.
+ */
+async function deleteRow(tableName, rowId) {
+    if (!householdId) {
+        console.warn('⚠️ Cannot delete from normalized tables: householdId is null');
+        return { error: new Error('householdId is null') };
+    }
+    
+    try {
+        console.log(`🗑️ Deleting from ${tableName}:`, rowId);
+        
+        const { error } = await sb
+            .from(tableName)
+            .delete()
+            .eq('id', rowId);
+        
+        if (error) {
+            console.error(`❌ Error deleting from ${tableName}:`, error);
+            handleSupabaseError(error, `deleteRow(${tableName})`);
+            return { error };
+        }
+        
+        console.log(`✅ Deleted from ${tableName}`);
+        return { error: null };
+        
+    } catch (err) {
+        console.error(`❌ deleteRow(${tableName}) failed:`, err);
+        return { error: err };
+    }
+}
+
+/**
+ * saveNormalizedData()
+ * Helper that extracts data from userData and saves to normalized tables.
+ * Called during dual-write phase.
+ */
+async function saveNormalizedData() {
+    if (!householdId) {
+        console.warn('⚠️ Skipping normalized data save: householdId is null');
+        return;
+    }
+    
+    try {
+        console.log('💾 Dual-write: Saving to normalized tables...');
+        
+        // Extract and save incomes
+        const incomes = [];
+        const selfMemberId = getMemberUuid('self');
+        const spouseMemberId = getMemberUuid('spouse');
+        
+        if (userData.income?.husband > 0 && selfMemberId) {
+            incomes.push({
+                id: 'income-self-salary',
+                member_id: selfMemberId,
+                type: 'salary',
+                amount: userData.income.husband,
+                frequency: 'monthly',
+                is_active: true
+            });
+        }
+        
+        if (userData.income?.wife > 0 && spouseMemberId) {
+            incomes.push({
+                id: 'income-spouse-salary',
+                member_id: spouseMemberId,
+                type: 'salary',
+                amount: userData.income.wife,
+                frequency: 'monthly',
+                is_active: true
+            });
+        }
+        
+        if (userData.income?.rental > 0 && selfMemberId) {
+            incomes.push({
+                id: 'income-rental',
+                member_id: selfMemberId,
+                type: 'rental',
+                amount: userData.income.rental,
+                frequency: 'monthly',
+                is_active: userData.income.rentalActive || false
+            });
+        }
+        
+        if (userData.income?.business > 0 && selfMemberId) {
+            incomes.push({
+                id: 'income-business',
+                member_id: selfMemberId,
+                type: 'business',
+                amount: userData.income.business,
+                frequency: 'monthly',
+                is_active: true
+            });
+        }
+        
+        if (userData.income?.other > 0 && selfMemberId) {
+            incomes.push({
+                id: 'income-other',
+                member_id: selfMemberId,
+                type: 'other',
+                amount: userData.income.other,
+                frequency: 'monthly',
+                is_active: true
+            });
+        }
+        
+        if (incomes.length > 0) {
+            await saveTable('incomes', incomes);
+        }
+        
+        // Extract and save expenses
+        const expenses = [];
+        if (userData.expenses?.byMonth) {
+            for (const [month, monthData] of Object.entries(userData.expenses.byMonth)) {
+                if (monthData.byMember) {
+                    for (const [legacyMemberId, expenseList] of Object.entries(monthData.byMember)) {
+                        const memberUuid = getMemberUuid(legacyMemberId);
+                        if (memberUuid && Array.isArray(expenseList)) {
+                            expenseList.forEach(exp => {
+                                expenses.push({
+                                    id: exp.id || exp._normalizedId,
+                                    member_id: memberUuid,
+                                    category: exp.c || exp.category || 'other',
+                                    label: exp.label,
+                                    amount: exp.v || exp.amount || 0,
+                                    month: month,
+                                    is_recurring: exp.isRecurring || false,
+                                    frequency: exp.frequency || 'monthly'
+                                });
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (expenses.length > 0) {
+            await saveTable('expenses', expenses);
+        }
+        
+        // Extract and save investments
+        const investments = [];
+        if (userData.investments?.byMember) {
+            for (const [legacyMemberId, investData] of Object.entries(userData.investments.byMember)) {
+                const memberUuid = getMemberUuid(legacyMemberId);
+                if (!memberUuid) continue;
+                
+                // Mutual funds
+                if (Array.isArray(investData.mutualFunds)) {
+                    investData.mutualFunds.forEach(mf => {
+                        investments.push({
+                            id: mf.id || mf._normalizedId,
+                            member_id: memberUuid,
+                            type: 'mutual_fund',
+                            name: mf.name,
+                            value: mf.value || 0,
+                            units: mf.units,
+                            nav: mf.nav,
+                            purchase_date: mf.purchaseDate,
+                            sip_amount: mf.sipAmount,
+                            meta: {}
+                        });
+                    });
+                }
+                
+                // Stocks
+                if (Array.isArray(investData.stocks)) {
+                    investData.stocks.forEach(stock => {
+                        investments.push({
+                            id: stock.id || stock._normalizedId,
+                            member_id: memberUuid,
+                            type: 'stock',
+                            name: stock.name,
+                            value: stock.value || 0,
+                            units: stock.units,
+                            nav: stock.nav,
+                            purchase_date: stock.purchaseDate,
+                            meta: {}
+                        });
+                    });
+                }
+                
+                // FDs
+                if (Array.isArray(investData.fd)) {
+                    investData.fd.forEach(fd => {
+                        investments.push({
+                            id: fd.id || fd._normalizedId,
+                            member_id: memberUuid,
+                            type: 'fd',
+                            name: fd.name,
+                            value: fd.value || 0,
+                            rate: fd.rate,
+                            maturity_date: fd.maturityDate,
+                            meta: {}
+                        });
+                    });
+                }
+                
+                // PPF
+                if (Array.isArray(investData.ppf)) {
+                    investData.ppf.forEach(ppf => {
+                        investments.push({
+                            id: ppf.id || ppf._normalizedId,
+                            member_id: memberUuid,
+                            type: 'ppf',
+                            name: ppf.name,
+                            value: ppf.value || 0,
+                            meta: {}
+                        });
+                    });
+                }
+            }
+        }
+        
+        if (investments.length > 0) {
+            await saveTable('investments', investments);
+        }
+        
+        // Extract and save loans
+        const loans = [];
+        if (userData.loans?.byMember) {
+            for (const [legacyMemberId, loanList] of Object.entries(userData.loans.byMember)) {
+                const memberUuid = getMemberUuid(legacyMemberId);
+                if (memberUuid && Array.isArray(loanList)) {
+                    loanList.forEach(loan => {
+                        loans.push({
+                            id: loan.id || loan._normalizedId,
+                            member_id: memberUuid,
+                            type: loan.type || 'other',
+                            lender: loan.label || loan.lender,
+                            outstanding: loan.outstanding || 0,
+                            emi: loan.emi || 0,
+                            rate: loan.rate || 0,
+                            principal: loan.principal,
+                            tenure_months: loan.tenureMonths,
+                            start_date: loan.startDate,
+                            end_date: loan.endDate,
+                            meta: {}
+                        });
+                    });
+                }
+            }
+        }
+        
+        if (loans.length > 0) {
+            await saveTable('loans', loans);
+        }
+        
+        // Extract and save insurance
+        const insurancePolicies = [];
+        if (userData.insurance?.byMember) {
+            for (const [legacyMemberId, insuranceData] of Object.entries(userData.insurance.byMember)) {
+                const memberUuid = getMemberUuid(legacyMemberId);
+                if (!memberUuid) continue;
+                
+                // Term insurance
+                if (Array.isArray(insuranceData.term)) {
+                    insuranceData.term.forEach(policy => {
+                        insurancePolicies.push({
+                            id: policy.id || policy._normalizedId,
+                            member_id: memberUuid,
+                            type: 'term',
+                            provider: policy.provider,
+                            policy_number: policy.policyNumber,
+                            cover_amount: policy.coverAmount || 0,
+                            premium: policy.premium || 0,
+                            premium_frequency: policy.premiumFrequency || 'yearly',
+                            start_date: policy.startDate,
+                            end_date: policy.endDate,
+                            meta: {}
+                        });
+                    });
+                }
+                
+                // Health insurance
+                if (Array.isArray(insuranceData.health)) {
+                    insuranceData.health.forEach(policy => {
+                        insurancePolicies.push({
+                            id: policy.id || policy._normalizedId,
+                            member_id: memberUuid,
+                            type: 'health',
+                            provider: policy.provider,
+                            policy_number: policy.policyNumber,
+                            cover_amount: policy.coverAmount || 0,
+                            premium: policy.premium || 0,
+                            premium_frequency: policy.premiumFrequency || 'yearly',
+                            start_date: policy.startDate,
+                            end_date: policy.endDate,
+                            meta: {}
+                        });
+                    });
+                }
+                
+                // Vehicle insurance
+                if (Array.isArray(insuranceData.vehicle)) {
+                    insuranceData.vehicle.forEach(policy => {
+                        insurancePolicies.push({
+                            id: policy.id || policy._normalizedId,
+                            member_id: memberUuid,
+                            type: 'vehicle',
+                            provider: policy.provider,
+                            policy_number: policy.policyNumber,
+                            cover_amount: policy.coverAmount || 0,
+                            premium: policy.premium || 0,
+                            premium_frequency: policy.premiumFrequency || 'yearly',
+                            start_date: policy.startDate,
+                            end_date: policy.endDate,
+                            meta: {}
+                        });
+                    });
+                }
+            }
+        }
+        
+        if (insurancePolicies.length > 0) {
+            await saveTable('insurance_policies', insurancePolicies);
+        }
+        
+        // Update forecast assumptions
+        if (userData.profile?.forecastAssumptions) {
+            const assumptions = userData.profile.forecastAssumptions;
+            const { error } = await sb
+                .from('forecast_assumptions')
+                .upsert({
+                    household_id: householdId,
+                    inflation_rate: (assumptions.expenseInflation || 6) / 100,
+                    equity_return: (assumptions.equityReturn || 12) / 100,
+                    debt_return: (assumptions.debtReturn || 7) / 100,
+                    salary_growth: (assumptions.incomeGrowth || 8) / 100,
+                    expense_growth: (assumptions.expenseInflation || 6) / 100,
+                    retirement_age: assumptions.retirementAge || 60,
+                    life_expectancy: assumptions.lifeExpectancy || 85,
+                    meta: { medicalInflation: assumptions.medicalInflation || 10 }
+                }, { onConflict: 'household_id' });
+            
+            if (error) {
+                console.error('❌ Error saving forecast assumptions:', error);
+            } else {
+                console.log('✅ Saved forecast assumptions');
+            }
+        }
+        
+        console.log('✅ Dual-write to normalized tables complete');
+        
+    } catch (err) {
+        console.error('❌ saveNormalizedData failed:', err);
+    }
+}
+
+/**
+ * handleSupabaseError(error, context)
+ * Global error handler for Supabase operations
+ */
+function handleSupabaseError(error, context = '') {
+    console.error(`❌ Supabase error (${context}):`, error);
+    
+    // Check for RLS permission denied error
+    if (error.code === '42501' || error.message?.includes('permission denied') || error.message?.includes('RLS')) {
+        showToast("You don't have permission to edit this data.", 'red');
+        return;
+    }
+    
+    // Check for network errors
+    if (error.message?.includes('fetch') || error.message?.includes('network')) {
+        showToast('Network error. Please check your connection.', 'red');
+        return;
+    }
+    
+    // Generic error
+    showToast(`Error: ${error.message || 'Something went wrong'}`, 'red');
 }
 
 // ========== AUTH ==========
@@ -8448,6 +9378,8 @@ async function checkSession() {
         console.log('Session result:', session ? 'active' : 'none');
         if (session) {
             currentUserEmail = session.user.email;
+            // Phase 1.6: Load household context before loading user data
+            await loadHouseholdContext();
             await loadUserData(currentUserEmail);
             
             // If profile is empty, check for pending registration data in localStorage
@@ -8826,7 +9758,13 @@ window.handleModernRegistration = async () => {
             email,
             password,
             options: {
-                data: { firstName: firstname, lastName: lastname, name: `${firstname} ${lastname}`, phone: fullPhone }
+                data: { 
+                    firstName: firstname, 
+                    lastName: lastname, 
+                    name: `${firstname} ${lastname}`, 
+                    phone: fullPhone 
+                },
+                emailRedirectTo: window.location.origin  // Redirect back to same domain (dev or prod)
             }
         });
         
@@ -9175,6 +10113,11 @@ window.completeProfileWizard = async () => {
         };
         
         // Save to Supabase
+        // Phase 1.6: Ensure household context is loaded before saving
+        if (!householdId) {
+            console.log('⚠️ Household context not loaded, loading now...');
+            await loadHouseholdContext();
+        }
         await saveUserData(currentUserEmail);
         
         // Mark onboarding complete
@@ -15001,19 +15944,44 @@ window.onload = () => {
             if(newEmail !== currentUserEmail || !userData.profile?.name) {
                 isLoadingSession = true;
                 currentUserEmail = newEmail;
-                loadUserData(currentUserEmail).then(()=>{
-                    const profileComplete = userData.profile?._wizardCompleted || (userData.profile?.age && userData.profile?.occupation);
+                // Phase 1.6: Load household context before loading user data
+                loadHouseholdContext().then(() => {
+                    return loadUserData(currentUserEmail);
+                }).then(()=>{
+                    // Check if profile is complete
+                    const hasWizardFlag = userData.profile?._wizardCompleted === true;
+                    const hasBasicInfo = userData.profile?.age && userData.profile?.occupation;
+                    const profileComplete = hasWizardFlag || hasBasicInfo;
+                    
+                    console.log('🔍 Profile completion check:', {
+                        hasWizardFlag,
+                        hasBasicInfo,
+                        profileComplete,
+                        profileKeys: Object.keys(userData.profile || {}),
+                        age: userData.profile?.age,
+                        occupation: userData.profile?.occupation
+                    });
+                    
                     if (!profileComplete) {
+                        console.log('📝 Profile incomplete → showing wizard');
                         showProfileWizard();
                     } else {
+                        console.log('✅ Profile complete → showing app');
                         showApp(); resetInactivity();
                     }
+                }).catch(err => {
+                    console.error('❌ Error during sign-in flow:', err);
+                    showToast('Failed to load your data. Please try again.', 'red');
                 }).finally(() => { isLoadingSession = false; });
             }
         } else if(event==='SIGNED_OUT') {
             // Reset userData to empty on sign out
             userData = { profile:{}, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{}, byMonth:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
             currentUserEmail = '';
+            // Phase 1.6: Reset household context
+            householdId = null;
+            memberId = null;
+            memberMap = {};
             showAuth();
         }
     });
