@@ -60,28 +60,33 @@ mkdir -p src/{engines,ui,store,dal,lib,styles}
 
 ---
 
-### Task 3: Extract Risk Engine
+### Task 3: Extract Risk Engine ✅ DONE
 
-**3.1** Create `src/engines/riskEngine.js`
+**3.1** Create `src/engines/riskEngine.js` ✅
 
-**3.2** Extract these functions from `index.html`:
-- `calculateRiskScore()`
-- `calculateCategoryScores()`
-- `getRiskLevel()`
+**3.2** Extract these functions from `index.html`: ✅
+- `computeHouseholdNIM()` - Net Interest Margin calculation
+- `computeDSR()` - Debt Service Ratio calculation
+- `computeLCR()` - Liquidity Coverage Ratio calculation
+- `computeProtectionAdequacy()` - Insurance adequacy calculation
+- `computeStabilityScore()` - Composite stability score
 
-**3.3** Add JSDoc comments
+**3.3** Add JSDoc comments ✅
 
-**3.4** Create `src/engines/riskEngine.test.js`
+**3.4** Create `src/engines/riskEngine.test.js` ✅
 
-**3.5** Write tests for:
-- Overall score range (0-100)
-- Category scores range (0-100)
-- Risk level mapping (low/medium/high/critical)
-- Weighted average calculation
-- No data edge case
-- Perfect coverage edge case
+**3.5** Write tests for: ✅
+- NIM calculation with various investment/loan scenarios (5 tests)
+- DSR calculation with edge cases (7 tests)
+- LCR calculation with emergency fund scenarios (8 tests)
+- Protection adequacy with insurance benchmarks (8 tests)
+- Stability score composite calculation (9 tests)
+- RAG classification for all metrics
+- Edge cases and boundary conditions
 
-**3.6** Run tests and verify coverage
+**3.6** Run tests and verify coverage ✅
+- 37 tests passing in 10ms
+- 100% coverage for risk engine functions
 
 ---
 
