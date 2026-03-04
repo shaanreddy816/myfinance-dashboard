@@ -2402,36 +2402,55 @@
 // MIGRATION NOTE: Wait for modules to load before accessing them
 // The main.js module loads asynchronously, so we need to wait for it
 
+console.log('🔄 Waiting for modules to load...');
+
 // Wait for window.sb to be available (set by src/main.js)
-function waitForModules() {
-  return new Promise((resolve) => {
+function waitForModules(timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
     if (window.sb) {
+      console.log('✅ Modules already loaded');
       resolve();
-    } else {
-      const checkInterval = setInterval(() => {
-        if (window.sb) {
-          clearInterval(checkInterval);
-          resolve();
-        }
-      }, 50);
+      return;
     }
+    
+    let elapsed = 0;
+    const checkInterval = setInterval(() => {
+      elapsed += 50;
+      
+      if (window.sb) {
+        clearInterval(checkInterval);
+        console.log('✅ Modules loaded after', elapsed, 'ms');
+        resolve();
+      } else if (elapsed >= timeoutMs) {
+        clearInterval(checkInterval);
+        console.error('❌ Module loading timeout after', timeoutMs, 'ms');
+        console.error('window.sb is still undefined');
+        console.error('Available window properties:', Object.keys(window).filter(k => k.includes('sb') || k.includes('supabase')));
+        reject(new Error('Module loading timeout'));
+      }
+    }, 50);
   });
 }
 
 // Initialize app after modules are loaded
-waitForModules().then(() => {
-  console.log('✅ Modules loaded, initializing app...');
-  
-  // Supabase client is now available via window.sb (imported from src/main.js)
-  const sb = window.sb;
+waitForModules()
+  .then(() => {
+    console.log('✅ Modules loaded, initializing app...');
+    
+    // Supabase client is now available via window.sb (imported from src/main.js)
+    const sb = window.sb;
 
-  // Hide the creds notice since we have hardcoded credentials
-  const credsNotice = document.getElementById('creds-notice-login');
-  if(credsNotice) credsNotice.style.display = 'none';
+    // Hide the creds notice since we have hardcoded credentials
+    const credsNotice = document.getElementById('creds-notice-login');
+    if(credsNotice) credsNotice.style.display = 'none';
 
-  // Continue with the rest of the initialization...
-  initializeApp();
-});
+    // Continue with the rest of the initialization...
+    initializeApp();
+  })
+  .catch((error) => {
+    console.error('❌ Failed to initialize app:', error);
+    alert('Failed to load application modules. Please refresh the page or check the console for details.');
+  });
 
 function initializeApp() {
   const sb = window.sb;

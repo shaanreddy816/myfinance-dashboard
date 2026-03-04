@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "headers": [
     {
       "source": "/index.html",
@@ -13,6 +15,12 @@
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
         { "key": "Pragma", "value": "no-cache" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
@@ -31,13 +39,16 @@
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/[...catchall].js" },
-    { "source": "/icon-generator.html", "destination": "/public/icon-generator.html" },
-    { "source": "/zerodha-success.html", "destination": "/public/zerodha-success.html" },
-    { "source": "/manifest.json", "destination": "/manifest.json" },
+    { "source": "/icon-generator.html", "destination": "/icon-generator.html" },
+    { "source": "/zerodha-success.html", "destination": "/zerodha-success.html" },
+    { "source": "/manifest.json", "destination": "/assets/manifest-DR74Ct8o.json" },
     { "source": "/sw.js", "destination": "/sw.js" },
-    { "source": "/icon-192.png", "destination": "/public/icon-192.png" },
-    { "source": "/icon-512.png", "destination": "/public/icon-512.png" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/icon-192.png", "destination": "/icon-192.png" },
+    { "source": "/icon-512.png", "destination": "/icon-512.png" }
+  ],
+  "routes": [
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
   "crons": [
     {
