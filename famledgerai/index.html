@@ -10321,6 +10321,13 @@ window.doLogout = async () => {
     userData = { profile:{}, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{}, byMonth:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
     currentUserEmail = '';
     computeCache.invalidate();
+    
+    // Clear localStorage to prevent data leaks between users
+    localStorage.removeItem('onboarding_completed');
+    localStorage.removeItem('pending_registration_data');
+    localStorage.removeItem('savedCalculations');
+    // Keep sb_url and sb_key as they are app-level config, not user-specific
+    
     await sb.auth.signOut(); 
     showAuth(); 
 };
@@ -16045,6 +16052,12 @@ window.onload = () => {
             householdId = null;
             memberId = null;
             memberMap = {};
+            
+            // Clear localStorage to prevent data leaks between users
+            localStorage.removeItem('onboarding_completed');
+            localStorage.removeItem('pending_registration_data');
+            localStorage.removeItem('savedCalculations');
+            
             showAuth();
         }
     });
