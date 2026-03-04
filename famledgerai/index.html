@@ -9432,13 +9432,24 @@ async function checkSession() {
     isLoadingSession = true;
     try {
         console.log('Checking session with Supabase URL:', SUPABASE_URL);
+        console.log('localStorage available:', typeof(Storage) !== 'undefined');
+        
+        // Get current session
         const { data: { session }, error } = await sb.auth.getSession();
+        
         if (error) {
             console.error('getSession error:', error);
             showAuth();
             return;
         }
+        
         console.log('Session result:', session ? 'active' : 'none');
+        console.log('Session details:', session ? {
+            expiresAt: new Date(session.expires_at * 1000).toISOString(),
+            expiresIn: session.expires_in,
+            hasRefreshToken: !!session.refresh_token
+        } : 'no session');
+        
         if (session) {
             currentUserEmail = session.user.email;
             // Phase 1.6: Load household context before loading user data
@@ -9486,7 +9497,26 @@ async function checkSession() {
                 resetInactivity();
             }
         } else {
-            showAuth();
+            console.log('No session found, checking for refresh token...');
+            // Attempt to refresh session if refresh token exists
+            const { data: refreshData, error: refreshError } = await sb.auth.refreshSession();
+            if (refreshData?.session) {
+                console.log('Session refreshed successfully');
+                currentUserEmail = refreshData.session.user.email;
+                await loadHouseholdContext();
+                await loadUserData(currentUserEmail);
+                
+                const profileComplete = userData.profile?._wizardCompleted || (userData.profile?.age && userData.profile?.occupation);
+                if (!profileComplete) {
+                    showProfileWizard();
+                } else {
+                    showApp();
+                    resetInactivity();
+                }
+            } else {
+                console.log('No refresh token available or refresh failed:', refreshError);
+                showAuth();
+            }
         }
     } catch (e) {
         console.error('checkSession error:', e);
@@ -15251,6 +15281,20 @@ window.saveSpouseProfile = async () => {
         if(sp) sp.name = newName;
         userData.profile.spouseName = newName;
     }
+    
+    // Initialize data structures for spouse if they don't exist
+    if (!userData.expenses.byMember) userData.expenses.byMember = {};
+    if (!userData.expenses.byMember['spouse']) userData.expenses.byMember['spouse'] = [];
+    
+    if (!userData.investments) userData.investments = { mutualFunds: [], stocks: [], fd: [], ppf: [] };
+    // Note: investments don't have byMember structure in current implementation
+    
+    if (!userData.loans) userData.loans = [];
+    // Note: loans don't have byMember structure in current implementation
+    
+    if (!userData.insurance) userData.insurance = { term: [], health: [], vehicle: [] };
+    // Note: insurance doesn't have byMember structure in current implementation
+    
     const { data: { session } } = await sb.auth.getSession();
     if(session) {
         await saveUserData(session.user.email);

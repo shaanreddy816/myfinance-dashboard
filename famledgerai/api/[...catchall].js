@@ -29,12 +29,18 @@ export default async function handler(req, res) {
     req.query[key] = value;
   }
 
-  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || 'https://famledgerai.com');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  // Set CORS headers for all requests
+  const origin = req.headers.origin || req.headers.referer || process.env.ALLOWED_ORIGIN || 'https://famledgerai.com';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-User-Id, X-Member-Id');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  // Handle OPTIONS preflight request
+  if (req.method === 'OPTIONS') {
+    console.log('OPTIONS preflight request for:', url.pathname);
+    return res.status(200).end();
+  }
 
   if (path === 'advice')                             return handleAdvice(req, res);
   if (path === 'inflation/analyze')                  return handleInflationAnalyze(req, res);
@@ -1481,9 +1487,18 @@ function parseInsuranceWithRegex(text) {
 
 
 async function handleInsuranceParsePdf(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  console.log('Insurance parse PDF request:', req.method, req.headers.origin);
+  
+  if (req.method !== 'POST') {
+    console.error('Insurance parse: Method not allowed:', req.method);
+    return res.status(405).json({ error: 'Method not allowed', detail: 'Use POST method' });
+  }
+  
   const { pdfText } = req.body;
-  if (!pdfText || pdfText.length < 20) return res.status(400).json({ error: 'No PDF text provided' });
+  if (!pdfText || pdfText.length < 20) {
+    console.error('Insurance parse: No PDF text provided');
+    return res.status(400).json({ error: 'No PDF text provided' });
+  }
 
   // First try regex extraction as baseline
   const regexResult = parseInsuranceWithRegex(pdfText);
@@ -2487,8 +2502,31 @@ async function handleWhatsAppSend(req, res) {
     return res.status(400).json({ error: 'Missing required fields: to, message' });
   }
 
+  // Verify Twilio credentials
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  
+  if (!accountSid || !authToken) {
+    console.error('WhatsApp send failed: Missing Twilio credentials');
+    return res.status(500).json({
+      success: false,
+      error: 'WhatsApp service not configured. Please contact support.'
+    });
+  }
+
+  // Validate phone number format (E.164)
+  const phoneRegex = /^\+[1-9]\d{1,14}$/;
+  if (!phoneRegex.test(to)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid phone number format. Please use E.164 format (e.g., +919876543210)'
+    });
+  }
+
   try {
+    console.log('Sending WhatsApp message to:', to);
     const result = await sendWhatsAppMessage(to, message);
+    console.log('WhatsApp message sent successfully:', result.sid);
     return res.status(200).json({
       success: true,
       messageSid: result.sid,
@@ -2497,9 +2535,18 @@ async function handleWhatsAppSend(req, res) {
     });
   } catch (error) {
     console.error('WhatsApp send error:', error);
+    
+    // Handle specific Twilio errors
+    if (error.message && error.message.includes('21408')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please join the WhatsApp sandbox first. Send "join <sandbox-keyword>" to your Twilio WhatsApp number'
+      });
+    }
+    
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message || 'Failed to send WhatsApp message'
     });
   }
 }
