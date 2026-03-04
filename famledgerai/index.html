@@ -8787,14 +8787,20 @@ async function loadUserData(email) {
             return;
         }
         
-        // Also detect stale data if no _authUid stored yet but data has _wizardCompleted
-        // and the auth user was created very recently (within last 10 minutes) — means fresh registration
-        if (!storedUid && data.profile?._wizardCompleted && authUser?.created_at) {
+        // Also detect stale data if no _authUid stored yet but data exists
+        // and the auth user was created very recently (within last hour) — means fresh registration
+        if (!storedUid && authUser?.created_at) {
             const authCreated = new Date(authUser.created_at).getTime();
             const now = Date.now();
-            const tenMinutes = 10 * 60 * 1000;
-            if (now - authCreated < tenMinutes) {
-                console.warn('⚠️ STALE DATA: no _authUid stored but auth user created', Math.round((now - authCreated)/1000), 'seconds ago. Resetting.');
+            const oneHour = 60 * 60 * 1000;
+            const hasAnyData = data.profile?._wizardCompleted || 
+                              (data.income?.husband > 0) || 
+                              (data.expenses?.monthly?.length > 0) ||
+                              (data.investments?.mutualFunds?.length > 0) ||
+                              (data.loans?.length > 0);
+            
+            if (now - authCreated < oneHour && hasAnyData) {
+                console.warn('⚠️ STALE DATA: no _authUid stored but auth user created', Math.round((now - authCreated)/1000), 'seconds ago and data exists. Resetting.');
                 userData = {
                     profile: {
                         name: authMeta?.name || `${authMeta?.firstName || ''} ${authMeta?.lastName || ''}`.trim(),
@@ -9431,12 +9437,14 @@ async function checkSession() {
     const ls = document.getElementById('loading-screen');
     isLoadingSession = true;
     
-    // Check if user just verified their email
-    const isEmailVerified = window.location.hash === '#verified';
+    // Check if user just verified their email via query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEmailVerified = urlParams.get('verified') === 'true';
     if (isEmailVerified) {
-        console.log('✅ Email verification detected');
-        // Clear the hash from URL
-        history.replaceState(null, null, ' ');
+        console.log('✅ Email verification detected via query param');
+        // Clear the query parameter from URL
+        const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+        history.replaceState(null, null, cleanUrl);
     }
     
     try {
@@ -9880,7 +9888,7 @@ window.handleModernRegistration = async () => {
                     name: `${firstname} ${lastname}`, 
                     phone: fullPhone 
                 },
-                emailRedirectTo: `${window.location.origin}/#verified`  // Redirect to app with verified flag
+                emailRedirectTo: `${window.location.origin}/?verified=true`  // Redirect with verified query param
             }
         });
         
