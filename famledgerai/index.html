@@ -9430,6 +9430,15 @@ function handleSupabaseError(error, context = '') {
 async function checkSession() {
     const ls = document.getElementById('loading-screen');
     isLoadingSession = true;
+    
+    // Check if user just verified their email
+    const isEmailVerified = window.location.hash === '#verified';
+    if (isEmailVerified) {
+        console.log('✅ Email verification detected');
+        // Clear the hash from URL
+        history.replaceState(null, null, ' ');
+    }
+    
     try {
         console.log('Checking session with Supabase URL:', SUPABASE_URL);
         console.log('localStorage available:', typeof(Storage) !== 'undefined');
@@ -9491,8 +9500,16 @@ async function checkSession() {
             // For backward compatibility: if user has age+occupation, they completed the old onboarding
             const profileComplete = userData.profile?._wizardCompleted || (userData.profile?.age && userData.profile?.occupation);
             if (!profileComplete) {
+                // Show success message if email was just verified
+                if (isEmailVerified) {
+                    showToast('✅ Email verified! Please complete your profile.', 'green');
+                }
                 showProfileWizard();
             } else {
+                // Show success message if email was just verified
+                if (isEmailVerified) {
+                    showToast('✅ Email verified successfully!', 'green');
+                }
                 showApp();
                 resetInactivity();
             }
@@ -9508,8 +9525,14 @@ async function checkSession() {
                 
                 const profileComplete = userData.profile?._wizardCompleted || (userData.profile?.age && userData.profile?.occupation);
                 if (!profileComplete) {
+                    if (isEmailVerified) {
+                        showToast('✅ Email verified! Please complete your profile.', 'green');
+                    }
                     showProfileWizard();
                 } else {
+                    if (isEmailVerified) {
+                        showToast('✅ Email verified successfully!', 'green');
+                    }
                     showApp();
                     resetInactivity();
                 }
@@ -9857,7 +9880,7 @@ window.handleModernRegistration = async () => {
                     name: `${firstname} ${lastname}`, 
                     phone: fullPhone 
                 },
-                emailRedirectTo: window.location.origin  // Redirect back to same domain (dev or prod)
+                emailRedirectTo: `${window.location.origin}/#verified`  // Redirect to app with verified flag
             }
         });
         
