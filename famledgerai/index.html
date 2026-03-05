@@ -8252,20 +8252,43 @@ function ensureMemberDataStructure(memberId) {
 async function bootstrapHousehold(householdName, memberName) {
     try {
         console.log('🏠 Bootstrapping household:', householdName, 'for member:', memberName);
+        
+        // Get current user to verify authentication
+        const { data: { user }, error: userError } = await sb.auth.getUser();
+        if (userError || !user) {
+            console.error('❌ Not authenticated:', userError);
+            throw new Error('User not authenticated');
+        }
+        console.log('✅ Authenticated user:', user.id, user.email);
+        
         const { data, error } = await sb.rpc('create_household_for_new_user', {
             household_name: householdName,
             member_name: memberName
         });
         
         if (error) {
-            console.error('❌ Bootstrap error:', error);
+            console.error('❌ Bootstrap RPC error:', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code
+            });
             throw error;
+        }
+        
+        if (!data) {
+            console.error('❌ Bootstrap returned no data');
+            throw new Error('Bootstrap function returned no data');
         }
         
         console.log('✅ Household bootstrapped:', data);
         return data;
     } catch (err) {
-        console.error('❌ bootstrapHousehold failed:', err);
+        console.error('❌ bootstrapHousehold failed:', {
+            error: err,
+            message: err.message,
+            stack: err.stack
+        });
         throw err;
     }
 }
@@ -8278,13 +8301,17 @@ async function bootstrapHousehold(householdName, memberName) {
  */
 async function loadHouseholdContext() {
     try {
-        const { data: { user } } = await sb.auth.getUser();
+        const { data: { user }, error: userError } = await sb.auth.getUser();
+        if (userError) {
+            console.error('❌ Error getting user:', userError);
+            throw userError;
+        }
         if (!user) {
             console.warn('⚠️ No authenticated user');
             return;
         }
         
-        console.log('🔍 Loading household context for auth user:', user.id);
+        console.log('🔍 Loading household context for auth user:', user.id, user.email);
         
         // Query user_profiles for current auth.uid()
         const { data: profile, error: profileError } = await sb
@@ -8294,7 +8321,12 @@ async function loadHouseholdContext() {
             .maybeSingle();
         
         if (profileError) {
-            console.error('❌ Error loading user profile:', profileError);
+            console.error('❌ Error loading user profile:', {
+                message: profileError.message,
+                details: profileError.details,
+                hint: profileError.hint,
+                code: profileError.code
+            });
             throw profileError;
         }
         
@@ -8306,9 +8338,17 @@ async function loadHouseholdContext() {
                            user.email?.split('@')[0] || 'User';
             const householdName = `${userName}'s Family`;
             
+            console.log('🔧 Bootstrap params:', { householdName, userName });
             const bootstrapResult = await bootstrapHousehold(householdName, userName);
+            
+            if (!bootstrapResult || !bootstrapResult.household_id || !bootstrapResult.member_id) {
+                console.error('❌ Invalid bootstrap result:', bootstrapResult);
+                throw new Error('Bootstrap returned invalid data');
+            }
+            
             householdId = bootstrapResult.household_id;
             memberId = bootstrapResult.member_id;
+            console.log('✅ Bootstrap complete:', { householdId, memberId });
             
             // Load household members into memberMap
             await loadMemberMap();
@@ -8324,7 +8364,11 @@ async function loadHouseholdContext() {
         await loadMemberMap();
         
     } catch (err) {
-        console.error('❌ loadHouseholdContext failed:', err);
+        console.error('❌ loadHouseholdContext failed:', {
+            error: err,
+            message: err.message,
+            stack: err.stack
+        });
         throw err;
     }
 }
