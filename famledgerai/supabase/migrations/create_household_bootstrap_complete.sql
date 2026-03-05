@@ -1,6 +1,10 @@
 -- Complete household bootstrap function
 -- This creates household, household_member, and user_profile in one transaction
 
+-- Drop the old function first
+DROP FUNCTION IF EXISTS create_household_for_new_user(TEXT);
+DROP FUNCTION IF EXISTS create_household_for_new_user(TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION create_household_for_new_user(
     household_name TEXT,
     member_name TEXT
