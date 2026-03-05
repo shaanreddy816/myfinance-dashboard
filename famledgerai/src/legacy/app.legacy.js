@@ -7893,10 +7893,14 @@ window.completeProfileWizard = async () => {
         
         // Build investments (dashboard uses 'name' and 'value')
         const investments = {
-            mutualFunds: mfValue > 0 ? [{ name: 'Mutual Funds', value: mfValue }] : [],
-            stocks: stocksValue > 0 ? [{ name: 'Stocks Portfolio', value: stocksValue }] : [],
-            fd: fdValue > 0 ? [{ name: 'Fixed Deposit', value: fdValue, rate: 7, tenure: 12 }] : [],
-            ppf: ppfValue > 0 ? [{ name: 'PPF/EPF', value: ppfValue }] : []
+            byMember: {
+                self: {
+                    mutualFunds: mfValue > 0 ? [{ id: 'mf-'+Date.now(), name: 'Mutual Funds', value: mfValue }] : [],
+                    stocks: stocksValue > 0 ? [{ id: 'st-'+Date.now(), name: 'Stocks Portfolio', value: stocksValue }] : [],
+                    fd: fdValue > 0 ? [{ id: 'fd-'+Date.now(), name: 'Fixed Deposit', value: fdValue, rate: 7 }] : [],
+                    ppf: ppfValue > 0 ? [{ id: 'ppf-'+Date.now(), name: 'PPF/EPF', value: ppfValue }] : []
+                }
+            }
         };
         
         // Build complete userData
