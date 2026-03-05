@@ -12845,14 +12845,25 @@ function renderSettings() {
         let countryCode = '+91';
         let phoneNumber = '';
         if (existingWhatsApp) {
-            // Match country codes: +1 to +999 (1-3 digits), rest is phone number
-            const match = existingWhatsApp.match(/^(\+\d{1,3})(\d{4,})$/);
-            if (match) {
-                countryCode = match[1];
-                phoneNumber = match[2];
-            } else {
-                // If no match, treat entire string as phone number
-                phoneNumber = existingWhatsApp.replace(/^\+/, '');
+            // Try known country codes (longer codes first to avoid +1 matching +91)
+            const knownCodes = ['+971','+65','+86','+81','+82','+49','+33','+39','+34','+44','+61','+91','+7','+1'];
+            let matched = false;
+            for (const code of knownCodes) {
+                if (existingWhatsApp.startsWith(code)) {
+                    countryCode = code;
+                    phoneNumber = existingWhatsApp.slice(code.length);
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                const match = existingWhatsApp.match(/^(\+\d{1,3})(\d{4,})$/);
+                if (match) {
+                    countryCode = match[1];
+                    phoneNumber = match[2];
+                } else {
+                    phoneNumber = existingWhatsApp.replace(/^\+/, '');
+                }
             }
         }
 
