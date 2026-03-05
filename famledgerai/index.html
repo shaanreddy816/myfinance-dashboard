@@ -8720,6 +8720,132 @@ async function loadHouseholdData() {
     }
 }
 
+// ========== DATA GUARD - PREVENT DATA LEAKS ==========
+/**
+ * Creates namespaced storage key to prevent data leaks between users
+ * @param {string} key - The key name
+ * @param {string} uid - User ID (auth UID)
+ * @returns {string} Namespaced key
+ */
+function storageKey(key, uid) {
+    if (!uid) return `fam:${key}`; // Fallback for non-user-specific keys
+    return `fam:user:${uid}:${key}`;
+}
+
+/**
+ * Validates that loaded data belongs to the current authenticated user
+ * Prevents data leaks when users are deleted and re-registered with same email
+ */
+function validateDataOwnership(loadedData, currentAuthUser) {
+    if (!currentAuthUser || !currentAuthUser.id) {
+        console.warn('⚠️ No auth user to validate against');
+        return false;
+    }
+    
+    const storedAuthUid = loadedData?.profile?._authUid;
+    const currentAuthUid = currentAuthUser.id;
+    
+    // If no _authUid stored, this is legacy data or very old account
+    if (!storedAuthUid) {
+        // Check if user was created recently (within 1 hour) - likely fresh registration
+        if (currentAuthUser.created_at) {
+            const authCreated = new Date(currentAuthUser.created_at).getTime();
+            const now = Date.now();
+            const oneHour = 60 * 60 * 1000;
+            
+            // If account is fresh AND there's existing data, it's stale
+            const hasAnyData = loadedData?.profile?._wizardCompleted || 
+                              (loadedData?.income?.husband > 0) || 
+                              (loadedData?.expenses?.monthly?.length > 0) ||
+                              (loadedData?.investments?.mutualFunds?.length > 0) ||
+                              (loadedData?.loans?.length > 0);
+            
+            if (now - authCreated < oneHour && hasAnyData) {
+                console.warn('⚠️ DATA GUARD: Fresh account with existing data - likely stale');
+                return false;
+            }
+        }
+        
+        // Otherwise, assume it's valid legacy data
+        return true;
+    }
+    
+    // If _authUid exists, it must match current user
+    if (storedAuthUid !== currentAuthUid) {
+        console.warn('⚠️ DATA GUARD: Auth UID mismatch', {
+            stored: storedAuthUid,
+            current: currentAuthUid
+        });
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Resets all user state to prevent data leaks
+ * Call this when switching users or detecting stale data
+ */
+function resetUserState(authUser) {
+    console.log('🔄 Resetting user state');
+    
+    // Reset userData to empty state
+    userData = {
+        profile: {
+            _authUid: authUser?.id || '',
+            name: '',
+            firstName: '',
+            lastName: '',
+            phone: '',
+            whatsapp_number: ''
+        },
+        income: { husband:0, wife:0, rental:0, rentalActive:false },
+        expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
+        investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
+        loans: [],
+        insurance: { term:[], health:[], vehicle:[] },
+        schemes: [],
+        bankAccounts: [],
+        liquidSavings: 0,
+        termCover: 0
+    };
+    
+    // Reset household context
+    householdId = null;
+    memberId = null;
+    memberMap = {};
+    
+    // Clear compute cache
+    computeCache.invalidate();
+    
+    // Clear ALL user-specific localStorage keys (namespaced)
+    try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('fam:user:')) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        console.log(`🗑️ Removed ${keysToRemove.length} namespaced storage keys`);
+    } catch(e) {
+        console.error('Error clearing namespaced storage:', e);
+    }
+    
+    // Clear legacy non-namespaced keys for backward compatibility
+    const legacyKeys = ['onboarding_completed', 'pending_registration_data', 'savedCalculations'];
+    legacyKeys.forEach(key => {
+        try {
+            localStorage.removeItem(key);
+        } catch(e) {
+            console.error(`Error removing legacy key ${key}:`, e);
+        }
+    });
+    
+    console.log('✅ User state reset complete');
+}
+
 // ========== SUPABASE DATA ==========
 async function loadUserData(email) {
     console.log('loadUserData called for:', email);
@@ -8755,75 +8881,30 @@ async function loadUserData(email) {
             loanCount: data.loans?.length
         }));
         
-        // CRITICAL: Check if this data belongs to the current auth user.
-        // When a user is deleted from Supabase Auth and re-registers with the same email,
-        // they get a NEW auth UID. The old user_data row is stale and must be reset.
-        const storedUid = data.profile?._authUid;
-        const currentUid = authUser?.id;
-        
-        if (storedUid && currentUid && storedUid !== currentUid) {
-            console.warn('⚠️ STALE DATA: auth UID mismatch. Stored:', storedUid, 'Current:', currentUid, '— resetting.');
-            userData = {
-                profile: {
-                    name: authMeta?.name || `${authMeta?.firstName || ''} ${authMeta?.lastName || ''}`.trim(),
-                    firstName: authMeta?.firstName || '',
-                    lastName: authMeta?.lastName || '',
-                    phone: authMeta?.phone || '',
-                    whatsapp_number: authMeta?.phone || '',
-                    _authUid: currentUid
-                },
-                income: { husband:0, wife:0, rental:0, rentalActive:false },
-                expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
-                investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
-                loans: [],
-                insurance: { term:[], health:[], vehicle:[] },
-                schemes: [],
-                bankAccounts: [],
-                liquidSavings: 0,
-                termCover: 0
-            };
-            await saveUserData(email);
-            console.log('✅ Stale data cleared for re-registered user');
-            return;
-        }
-        
-        // Also detect stale data if no _authUid stored yet but data exists
-        // and the auth user was created very recently (within last hour) — means fresh registration
-        if (!storedUid && authUser?.created_at) {
-            const authCreated = new Date(authUser.created_at).getTime();
-            const now = Date.now();
-            const oneHour = 60 * 60 * 1000;
-            const hasAnyData = data.profile?._wizardCompleted || 
-                              (data.income?.husband > 0) || 
-                              (data.expenses?.monthly?.length > 0) ||
-                              (data.investments?.mutualFunds?.length > 0) ||
-                              (data.loans?.length > 0);
+        // DATA GUARD: Validate data ownership
+        if (!validateDataOwnership(data, authUser)) {
+            console.warn('⚠️ STALE DATA DETECTED: Resetting to clean state');
+            console.warn('⚠️ SECURITY: Data ownership mismatch - preventing data leak');
             
-            if (now - authCreated < oneHour && hasAnyData) {
-                console.warn('⚠️ STALE DATA: no _authUid stored but auth user created', Math.round((now - authCreated)/1000), 'seconds ago and data exists. Resetting.');
-                userData = {
-                    profile: {
-                        name: authMeta?.name || `${authMeta?.firstName || ''} ${authMeta?.lastName || ''}`.trim(),
-                        firstName: authMeta?.firstName || '',
-                        lastName: authMeta?.lastName || '',
-                        phone: authMeta?.phone || '',
-                        whatsapp_number: authMeta?.phone || '',
-                        _authUid: currentUid
-                    },
-                    income: { husband:0, wife:0, rental:0, rentalActive:false },
-                    expenses: { monthly:[], periodic:[], byMember:{}, byMonth:{} },
-                    investments: { mutualFunds:[], stocks:[], fd:[], ppf:[] },
-                    loans: [],
-                    insurance: { term:[], health:[], vehicle:[] },
-                    schemes: [],
-                    bankAccounts: [],
-                    liquidSavings: 0,
-                    termCover: 0
-                };
-                await saveUserData(email);
-                console.log('✅ Stale data cleared for fresh registration');
-                return;
+            // CRITICAL: Reset state immediately
+            resetUserState(authUser);
+            
+            // Recover profile from auth metadata
+            if (authMeta?.name || authMeta?.firstName) {
+                userData.profile.name = authMeta.name || `${authMeta.firstName || ''} ${authMeta.lastName || ''}`.trim();
+                userData.profile.firstName = authMeta.firstName || '';
+                userData.profile.lastName = authMeta.lastName || '';
+                userData.profile.phone = authMeta.phone || '';
+                userData.profile.whatsapp_number = authMeta.phone || '';
+                userData.profile._authUid = authUser?.id || '';
             }
+            
+            // Save clean state
+            await saveUserData(email);
+            console.log('✅ Stale data cleared and reset for new user');
+            
+            // IMPORTANT: Return early - do NOT load stale data
+            return;
         }
         
         userData = {
@@ -8840,8 +8921,8 @@ async function loadUserData(email) {
         };
         
         // Backfill _authUid for existing users who don't have it yet
-        if (!userData.profile._authUid && currentUid) {
-            userData.profile._authUid = currentUid;
+        if (!userData.profile._authUid && authUser?.id) {
+            userData.profile._authUid = authUser.id;
             await saveUserData(email);
         }
         
@@ -8853,7 +8934,7 @@ async function loadUserData(email) {
                 userData.profile.firstName = authMeta.firstName || '';
                 userData.profile.lastName = authMeta.lastName || '';
                 userData.profile.phone = authMeta.phone || '';
-                userData.profile._authUid = currentUid;
+                userData.profile._authUid = authUser?.id || '';
                 if (!userData.profile.familyMembers || userData.profile.familyMembers.length === 0) {
                     userData.profile.familyMembers = [{ id: 'self', name: userData.profile.name, role: 'self' }];
                 }
@@ -9508,11 +9589,27 @@ async function checkSession() {
             // For backward compatibility: if user has age+occupation, they completed the old onboarding
             const profileComplete = userData.profile?._wizardCompleted || (userData.profile?.age && userData.profile?.occupation);
             if (!profileComplete) {
-                // Show success message if email was just verified
+                // Show congratulations modal if email was just verified
                 if (isEmailVerified) {
-                    showToast('✅ Email verified! Please complete your profile.', 'green');
+                    // Get first name from multiple sources
+                    let firstName = userData?.profile?.firstName;
+                    if (!firstName) {
+                        try {
+                            const pendingReg = localStorage.getItem('pending_registration_data');
+                            if (pendingReg) {
+                                firstName = JSON.parse(pendingReg)?.firstName;
+                            }
+                        } catch(e) { console.error('Error reading pending registration:', e); }
+                    }
+                    if (!firstName) firstName = 'Welcome';
+                    
+                    showCongratulationsModal(firstName);
+                    setTimeout(() => {
+                        showProfileWizard();
+                    }, 2800);
+                } else {
+                    showProfileWizard();
                 }
-                showProfileWizard();
             } else {
                 // Show success message if email was just verified
                 if (isEmailVerified) {
@@ -9534,9 +9631,25 @@ async function checkSession() {
                 const profileComplete = userData.profile?._wizardCompleted || (userData.profile?.age && userData.profile?.occupation);
                 if (!profileComplete) {
                     if (isEmailVerified) {
-                        showToast('✅ Email verified! Please complete your profile.', 'green');
+                        // Get first name from multiple sources
+                        let firstName = userData?.profile?.firstName;
+                        if (!firstName) {
+                            try {
+                                const pendingReg = localStorage.getItem('pending_registration_data');
+                                if (pendingReg) {
+                                    firstName = JSON.parse(pendingReg)?.firstName;
+                                }
+                            } catch(e) { console.error('Error reading pending registration:', e); }
+                        }
+                        if (!firstName) firstName = 'Welcome';
+                        
+                        showCongratulationsModal(firstName);
+                        setTimeout(() => {
+                            showProfileWizard();
+                        }, 2800);
+                    } else {
+                        showProfileWizard();
                     }
-                    showProfileWizard();
                 } else {
                     if (isEmailVerified) {
                         showToast('✅ Email verified successfully!', 'green');
@@ -16035,7 +16148,15 @@ function getUserFriendlyError(error) {
     return errorStr || 'An unexpected error occurred';
 }
 
-window.openCredsModal  = () => { $('credsModal').style.display='flex'; };
+window.openCredsModal  = () => { 
+    // Hide credentials modal in production
+    if (location.hostname === 'famledgerai.com' || location.hostname.includes('vercel.app')) {
+        console.warn('⚠️ Credentials configuration is disabled in production');
+        showToast('Configuration is managed via environment variables in production', 'yellow');
+        return;
+    }
+    $('credsModal').style.display='flex'; 
+};
 window.closeCredsModal = () => { $('credsModal').style.display='none'; };
 window.saveCredsAndReload = () => {
     const url = $('cfg-url').value.trim();
@@ -16120,15 +16241,12 @@ window.onload = () => {
                 }).finally(() => { isLoadingSession = false; });
             }
         } else if(event==='SIGNED_OUT') {
-            // Reset userData to empty on sign out
-            userData = { profile:{}, income:{ husband:0, wife:0, rental:0, rentalActive:false }, expenses:{ monthly:[], periodic:[], byMember:{}, byMonth:{} }, investments:{ mutualFunds:[], stocks:[], fd:[], ppf:[] }, loans:[], insurance:{ term:[], health:[], vehicle:[] }, schemes:[], bankAccounts:[], liquidSavings:0, termCover:0 };
+            // Reset all user state on sign out
+            resetUserState(null);
             currentUserEmail = '';
-            // Phase 1.6: Reset household context
-            householdId = null;
-            memberId = null;
-            memberMap = {};
             
-            // Clear localStorage to prevent data leaks between users
+            showAuth();
+        }
             localStorage.removeItem('onboarding_completed');
             localStorage.removeItem('pending_registration_data');
             localStorage.removeItem('savedCalculations');
@@ -16155,8 +16273,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
     // Show install button/banner if you want
     console.log('PWA install prompt available');
 });
-
-} // End of initializeApp()
 
 </script>
 </body>
