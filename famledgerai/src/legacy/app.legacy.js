@@ -7893,14 +7893,10 @@ window.completeProfileWizard = async () => {
         
         // Build investments (dashboard uses 'name' and 'value')
         const investments = {
-            byMember: {
-                self: {
-                    mutualFunds: mfValue > 0 ? [{ id: 'mf-'+Date.now(), name: 'Mutual Funds', value: mfValue }] : [],
-                    stocks: stocksValue > 0 ? [{ id: 'st-'+Date.now(), name: 'Stocks Portfolio', value: stocksValue }] : [],
-                    fd: fdValue > 0 ? [{ id: 'fd-'+Date.now(), name: 'Fixed Deposit', value: fdValue, rate: 7 }] : [],
-                    ppf: ppfValue > 0 ? [{ id: 'ppf-'+Date.now(), name: 'PPF/EPF', value: ppfValue }] : []
-                }
-            }
+            mutualFunds: mfValue > 0 ? [{ name: 'Mutual Funds', value: mfValue }] : [],
+            stocks: stocksValue > 0 ? [{ name: 'Stocks Portfolio', value: stocksValue }] : [],
+            fd: fdValue > 0 ? [{ name: 'Fixed Deposit', value: fdValue, rate: 7, tenure: 12 }] : [],
+            ppf: ppfValue > 0 ? [{ name: 'PPF/EPF', value: ppfValue }] : []
         };
         
         // Build complete userData
@@ -12849,8 +12845,10 @@ function renderSettings() {
         let countryCode = '+91';
         let phoneNumber = '';
         if (existingWhatsApp) {
-            // Try known country codes (longer codes first to avoid +1 matching +91)
-            const knownCodes = ['+971','+65','+86','+81','+82','+49','+33','+39','+34','+44','+61','+91','+7','+1'];
+            // Try longer country codes first to avoid +1 matching +91/+971 etc.
+            const knownCodes = ['+971','+972','+974','+965','+966','+968','+973',
+                '+65','+64','+61','+44','+49','+33','+39','+34','+81','+82',
+                '+86','+91','+92','+93','+94','+95','+7','+1'];
             let matched = false;
             for (const code of knownCodes) {
                 if (existingWhatsApp.startsWith(code)) {
