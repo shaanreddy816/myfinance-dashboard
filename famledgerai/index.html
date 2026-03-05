@@ -9731,18 +9731,13 @@ function populateProfileSelector() {
     const members = userData.profile.familyMembers || [];
     const name = userData.profile.name || 'Me';
     sel.innerHTML = '<option value="all">👨‍👩‍👧‍👦 All (Master)</option>';
-    if(members.length > 0) {
-        members.forEach(m => {
-            const icon = m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : '👶';
-            sel.innerHTML += `<option value="${m.id}">${icon} ${m.name}</option>`;
-        });
-    } else {
-        sel.innerHTML += `<option value="self">👤 ${name}</option>`;
-        if(userData.profile.spouseName) sel.innerHTML += `<option value="spouse">💑 ${userData.profile.spouseName}</option>`;
-        (userData.profile.kids||[]).forEach((k,i) => {
-            sel.innerHTML += `<option value="kid-${i+1}">👶 ${k}</option>`;
-        });
-    }
+    
+    // Always show all members from familyMembers array
+    members.forEach(m => {
+        const icon = m.role==='self' ? '👤' : m.role==='spouse' ? '💑' : '👶';
+        sel.innerHTML += `<option value="${m.id}">${icon} ${m.name}</option>`;
+    });
+    
     sel.value = currentProfile;
 }
 function showAuth() { $('landing').style.display='block'; $('auth').style.display='none'; $('app').style.display='none'; document.getElementById('modern-registration').style.display='none'; document.getElementById('classic-auth').style.display='block'; document.getElementById('verification-screen').style.display='none'; document.getElementById('profile-wizard').style.display='none'; clearTimeout(inactivityTimer); window.scrollTo(0,0); }
@@ -15384,7 +15379,7 @@ function renderSettings() {
                     ];
                     return fields.map(f => `
                         <label style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:10px 0 5px;">${f.label}</label>
-                        <input id="fa-${f.key}" type="number" class="ainp" value="${fa[f.key]}" min="0" max="30" step="0.5" onchange="updateForecastAssumption('${f.key}', this.value)">
+                        <input id="fa-${f.key}" type="number" class="ainp" value="${Math.round(fa[f.key] * 100) / 100}" min="0" max="30" step="0.5" onchange="updateForecastAssumption('${f.key}', this.value)">
                         <p style="font-size:11px; color:var(--text3); margin-top:2px; margin-bottom:6px;">💡 ${f.hint}</p>
                     `).join('');
                 })()}
@@ -15564,6 +15559,18 @@ window.saveProfile = async () => {
                 whatsapp_number: userData.profile.whatsapp_number
             }
         });
+        
+        // Update user_profiles table with phone number and liquid savings
+        if (householdId && memberId) {
+            await sb.from('user_profiles')
+                .update({ 
+                    phone: userData.profile.whatsapp_number,
+                    display_name: userData.profile.name,
+                    cash_savings: userData.liquidSavings
+                })
+                .eq('auth_uid', session.user.id);
+        }
+        
         await saveUserData(session.user.email);
         populateProfileSelector();
         showToast('Profile saved successfully!');
