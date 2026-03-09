@@ -1,0 +1,359 @@
+[33mcommit a3f63e1b69c79b9c1116ea939775ad3e86bf2a22[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Thu Mar 5 12:43:31 2026 -0600
+
+    Fix: Clean supabaseClient.js and move manifest.json to public/
+    
+    - Simplified supabaseClient.js to use import.meta.env correctly
+    - Moved manifest.json to public/ directory (fixes 401 errors)
+    - Build passes: 1.61s
+
+[33mcommit 7e1fd2f1279c125a9160b9da2562f5ed372260dd[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Thu Mar 5 12:35:19 2026 -0600
+
+    Fix SUPABASE_URL undefined error in production
+    
+    - Changed supabaseClient.js to use import.meta.env.VITE_SUPABASE_URL
+    - Exposed SUPABASE_URL and SUPABASE_ANON_KEY as window globals
+    - app.legacy.js checkSession() now has access to SUPABASE_URL
+    - Removed CDN import, using npm package instead
+    - Build passes: 2.47s
+    
+    Fixes: ReferenceError: SUPABASE_URL is not defined
+
+[33mcommit 0706fe9c74eb555b47f6bfbbc3edfb60b956fc86[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Thu Mar 5 11:40:11 2026 -0600
+
+    URGENT FIX: Move CSS to public/ and remove raw CSS from HTML
+    
+    - Moved CSS files from styles/ to public/styles/ (Vite production requirement)
+    - Removed 57,471 chars of raw CSS text that was rendering in body
+    - CSS files are now served correctly from /styles/ path
+    - Build passes: 1.58s
+    - index.html: 154KB → 97KB (37% reduction)
+    
+    Fixes: Production page showing raw CSS as text
+
+[33mcommit f912e312f90537ae5b3c43b91403140e449542cf[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Thu Mar 5 11:15:49 2026 -0600
+
+    Quick stability fix: extract CSS and JS from index.html (15k→2.4k lines)
+    
+    - STEP 1: Extracted 58,497 chars of CSS into 3 files (base, components, dashboard)
+    - STEP 2: Extracted 13,873 lines of JS into src/legacy/app.legacy.js
+    - Result: index.html reduced from 15,381 to 2,407 lines (84% reduction)
+    - Build passing: npm run build succeeds in 2.25s
+    - Zero behavior changes: all functions, IDs, classes unchanged
+    - Rollback available: legacy/index.legacy.html
+    
+    Fixes: Vite build stability issues with large inline code
+    Ready for: Production deployment
+
+[33mcommit adfa60af619c587469e489e7570775190c667987[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Thu Mar 5 10:26:00 2026 -0600
+
+    Fix syntax error in SIGNED_OUT handler - remove duplicate showAuth() call
+
+[33mcommit a10e3b7b897492b2c6a30c5636bba35450db2477[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Thu Mar 5 09:49:57 2026 -0600
+
+    Production hardening: idempotent DB function + namespaced storage + security fixes
+    
+    HARDENED FIXES:
+    - Email verification: Always show congratulations modal (fallback to 'Welcome')
+    - Namespaced storage: All user data uses fam:user:{uid}:{key} format
+    - Data guard: Strengthened validation with security logging
+    - Production security: Hidden Supabase config UI in production
+    - Database function: Made idempotent with ON CONFLICT clauses
+    - Permissions: Restricted function to authenticated users only
+    
+    SECURITY:
+    - No secrets in code
+    - Credential UI disabled on famledgerai.com
+    - Data ownership validation prevents leaks
+    - Proper error handling and logging
+    
+    BACKWARD COMPATIBLE:
+    - Legacy localStorage keys still cleared
+    - Existing users unaffected
+    - No breaking API changes
+
+[33mcommit 75f3cc7e6d88f858cb01464c391ddd6b7b2e4fe8[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Wed Mar 4 16:56:41 2026 -0600
+
+    Fix email verification redirect with query param and strengthen stale data detection
+
+[33mcommit 2486e1e08ca59a57ad7f9171e015e792c50793ae[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Wed Mar 4 16:00:26 2026 -0600
+
+    Fix email verification redirect - show profile wizard directly after verification
+
+[33mcommit 1b0f384ed8d3adb40390dc20ee0a19bacc37eb68[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Wed Mar 4 15:40:05 2026 -0600
+
+    Fix 6 critical dashboard bugs: spouse dashboard, WhatsApp, session persistence, Zerodha OAuth, loan/insurance PDF parsing
+
+[33mcommit a56cfee1ab2b163fb718570f1d674d77ba5f88ca[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Wed Mar 4 12:56:26 2026 -0600
+
+    fix: clear localStorage on logout to prevent data leaks between users
+
+[33mcommit 3cfc39e4787b31935ef85583136504b522034ed8[m[33m ([m[1;33mtag: [m[1;33mbackup-main-20260304[m[33m, [m[1;31morigin/migrate-modular-arch[m[33m, [m[1;31morigin/feature/stress-testing-layer[m[33m, [m[1;32mmigrate-modular-arch[m[33m, [m[1;32mfeature/stress-testing-layer[m[33m)[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 19:22:57 2026 -0600
+
+    "Fix Vercel deployment: serve assets correctly and add module loading timeout"
+    
+    "Fix Vercel deployment: serve assets correctly and add module loading timeout"
+
+[33mcommit f0758fd058f04335039bc3d23886b65d25f2a733[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 17:56:52 2026 -0600
+
+    fix: Wait for modules to load before initializing app
+
+[33mcommit 9627aea74940e956b56f8e5201d93c9b76704d3b[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 17:30:58 2026 -0600
+
+    refactor(phase1): Set up Vite dev server with module imports
+
+[33mcommit 2e11d7be237a074632dae36c0ce4ef612eaba625[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 17:20:36 2026 -0600
+
+    refactor(phase1): Extract Supabase client module with 6 passing tests
+
+[33mcommit 358099d122dff557c9f099a5f2132887ce49803a[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 17:16:03 2026 -0600
+
+    refactor(phase1): Extract stress engine with 38 passing tests
+
+[33mcommit 2ae7569a390545394d696754a57bbc2121f84d2b[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 17:08:07 2026 -0600
+
+    refactor(phase1): Extract risk engine with 37 passing tests
+
+[33mcommit a8adbb0fb501827cc552bc7e9c7b349dc8b358fb[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 17:04:03 2026 -0600
+
+    refactor(phase1): Extract forecast engine with 34 passing tests
+    
+    - Created src/engines/forecastEngine.js with pure functions
+    - Added comprehensive test suite (34 tests, 100% pass rate)
+    - Set up Vite + Vitest infrastructure
+    - Configured ESLint + Prettier
+    - Tests cover: projections, trajectories, goal gaps, edge cases
+
+[33mcommit bc1a7807bbf2125b2bea0fcd2210611d2c8d02a7[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 16:49:54 2026 -0600
+
+    fix: Remove string IDs from income rows, use delete+insert instead of upsert
+
+[33mcommit 20b134cc84fb598354c28b2a0db256737f5a038d[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 15:56:46 2026 -0600
+
+    fix: Add emailRedirectTo for correct email verification redirect and improve profile wizard logging
+
+[33mcommit 2235c3d1bffd986e0d5aefaa081af1089c4eb034[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 13:47:46 2026 -0600
+
+    feat: add Household Stress Testing Layer (Phase 1.5) - 9 scenarios, 4 categories, before/after comparison UI
+
+[33mcommit ae9e2d5190503a02ed4ccd4f7fdd2de1d040f0e0[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 12:57:00 2026 -0600
+
+    feat: 15-year forecast engine + financial risk layer + per-member portfolio zerodha
+
+[33mcommit 6c0bb7610b09e85b7fe1c3a5b995e0b45501092c[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 08:36:40 2026 -0500
+
+    Fix stale data on re-registration: store auth UID in user_data, detect UID mismatch when user is deleted and re-created with same email, force clean state + wizard for new auth users
+
+[33mcommit 8bc94e4049c60a158314b7b36617c23895f1c7e6[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Tue Mar 3 08:25:19 2026 -0500
+
+    Fix stale data leak to new users: add mutex for checkSession/onAuthStateChange race, verify data ownership via auth metadata, reset from auth metadata in wizard, remove SBI mock data
+
+[33mcommit bc9fb6e90d040146d7f7e539f4918d1da2fd68d8[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 22:30:00 2026 -0500
+
+    Redesign NRI planning section: interactive tabbed showcase with auto-rotate, rich data viz cards, animated bars/donuts/gauges, mobile responsive
+
+[33mcommit c99eaba856e08114c7edb9fcd219097925c46e4c[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 22:17:03 2026 -0500
+
+    fix: prevent stale data leaking to new users, add _wizardCompleted flag
+    
+    - Reset userData to clean state in loadUserData else branch (new user)
+    - Reset userData in showProfileWizard (keep only name/phone from auth)
+    - Add _wizardCompleted flag set only when wizard is actually completed
+    - All 3 profile checks (checkSession, doLogin, onAuthStateChange) now require _wizardCompleted
+    - This prevents stale data from previous users being saved under new user's email
+    - New users will always see the profile wizard until they complete it
+
+[33mcommit d0ca955fa525d76531364e88b9657ebc0a1d8994[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 18:42:15 2026 -0500
+
+    fix: data format mismatches between wizard and dashboard, dynamic loan entries in registration
+    
+    - Expenses: use 'label' instead of 'n' to match dashboard rendering
+    - Investments: use 'value' instead of 'currentValue/principal/balance'
+    - Loans: use 'label' instead of 'name', add proper id fields
+    - WhatsApp: store phone as whatsapp_number, fix settings parsing regex
+    - Liabilities: replace fixed fields with dynamic loan entries (name, type, outstanding, EMI, rate)
+    - Users can now add multiple home loans or any loan type during registration
+
+[33mcommit 92e699c4d55810a45dfe578591c4fe6e3b079c17[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 18:00:53 2026 -0500
+
+    fix: keep showAuth as module-scoped function AND expose on window - fixes loading screen stuck
+
+[33mcommit 361500eb7acfdb26b69b39452c1b588f86656ce8[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 17:56:48 2026 -0500
+
+    fix: expose showAuth on window so Back to home button works from module scope
+
+[33mcommit 1f6d16304e71fef98d7ad88c2e624222f05de905[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 17:51:21 2026 -0500
+
+    Redesign registration & onboarding: 2-step flow with profile wizard
+    
+    - Step 1: Lightweight registration (name, email, phone, password) -> email verification
+    - Step 2: Profile wizard (personal, family, income, expenses, assets, liabilities, goals)
+    - All wizard data maps to dashboard sections for AI Advisor, NRI Planner, Autopilot
+    - Fixed Back to home button not working from registration screen
+    - Removed legacy doReg, OnboardingWizard, and all onboarding code (~2700 lines removed)
+    - Auth state listener and checkSession redirect incomplete profiles to wizard
+
+[33mcommit 3b672195ffc8d5d523884ced234f1221c02dc8f3[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 16:40:48 2026 -0500
+
+    Fix: save registration data to localStorage when email not confirmed
+    
+    When email verification is required, there's no Supabase session so
+    saveUserData silently fails. Now:
+    - Registration data always backed up to localStorage
+    - If no session after signUp, show email verification message instead of dashboard
+    - On first login after verification, restore data from localStorage to Supabase
+    - Same recovery in checkSession for returning users
+    - Pre-fills login email after registration for convenience
+
+[33mcommit dd8e2395a156aaf2af4c0a2f4a6df6445fdde6c8[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 16:31:38 2026 -0500
+
+    Fix: clear userData on logout, prevent stale data leaking to next user
+    
+    - doLogout now resets global userData to empty before signing out
+    - onAuthStateChange SIGNED_OUT also resets userData and currentUserEmail
+    - onAuthStateChange SIGNED_IN only reloads if different user or no profile
+    - Added logging to onAuthStateChange for debugging
+
+[33mcommit a7ee037191c7b2f31ef652fea66ad8b11c5f65d2[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 16:25:21 2026 -0500
+
+    Fix: race condition - onAuthStateChange was overwriting new user data
+    
+    Root cause: When doReg() calls signUp(), Supabase fires onAuthStateChange
+    SIGNED_IN event immediately. This triggered loadUserData() BEFORE doReg
+    had a chance to saveUserData() with the new user's data. So loadUserData
+    would fetch stale/other data and overwrite the registration data.
+    
+    Fix: Added isRegistering flag that blocks onAuthStateChange during the
+    registration flow. Cleared on all exit paths (success, error, validation).
+
+[33mcommit 888cdfb40ea6abc13d381b38b3753c39bafab227[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 16:17:29 2026 -0500
+
+    CRITICAL: Remove hardcoded SBI loan and Tata AIA insurance seeds from loadUserData
+    
+    These blocks were injecting one user's personal financial data (SBI Home Loan,
+    Tata AIA policies with real policy numbers and nominee names) into EVERY user
+    account on first load. Your data is safe - already saved in your Supabase row.
+    New users will now start with a clean slate.
+
+[33mcommit 7d0aaf26ff48c4c54822794d28b79c764d7a89be[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 16:15:13 2026 -0500
+
+    Add debug logging to showApp and renderOverview to diagnose data visibility issue
+
+[33mcommit be73ed6e13e406d1de2094492cf1af2cc6a1a89c[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 16:13:09 2026 -0500
+
+    Fix: recover profile from auth metadata when user_data is empty
+    
+    If profile.name is missing in Supabase user_data (wiped by old onboarding bug),
+    recover name/age/occupation/goals/risk from auth user_metadata where doReg
+    stored it during signUp. Also recover when no user_data row exists at all.
+
+[33mcommit 3fac406629e9e01768b851a751cadacbd9712c92[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 16:05:11 2026 -0500
+
+    Fix: skip onboarding after registration, go straight to app
+    
+    Root cause: onboarding wizard was overwriting registration data with empty
+    form fields, and if no session existed (email verification), data only went
+    to localStorage not Supabase.
+    
+    Fix: Registration already collects name, age, occupation, income range,
+    spouse, kids, goals, risk - skip onboarding entirely and go to app.
+    Added safety checks to mark onboarding complete when profile data exists.
+    Added debug logging to loadUserData/saveUserData for troubleshooting.
+
+[33mcommit 19f7c7b1a4d58e2c3125d6a7899eb3d63eb632ae[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 16:00:18 2026 -0500
+
+    Fix: registration data not showing after sign-in
+    
+    - Fixed completeOnboarding() shadowing global userData with local const
+    - Global userData now properly updated after onboarding saves to Supabase
+    - collectOnboardingData() now collects kids, whatsapp_number, liquid_savings
+    - Expenses now saved to byMonth structure (not just monthly array)
+    - Liabilities from onboarding now converted to loans
+    - Fixed renderOverview empty state check (name OR age, not just age)
+    - Removed unnecessary location.reload() from syncPendingOnboardingData
+    - Assets (FD, retirement) now saved as investments during onboarding
+
+[33mcommit ff579553cdaa4f89ad1f48ceefcb3454c2ca3fdf[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 15:18:49 2026 -0500
+
+    Fix premium for family floater: sum Total Premium (E-F) across all members; fix nominee extraction from Nominee Name field
+
+[33mcommit a2216a97dd9b7602eccb8d1151548c38cc9388d7[m
+Author: shaanreddy816 <shanthanreddy5000@gmail.com>
+Date:   Mon Mar 2 15:04:49 2026 -0500
+
+    PocketGuard-inspired landing page redesign - alternating problem/solution sections, testimonials, clean stats, scroll reveals, progress bars

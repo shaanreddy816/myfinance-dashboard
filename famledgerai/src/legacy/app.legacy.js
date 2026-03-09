@@ -7188,24 +7188,9 @@ async function checkSession() {
             // For backward compatibility: if user has age+occupation, they completed the old onboarding
             const profileComplete = userData.profile?._wizardCompleted || (userData.profile?.age && userData.profile?.occupation);
             if (!profileComplete) {
-                // Show congratulations modal if email was just verified
+                // Show goal selection screen if email was just verified
                 if (isEmailVerified) {
-                    // Get first name from multiple sources
-                    let firstName = userData?.profile?.firstName;
-                    if (!firstName) {
-                        try {
-                            const pendingReg = localStorage.getItem('pending_registration_data');
-                            if (pendingReg) {
-                                firstName = JSON.parse(pendingReg)?.firstName;
-                            }
-                        } catch(e) { console.error('Error reading pending registration:', e); }
-                    }
-                    if (!firstName) firstName = 'Welcome';
-                    
-                    showCongratulationsModal(firstName);
-                    setTimeout(() => {
-                        showProfileWizard();
-                    }, 2800);
+                    showGoalSelectionScreen();
                 } else {
                     showProfileWizard();
                 }
@@ -7230,22 +7215,7 @@ async function checkSession() {
                 const profileComplete = userData.profile?._wizardCompleted || (userData.profile?.age && userData.profile?.occupation);
                 if (!profileComplete) {
                     if (isEmailVerified) {
-                        // Get first name from multiple sources
-                        let firstName = userData?.profile?.firstName;
-                        if (!firstName) {
-                            try {
-                                const pendingReg = localStorage.getItem('pending_registration_data');
-                                if (pendingReg) {
-                                    firstName = JSON.parse(pendingReg)?.firstName;
-                                }
-                            } catch(e) { console.error('Error reading pending registration:', e); }
-                        }
-                        if (!firstName) firstName = 'Welcome';
-                        
-                        showCongratulationsModal(firstName);
-                        setTimeout(() => {
-                            showProfileWizard();
-                        }, 2800);
+                        showGoalSelectionScreen();
                     } else {
                         showProfileWizard();
                     }
@@ -7274,6 +7244,7 @@ function showApp() {
     console.log('showApp called. userData.profile.name:', userData.profile?.name, 'currentUserEmail:', currentUserEmail);
     $('landing').style.display='none'; $('auth').style.display='none'; $('app').style.display='block';
     document.getElementById('verification-screen').style.display='none';
+    document.getElementById('goal-selection-screen').style.display='none';
     document.getElementById('profile-wizard').style.display='none';
     $('monthPicker').value = currentMonth;
     populateProfileSelector();
@@ -7300,7 +7271,7 @@ function populateProfileSelector() {
     }
     sel.value = currentProfile;
 }
-function showAuth() { $('landing').style.display='block'; $('auth').style.display='none'; $('app').style.display='none'; document.getElementById('modern-registration').style.display='none'; document.getElementById('classic-auth').style.display='block'; document.getElementById('verification-screen').style.display='none'; document.getElementById('profile-wizard').style.display='none'; clearTimeout(inactivityTimer); window.scrollTo(0,0); }
+function showAuth() { $('landing').style.display='block'; $('auth').style.display='none'; $('app').style.display='none'; document.getElementById('modern-registration').style.display='none'; document.getElementById('classic-auth').style.display='block'; document.getElementById('verification-screen').style.display='none'; document.getElementById('goal-selection-screen').style.display='none'; document.getElementById('profile-wizard').style.display='none'; clearTimeout(inactivityTimer); window.scrollTo(0,0); }
 window.showAuth = showAuth;
 
 // ========== LANDING PAGE ANIMATION ENGINE ==========
@@ -7651,8 +7622,88 @@ window.showVerificationScreen = (email) => {
     $('auth').style.display = 'none';
     $('app').style.display = 'none';
     document.getElementById('profile-wizard').style.display = 'none';
+    document.getElementById('goal-selection-screen').style.display = 'none';
     document.getElementById('verification-screen').style.display = 'block';
     window.scrollTo(0, 0);
+};
+
+// Resend verification email
+window.resendVerificationEmail = async () => {
+    const btn = document.getElementById('resend-verification-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+    
+    try {
+        const emailDisplay = document.getElementById('verification-email-display').textContent;
+        const { error } = await sb.auth.resend({
+            type: 'signup',
+            email: emailDisplay,
+            options: {
+                emailRedirectTo: `${window.location.origin}/?verified=true`
+            }
+        });
+        
+        if (error) {
+            showToast('❌ Failed to resend email. Please try again.', 'red');
+            btn.textContent = originalText;
+            btn.disabled = false;
+        } else {
+            showToast('✅ Verification email sent!', 'green');
+            btn.textContent = '✓ Email Sent';
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }, 3000);
+        }
+    } catch(e) {
+        console.error('Resend email error:', e);
+        showToast('❌ Network error. Please try again.', 'red');
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+};
+
+// Show goal selection screen after email verification
+window.showGoalSelectionScreen = () => {
+    $('landing').style.display = 'none';
+    $('auth').style.display = 'none';
+    $('app').style.display = 'none';
+    document.getElementById('verification-screen').style.display = 'none';
+    document.getElementById('profile-wizard').style.display = 'none';
+    document.getElementById('goal-selection-screen').style.display = 'block';
+    window.scrollTo(0, 0);
+    
+    // Setup goal selection click handlers
+    document.querySelectorAll('.onboarding-goal-option').forEach(el => {
+        el.addEventListener('click', function() {
+            this.classList.toggle('selected');
+            if (this.classList.contains('selected')) {
+                this.style.background = 'var(--accent)';
+                this.style.borderColor = 'var(--accent)';
+            } else {
+                this.style.background = 'var(--bg3)';
+                this.style.borderColor = 'var(--border)';
+            }
+        });
+    });
+};
+
+// Continue from goal selection to profile wizard
+window.continueFromGoalSelection = () => {
+    const selectedGoals = [...document.querySelectorAll('.onboarding-goal-option.selected')]
+        .map(el => el.dataset.goal);
+    
+    if (selectedGoals.length === 0) {
+        showToast('⚠️ Please select at least one goal', 'orange');
+        return;
+    }
+    
+    // Store goals in localStorage
+    localStorage.setItem('onboarding_goals', JSON.stringify(selectedGoals));
+    
+    // Show profile wizard
+    showProfileWizard();
 };
 
 // Show profile wizard
@@ -7661,6 +7712,7 @@ window.showProfileWizard = async () => {
     $('auth').style.display = 'none';
     $('app').style.display = 'none';
     document.getElementById('verification-screen').style.display = 'none';
+    document.getElementById('goal-selection-screen').style.display = 'none';
     document.getElementById('profile-wizard').style.display = 'block';
     window.scrollTo(0, 0);
     
@@ -7839,6 +7891,18 @@ window.completeProfileWizard = async () => {
     const goals = [...document.querySelectorAll('#wiz-goals .goal-option.selected')].map(el => el.dataset.goal);
     const risk = document.querySelector('#wiz-risk .risk-option.selected')?.dataset?.risk || 'moderate';
     
+    // Merge with onboarding goals from goal selection screen
+    let onboardingGoals = [];
+    try {
+        const stored = localStorage.getItem('onboarding_goals');
+        if (stored) {
+            onboardingGoals = JSON.parse(stored);
+        }
+    } catch(e) { console.error('Error reading onboarding goals:', e); }
+    
+    // Combine both goal sets (remove duplicates)
+    const allGoals = [...new Set([...onboardingGoals, ...goals])];
+    
     // Validation
     if (!age || age < 18) { showToast('❌ Please enter your age (18+)', 'red'); return; }
     if (!occupation) { showToast('❌ Please select your occupation', 'red'); return; }
@@ -7893,10 +7957,14 @@ window.completeProfileWizard = async () => {
         
         // Build investments (dashboard uses 'name' and 'value')
         const investments = {
-            mutualFunds: mfValue > 0 ? [{ name: 'Mutual Funds', value: mfValue }] : [],
-            stocks: stocksValue > 0 ? [{ name: 'Stocks Portfolio', value: stocksValue }] : [],
-            fd: fdValue > 0 ? [{ name: 'Fixed Deposit', value: fdValue, rate: 7, tenure: 12 }] : [],
-            ppf: ppfValue > 0 ? [{ name: 'PPF/EPF', value: ppfValue }] : []
+            byMember: {
+                self: {
+                    mutualFunds: mfValue > 0 ? [{ id: 'mf-'+Date.now(), name: 'Mutual Funds', value: mfValue }] : [],
+                    stocks: stocksValue > 0 ? [{ id: 'st-'+(Date.now()+1), name: 'Stocks Portfolio', value: stocksValue }] : [],
+                    fd: fdValue > 0 ? [{ id: 'fd-'+(Date.now()+2), name: 'Fixed Deposit', value: fdValue, rate: 7 }] : [],
+                    ppf: ppfValue > 0 ? [{ id: 'ppf-'+(Date.now()+3), name: 'PPF/EPF', value: ppfValue }] : []
+                }
+            }
         };
         
         // Build complete userData
@@ -7914,7 +7982,7 @@ window.completeProfileWizard = async () => {
                 age, gender, occupation, city,
                 maritalStatus: marital, spouseName,
                 kids, familyMembers,
-                goals, risk, incomeRange,
+                goals: allGoals, risk, incomeRange,
                 realEstateValue, goldValue,
                 liquidSavings: cashValue,
                 _expenseMigrationV1: true,
@@ -7959,6 +8027,7 @@ window.completeProfileWizard = async () => {
         // Mark onboarding complete
         localStorage.setItem('onboarding_completed', 'true');
         localStorage.removeItem('pending_registration_data');
+        localStorage.removeItem('onboarding_goals');
         
         // Invalidate cache and show app
         computeCache.invalidate();
