@@ -180,13 +180,13 @@
   - Fix any type errors introduced by the changes
   - _Requirements: all_
 
-- [-] 7. Git commit and deploy
+- [x] 7. Git commit and deploy
   - Stage all changed files
   - Commit with message: "fix: insurance module — premium pipeline, grade colors, schedule of benefits"
   - Deploy to Vercel (or user's deployment target)
   - _Requirements: all_
 
-- [~] 8. Checkpoint — Ensure all tests pass
+- [x] 8. Checkpoint — Ensure all tests pass
   - Ensure all exploration tests (task 1) now pass after fixes
   - Ensure all preservation tests (task 2) still pass after fixes
   - Ensure TypeScript check passes (task 6)
